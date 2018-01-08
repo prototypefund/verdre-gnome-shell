@@ -155,6 +155,10 @@ var LoginManagerSystemd = new Lang.Class({
             }));
     },
 
+    getCurrentSession: function() {
+        return this._currentSession;
+    },
+
     canSuspend: function(asyncCallback) {
         this._proxy.CanSuspendRemote(function(result, error) {
             if (error) {
