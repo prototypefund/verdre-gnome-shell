@@ -46,8 +46,15 @@ const SystemdLoginSessionIface = '<node> \
 </interface> \
 </node>';
 
+const SystemdLoginUserIface = '<node> \
+<interface name="org.freedesktop.login1.User"> \
+<property name="Display" type="(so)" access="read" /> \
+</interface> \
+</node>';
+
 const SystemdLoginManager = Gio.DBusProxy.makeProxyWrapper(SystemdLoginManagerIface);
 const SystemdLoginSession = Gio.DBusProxy.makeProxyWrapper(SystemdLoginSessionIface);
+const SystemdLoginUser = Gio.DBusProxy.makeProxyWrapper(SystemdLoginUserIface);
 
 function haveSystemd() {
     return GLib.access("/run/systemd/seats", 0) >= 0;
@@ -109,6 +116,9 @@ var LoginManagerSystemd = new Lang.Class({
         this._proxy = new SystemdLoginManager(Gio.DBus.system,
                                               'org.freedesktop.login1',
                                               '/org/freedesktop/login1');
+        this._userProxy = new SystemdLoginUser(Gio.DBus.system,
+                                               'org.freedesktop.login1',
+                                               '/org/freedesktop/login1/user/self');
         this._proxy.connectSignal('PrepareForSleep',
                                   Lang.bind(this, this._prepareForSleep));
     },
@@ -121,8 +131,15 @@ var LoginManagerSystemd = new Lang.Class({
 
         let sessionId = GLib.getenv('XDG_SESSION_ID');
         if (!sessionId) {
-            log('Unset XDG_SESSION_ID, getCurrentSessionProxy() called outside a user session.');
-            return;
+            log('Unset XDG_SESSION_ID, getCurrentSessionProxy() called outside a user session. Asking logind directly.');
+            let [session, session_object_path] = this._userProxy.Display;
+            if (session) {
+                    log('Will monitor session ' + session);
+                    sessionId = session;
+            } else {
+                    log('Failed to get session from logind.');
+                    return;
+            }
         }
 
         this._proxy.GetSessionRemote(sessionId, Lang.bind(this,
