@@ -114,10 +114,11 @@ else
 endif
 
 if get_option('systemd')
-  systemd_dep = dependency('libsystemd')
-  have_systemd = systemd_dep.found()
+  libsystemd_dep = dependency('libsystemd')
+  systemd_dep = dependency('systemd')
+  have_systemd = libsystemd_dep.found()
 else
-  systemd_dep = []
+  libsystemd_dep = []
   have_systemd = false
 endif
 

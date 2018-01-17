@@ -1,0 +1,12 @@
+[Unit]
+Description=GNOME Shell
+Wants=gnome-session.service gnome-settings-daemon.target
+After=gnome-session.service gnome-settings-daemon.target graphical-session-pre.target
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=@bindir@/gnome-shell
+Restart=on-failure
+
+[Install]
+RequiredBy=gnome-session.target
