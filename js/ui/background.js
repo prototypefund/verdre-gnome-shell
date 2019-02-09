@@ -110,6 +110,12 @@ const COLOR_SHADING_TYPE_KEY = 'color-shading-type';
 const BACKGROUND_STYLE_KEY = 'picture-options';
 const PICTURE_URI_KEY = 'picture-uri';
 
+const LUMINANCE_DARK_THRESHOLD = 60;
+const LUMINANCE_BRIGHT_THRESHOLD = 140;
+const LUMINANCE_STD_NOISY_THRESHOLD = 28;
+const ACUTANCE_NOISY_THRESHOLD = 8;
+const ACUTANCE_STD_NOISY_THRESHOLD = 6;
+
 var FADE_ANIMATION_TIME = 1000;
 
 // These parameters affect how often we redraw.
@@ -305,6 +311,10 @@ var Background = GObject.registerClass({
         });
         GLib.Source.set_name_by_id(this._changedIdleId,
             '[gnome-shell] Background._emitChangedSignal');
+    }
+
+    isAnimated() {
+        return this._animation != null;
     }
 
     updateResolution() {
@@ -689,6 +699,48 @@ var BackgroundManager = class BackgroundManager {
             this.backgroundActor.destroy();
             this.backgroundActor = null;
         }
+    }
+
+    getCharacteristicsForArea(x, y, width, height, returnRawValues) {
+        let background = this._backgroundSource.getBackground(this._monitorIndex);
+        let metaBackground = background.background;
+
+        let areaIsNoisy, areaIsDark, areaIsBright;
+        areaIsNoisy = areaIsDark = areaIsBright = false;
+
+        // Always return false for animated backgrounds, we don't want to
+        // do those calculations on every animation frame.
+        if (background.isAnimated())
+            return [false];
+
+        let [retval, meanLuminance, luminanceVariance, meanAcutance, acutanceVariance] =
+            metaBackground.get_color_info(this._monitorIndex, x, y, width, height);
+
+        if (!retval)
+            return [false];
+
+        let luminanceStd = Math.sqrt(luminanceVariance);
+        let acutanceStd = Math.sqrt(acutanceVariance);
+
+        if (meanLuminance < LUMINANCE_DARK_THRESHOLD)
+            areaIsDark = true;
+        else if (meanLuminance > LUMINANCE_BRIGHT_THRESHOLD)
+            areaIsBright = true;
+
+        if (meanAcutance > ACUTANCE_NOISY_THRESHOLD ||
+            (meanAcutance * 4 > ACUTANCE_NOISY_THRESHOLD &&
+             acutanceStd > ACUTANCE_STD_NOISY_THRESHOLD) ||
+            luminanceStd > LUMINANCE_STD_NOISY_THRESHOLD ||
+            (areaIsDark &&
+             meanLuminance + luminanceStd > LUMINANCE_BRIGHT_THRESHOLD) ||
+            (areaIsBright &&
+             meanLuminance - luminanceStd < LUMINANCE_DARK_THRESHOLD))
+            areaIsNoisy = true;
+
+        if (returnRawValues)
+            return [true, areaIsNoisy, areaIsDark, areaIsBright, meanLuminance, luminanceStd, meanAcutance, acutanceStd];
+        else
+            return [true, areaIsNoisy, areaIsDark, areaIsBright];
     }
 
     _swapBackgroundActor() {
