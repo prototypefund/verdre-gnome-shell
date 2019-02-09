@@ -702,8 +702,7 @@ var BackgroundManager = class BackgroundManager {
     }
 
     getCharacteristicsForArea(x, y, width, height, returnRawValues) {
-        let background = this._backgroundSource.getBackground(this._monitorIndex);
-        let metaBackground = background.background;
+        const background = this._backgroundSource.getBackground(this._monitorIndex);
 
         let areaIsNoisy, areaIsDark, areaIsBright;
         areaIsNoisy = areaIsDark = areaIsBright = false;
@@ -714,7 +713,7 @@ var BackgroundManager = class BackgroundManager {
             return [false];
 
         let [retval, meanLuminance, luminanceVariance, meanAcutance, acutanceVariance] =
-            metaBackground.get_color_info(this._monitorIndex, x, y, width, height);
+            background.get_color_info(this._monitorIndex, x, y, width, height);
 
         if (!retval)
             return [false];

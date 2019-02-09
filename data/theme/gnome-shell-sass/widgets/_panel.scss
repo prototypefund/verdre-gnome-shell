@@ -8,22 +8,11 @@ $panel_height: 1.86em;
 
 
 #panel {
-  background-color: $panel_bg_color;
+  @include panel();
+  transition-duration: 300ms;
   font-weight: bold;
   height: $panel_height;
   font-feature-settings: "tnum";
-
-  // transparent panel on lock & login screens
-  &.unlock-screen,
-  &.login-screen {
-    background-color: transparent;
-
-    .panel-corner {
-      -panel-corner-radius: 0;
-      -panel-corner-background-color: transparent;
-      -panel-corner-border-color: transparent;
-    }
-  }
 
   // spacing between activities, app menu and such
   #panelLeft, #panelCenter {
@@ -32,30 +21,24 @@ $panel_height: 1.86em;
 
   // the rounded outset corners
   .panel-corner {
+    transition-duration: 300ms;
     -panel-corner-radius: $panel_corner_radius;
     -panel-corner-background-color: $panel_bg_color;
     -panel-corner-border-width: 2px;
     -panel-corner-border-color: transparent;
 
-    &:active, &:overview, &:focus {
+    &:active, &:focus {
       -panel-corner-border-color: lighten($selected_bg_color,5%);
     }
   }
 
   // panel menus
   .panel-button {
+    // Trick due to St limitations. It needs a background to draw a box-shadow
+    background-color: rgba(0, 0, 0, 0.01);
     font-weight: bold;
-    color: $panel_fg_color;
     -natural-hpadding: $base_padding * 2;
     -minimum-hpadding: $base_padding;
-
-    &:hover {
-      color: lighten($panel_fg_color, 20%);
-    }
-
-    &:active, &:overview, &:focus, &:checked {
-      color: lighten($panel_fg_color, 20%);
-    }
 
     // status area icons
     .system-status-icon {
@@ -69,21 +52,6 @@ $panel_height: 1.86em;
       margin-right: $base_margin;
       -st-icon-style: symbolic;
       // dimensions of the icon are hardcoded
-    }
-
-    // lock & login screen styles
-    .unlock-screen &,
-    .login-screen & {
-      color: lighten($fg_color, 10%);
-      &:focus, &:hover, &:active { color: lighten($fg_color, 10%); }
-    }
-  }
-
-  .panel-button {
-    &:active, &:overview, &:focus, &:checked {
-      // Trick due to St limitations. It needs a background to draw a box-shadow
-      background-color: rgba(0, 0, 0, 0.01);
-      box-shadow: inset 0 -2px 0 0 lighten($selected_bg_color,5%);
     }
   }
 
@@ -112,6 +80,31 @@ $panel_height: 1.86em;
   // indicator for active
   .screencast-indicator,
   .remote-access-indicator { color: $warning_color; }
+
+  &.background-dark { @include panel(dark); }
+  &.background-bright { @include panel(bright); }
+  &.background-noisy { @include panel(noisy); }
+  &.window-near { @include panel(window-near); }
+
+  &:overview {
+    @include panel(overview);
+
+    &.background-noisy {
+      @include panel(overview-noisy);
+    }
+  }
+
+  &.lock-screen, &.login-screen, &.unlock-screen {
+    @include panel(login-screen);
+
+    &.screen-shield {
+      @include panel(normal);
+
+      &.background-dark { @include panel(dark); }
+      &.background-bright { @include panel(bright); }
+      &.background-noisy { @include panel(noisy); }
+    }
+  }
 }
 
 // App Menu
