@@ -666,6 +666,10 @@ var UnlockDialog = GObject.registerClass({
         this._updateBackgroundEffects();
     }
 
+    getBgManagerForMonitor(monitor) {
+        return this._bgManagers[monitor.index];
+    }
+
     _ensureAuthPrompt() {
         if (this._authPrompt)
             return;
