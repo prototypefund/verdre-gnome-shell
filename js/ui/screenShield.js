@@ -327,6 +327,8 @@ var ScreenShield = class {
     }
 
     _hideLockScreenComplete() {
+        this.emit('shield-hidden');
+
         this._lockScreenState = MessageTray.State.HIDDEN;
         this._lockScreenGroup.hide();
 
@@ -430,6 +432,8 @@ var ScreenShield = class {
             this._lockDialogGroup.translation_y = 0;
             this._lockScreenShown({ fadeToBlack, animateFade: false });
         }
+
+        this.emit('shield-visible');
 
         this._dialog.grab_key_focus();
     }
