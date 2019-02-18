@@ -667,6 +667,7 @@ class MessagesIndicator extends St.Icon {
             visible: false,
             y_expand: true,
             y_align: Clutter.ActorAlign.CENTER,
+            style_class: 'messages-indicator-icon',
         });
 
         this._sources = [];
