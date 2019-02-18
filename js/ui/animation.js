@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported Animation, AnimatedIcon, Spinner */
 
-const { Clutter, GLib, GObject, Gio, St } = imports.gi;
+const { Clutter, Cogl, GLib, GObject, Gio, St } = imports.gi;
 
 const Params = imports.misc.params;
 
@@ -80,8 +80,64 @@ class Animation extends St.Bin {
         });
         this.set_child(this._animations);
 
+        this._colorEffect = new Clutter.ColorizeEffect();
+        this._animations.add_effect(this._colorEffect);
+
         if (wasPlaying)
             this.play();
+
+        this._shadowHelper = null;
+        this._shadowWidth = this._shadowHeight = 0;
+    }
+
+    vfunc_get_paint_volume(volume) {
+        if (!super.vfunc_get_paint_volume(volume))
+            return false;
+
+        if (!this._shadow)
+            return true;
+
+        let shadow_box = new Clutter.ActorBox();
+        this._shadow.get_box(this.get_allocation_box(), shadow_box);
+
+        volume.set_width(Math.max(shadow_box.x2 - shadow_box.x1, volume.get_width()));
+        volume.set_height(Math.max(shadow_box.y2 - shadow_box.y1, volume.get_height()));
+
+        return true;
+    }
+
+    vfunc_style_changed() {
+        let node = this.get_theme_node();
+        this._shadow = node.get_shadow('icon-shadow');
+        if (this._shadow)
+            this._shadowHelper = St.ShadowHelper.new(this._shadow);
+        else
+            this._shadowHelper = null;
+
+        super.vfunc_style_changed();
+
+        if (this._animations) {
+            let color = node.get_color('color');
+
+            this._colorEffect.set_tint(color);
+
+            // Clutter.ColorizeEffect does not affect opacity, so set it separately
+            this._animations.opacity = color.alpha;
+        }
+    }
+
+    vfunc_paint() {
+        if (this._shadowHelper) {
+            this._shadowHelper.update(this._animations);
+
+            let allocation = this._animations.get_allocation_box();
+            let paintOpacity = this._animations.get_paint_opacity();
+            let framebuffer = Cogl.get_draw_framebuffer();
+
+            this._shadowHelper.paint(framebuffer, allocation, paintOpacity);
+        }
+
+        this._animations.paint();
     }
 
     _showFrame(frame) {
@@ -94,6 +150,8 @@ class Animation extends St.Bin {
         let newFrameActor = this._animations.get_child_at_index(this._frame);
         if (newFrameActor)
             newFrameActor.show();
+
+        this.vfunc_style_changed();
     }
 
     _update() {
@@ -109,6 +167,8 @@ class Animation extends St.Bin {
 
         for (let i = 0; i < this._animations.get_n_children(); ++i)
             this._animations.get_child_at_index(i).set_size(width, height);
+
+        this.vfunc_style_changed();
     }
 
     _animationsLoaded() {
@@ -151,6 +211,7 @@ class Spinner extends AnimatedIcon {
         this._animate = params.animate;
         this._hideOnStop = params.hideOnStop;
         this.visible = !this._hideOnStop;
+        this.add_style_class_name('spinner');
     }
 
     _onDestroy() {

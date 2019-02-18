@@ -175,3 +175,8 @@ stage {
     @include button(active);
   }
 }
+
+.spinner {
+  color: white;
+  icon-shadow: none;
+}

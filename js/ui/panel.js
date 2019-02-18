@@ -242,6 +242,7 @@ var AppMenuButton = GObject.registerClass({
             animate: true,
             hideOnStop: true,
         });
+        this._spinner.set_style_class_name('app-menu-spinner');
         this._container.add_actor(this._spinner);
 
         let menu = new AppMenu(this);
