@@ -12,7 +12,6 @@ const PageIndicators = imports.ui.pageIndicators;
 const PopupMenu = imports.ui.popupMenu;
 const Tweener = imports.ui.tweener;
 
-var KEYBOARD_REST_TIME = Layout.KEYBOARD_ANIMATION_TIME * 2 * 1000;
 var KEY_LONG_PRESS_TIME = 250;
 var PANEL_SWITCH_ANIMATION_TIME = 0.5;
 var PANEL_SWITCH_RELATIVE_DISTANCE = 1 / 3; /* A third of the actor width */
@@ -1087,8 +1086,6 @@ var Keyboard = class Keyboard {
         Main.layoutManager.connect('keyboard-visible-changed', (o, visible) => {
             this._keyboardVisible = visible;
         });
-        this._keyboardRequested = false;
-        this._keyboardRestingId = 0;
 
         Main.layoutManager.connect('monitors-changed', this._relayout.bind(this));
     }
@@ -1528,19 +1525,11 @@ var Keyboard = class Keyboard {
                !!actor._extended_keys || !!actor.extended_key;
     }
 
-    _clearKeyboardRestTimer() {
-        if (!this._keyboardRestingId)
-            return;
-        GLib.source_remove(this._keyboardRestingId);
-        this._keyboardRestingId = 0;
-    }
-
     show(monitor) {
         if (!this._enabled)
             return;
 
         this._clearShowIdle();
-        this._keyboardRequested = true;
 
         if (this._keyboardVisible) {
             if (monitor != Main.layoutManager.keyboardIndex) {
@@ -1549,21 +1538,6 @@ var Keyboard = class Keyboard {
             }
             return;
         }
-
-        this._clearKeyboardRestTimer();
-        this._keyboardRestingId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-                                                   KEYBOARD_REST_TIME,
-                                                   () => {
-                                                       this._clearKeyboardRestTimer();
-                                                       this._show(monitor);
-                                                       return GLib.SOURCE_REMOVE;
-                                                   });
-        GLib.Source.set_name_by_id(this._keyboardRestingId, '[gnome-shell] this._clearKeyboardRestTimer');
-    }
-
-    _show(monitor) {
-        if (!this._keyboardRequested)
-            return;
 
         Main.layoutManager.keyboardIndex = monitor;
         this._relayout();
@@ -1578,28 +1552,9 @@ var Keyboard = class Keyboard {
     }
 
     hide() {
-        if (!this._enabled)
-            return;
-
         this._clearShowIdle();
-        this._keyboardRequested = false;
 
         if (!this._keyboardVisible)
-            return;
-
-        this._clearKeyboardRestTimer();
-        this._keyboardRestingId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-                                                   KEYBOARD_REST_TIME,
-                                                   () => {
-                                                       this._clearKeyboardRestTimer();
-                                                       this._hide();
-                                                       return GLib.SOURCE_REMOVE;
-                                                   });
-        GLib.Source.set_name_by_id(this._keyboardRestingId, '[gnome-shell] this._clearKeyboardRestTimer');
-    }
-
-    _hide() {
-        if (this._keyboardRequested)
             return;
 
         Main.layoutManager.hideKeyboard();
