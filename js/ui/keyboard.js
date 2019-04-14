@@ -1040,13 +1040,11 @@ var Keyboard = class Keyboard {
         this._animFocusedWindow = null;
         this._delayedAnimFocusWindow = null;
 
-        this._enableKeyboard = false; // a11y settings value
-        this._enabled = false; // enabled state (by setting or device type)
+        this._a11yKeyboardEnabled = false;
         this._latched = false; // current level is latched
 
         this._a11yApplicationsSettings = new Gio.Settings({ schema_id: A11Y_APPLICATIONS_SCHEMA });
-        this._a11yApplicationsSettings.connect('changed', this._syncEnabled.bind(this));
-        this._lastDeviceId = null;
+        this._a11yApplicationsSettings.connect('changed', this._syncA11yEnabled.bind(this));
         this._suggestions = null;
         this._emojiKeyVisible = true;
 
@@ -1068,17 +1066,7 @@ var Keyboard = class Keyboard {
                 this.hide();
         });
 
-        Meta.get_backend().connect('last-device-changed', 
-            (backend, deviceId) => {
-                let manager = Clutter.DeviceManager.get_default();
-                let device = manager.get_device(deviceId);
-
-                if (device.get_device_name().indexOf('XTEST') < 0) {
-                    this._lastDeviceId = deviceId;
-                    this._syncEnabled();
-                }
-            });
-        this._syncEnabled();
+        this._syncA11yEnabled();
 
         this._showIdleId = 0;
 
@@ -1088,6 +1076,8 @@ var Keyboard = class Keyboard {
         });
 
         Main.layoutManager.connect('monitors-changed', this._relayout.bind(this));
+
+        this._setupKeyboard();
     }
 
     get visible() {
@@ -1099,33 +1089,12 @@ var Keyboard = class Keyboard {
         this.setCursorLocation(focusTracker.currentWindow, rect.x, rect.y, rect.width, rect.height);
     }
 
-    _lastDeviceIsTouchscreen() {
-        if (!this._lastDeviceId)
-            return false;
+    _syncA11yEnabled() {
+        let a11yWasEnabled = this._a11yKeyboardEnabled;
+        this._a11yKeyboardEnabled = this._a11yApplicationsSettings.get_boolean(SHOW_KEYBOARD);
 
-        let manager = Clutter.DeviceManager.get_default();
-        let device = manager.get_device(this._lastDeviceId);
-
-        if (!device)
-            return false;
-
-        return device.get_device_type() == Clutter.InputDeviceType.TOUCHSCREEN_DEVICE;
-    }
-
-    _syncEnabled() {
-        let wasEnabled = this._enabled;
-        this._enableKeyboard = this._a11yApplicationsSettings.get_boolean(SHOW_KEYBOARD);
-        this._enabled = this._enableKeyboard || this._lastDeviceIsTouchscreen();
-        if (!this._enabled && !this._keyboardController)
-            return;
-
-        if (this._enabled && !this._keyboardController)
-            this._setupKeyboard();
-        else if (!this._enabled)
-            this.setCursorLocation(null);
-
-        if (!this._enabled && wasEnabled)
-            Main.layoutManager.hideKeyboard(true);
+        if (!this._a11yKeyboardEnabled && a11yWasEnabled)
+            this.hide();
     }
 
     _destroyKeyboard() {
@@ -1141,6 +1110,10 @@ var Keyboard = class Keyboard {
             this._keyboardController.disconnect(this._keypadVisibleId);
         if (this._focusNotifyId)
             global.stage.disconnect(this._focusNotifyId);
+        if (this._capturedEventId)
+            global.stage.disconnect(this._capturedEventId);
+        if (this._x11DeviceChangedId)
+            Meta.get_backend().disconnect(this._x11DeviceChangedId);
         this._keyboard = null;
         this.actor.destroy();
         this.actor = null;
@@ -1519,6 +1492,16 @@ var Keyboard = class Keyboard {
         this._updateCurrentPageVisible();
     }
 
+    _lastDeviceWantsKeyboard() {
+        let device = Meta.get_backend().get_last_device();
+        if (!device)
+            return false;
+
+        let deviceType = device.get_device_type();
+
+        return deviceType == Clutter.InputDeviceType.TOUCHSCREEN_DEVICE;
+    }
+
     shouldTakeEvent(event) {
         let actor = event.get_source();
         return Main.layoutManager.keyboardBox.contains(actor) ||
@@ -1526,7 +1509,7 @@ var Keyboard = class Keyboard {
     }
 
     show(monitor) {
-        if (!this._enabled)
+        if (!this._a11yKeyboardEnabled && !this._lastDeviceWantsKeyboard())
             return;
 
         this._clearShowIdle();
@@ -1541,6 +1524,34 @@ var Keyboard = class Keyboard {
 
         Main.layoutManager.keyboardIndex = monitor;
         this._relayout();
+
+        let maybeHideKeyboard = (id) => {
+            let dm = Clutter.DeviceManager.get_default();
+
+            let device = dm.get_device(id);
+            if (!device)
+                return;
+
+            if (!this._a11yKeyboardEnabled &&
+                device.get_device_type() == Clutter.InputDeviceType.KEYBOARD_DEVICE &&
+                device.get_device_mode() != Clutter.InputMode.MASTER &&
+                device.get_device_name().indexOf('XTEST') < 0)
+                Main.layoutManager.hideKeyboard(true);
+        };
+
+        this._x11DeviceChangedId = Meta.get_backend().connect('last-x11-device-changed',
+            (backend, deviceId) => maybeHideKeyboard(deviceId));
+
+        this._capturedEventId = global.stage.connect('captured-event',
+            (actor, event) => {
+                let id = event.get_source_device().get_device_id();
+
+                if (event.type() == Clutter.EventType.KEY_PRESS)
+                    maybeHideKeyboard(id);
+
+                return Clutter.EVENT_PROPAGATE;
+            });
+
         Main.layoutManager.showKeyboard();
 
         this._setEmojiActive(false);
@@ -1553,6 +1564,9 @@ var Keyboard = class Keyboard {
 
     hide() {
         this._clearShowIdle();
+
+        Meta.get_backend().disconnect(this._x11DeviceChangedId);
+        global.stage.disconnect(this._capturedEventId);
 
         if (!this._keyboardVisible)
             return;
