@@ -1499,7 +1499,8 @@ var Keyboard = class Keyboard {
 
         let deviceType = device.get_device_type();
 
-        return deviceType == Clutter.InputDeviceType.TOUCHSCREEN_DEVICE;
+        return deviceType == Clutter.InputDeviceType.TOUCHSCREEN_DEVICE ||
+               deviceType == Clutter.InputDeviceType.TABLET_DEVICE;
     }
 
     shouldTakeEvent(event) {
