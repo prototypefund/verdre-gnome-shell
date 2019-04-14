@@ -1537,7 +1537,7 @@ var Keyboard = class Keyboard {
                 device.get_device_type() == Clutter.InputDeviceType.KEYBOARD_DEVICE &&
                 device.get_device_mode() != Clutter.InputMode.MASTER &&
                 device.get_device_name().indexOf('XTEST') < 0)
-                Main.layoutManager.hideKeyboard(true);
+                this.hide();
         };
 
         this._x11DeviceChangedId = Meta.get_backend().connect('last-x11-device-changed',

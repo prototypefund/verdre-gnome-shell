@@ -739,7 +739,7 @@ var LayoutManager = GObject.registerClass({
         });
     }
 
-    hideKeyboard(immediate) {
+    hideKeyboard() {
         if (this._keyboardHeightNotifyId) {
             this.keyboardBox.disconnect(this._keyboardHeightNotifyId);
             this._keyboardHeightNotifyId = 0;
@@ -747,7 +747,7 @@ var LayoutManager = GObject.registerClass({
         Tweener.addTween(this.keyboardBox,
                          { anchor_y: 0,
                            opacity: 0,
-                           time: immediate ? 0 : KEYBOARD_ANIMATION_TIME,
+                           time: KEYBOARD_ANIMATION_TIME,
                            transition: 'easeInQuad',
                            onComplete: this._hideKeyboardComplete,
                            onCompleteScope: this
