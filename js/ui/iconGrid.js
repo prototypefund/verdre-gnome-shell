@@ -84,7 +84,7 @@ class BaseIcon extends St.Bin {
 
     setIconSize(size) {
         if (!this._setSizeManually)
-            throw new Error('setSizeManually has to be set to use setIconsize');
+            throw new Error('setSizeManually has to be set to use setIconSize');
 
         if (size == this.iconSize)
             return;
