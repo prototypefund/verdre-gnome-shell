@@ -1,6 +1,6 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 
-const { Clutter, GObject, Meta, St } = imports.gi;
+const { Clutter, GObject, Meta, Pango, St } = imports.gi;
 
 const Params = imports.misc.params;
 const Tweener = imports.ui.tweener;
@@ -28,6 +28,22 @@ var AnimationDirection = {
 var APPICON_ANIMATION_OUT_SCALE = 3;
 var APPICON_ANIMATION_OUT_TIME = 0.25;
 
+var CorrectHeightLabel = GObject.registerClass(
+class CorrectHeightLabel extends St.Label {
+    _init(params) {
+        super._init(params);
+    }
+
+    vfunc_allocate(box, flags) {
+        let availHeight = box.y2 - box.y1;
+        let [, lineHeight] = this.clutter_text.get_preferred_height(-1);
+
+        box.y2 = box.y1 + Math.floor(availHeight / lineHeight) * lineHeight;
+
+        super.vfunc_allocate(box, flags);
+    }
+});
+
 var BaseIcon = GObject.registerClass(
 class BaseIcon extends St.BoxLayout {
     _init(label, params) {
@@ -45,7 +61,6 @@ class BaseIcon extends St.BoxLayout {
 
         this.connect('destroy', this._onDestroy.bind(this));
 
-
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin({ x_align: St.Align.MIDDLE,
                                      y_align: St.Align.MIDDLE });
@@ -53,7 +68,11 @@ class BaseIcon extends St.BoxLayout {
         this.add_actor(this._iconBin);
 
         if (params.showLabel) {
-            this.label = new St.Label({ text: label });
+            this.label = new CorrectHeightLabel({ text: label });
+            this.label.clutter_text.line_wrap = true;
+            this.label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD;
+            this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+
             this.add_actor(this.label);
         } else {
             this.label = null;
@@ -69,9 +88,16 @@ class BaseIcon extends St.BoxLayout {
         this._iconThemeChangedId = cache.connect('icon-theme-changed', this._onIconThemeChanged.bind(this));
     }
 
-    vfunc_get_preferred_width(forHeight) {
-        // Return the actual height to keep the squared aspect
-        return this.get_preferred_height(-1);
+    vfunc_allocate(box, flags) {
+        let contentBox = this.get_theme_node().get_content_box(box);
+        let paddingBottom = box.y2 - contentBox.y2;
+
+        super.vfunc_allocate(box,flags);
+
+        if (this.label)
+            box.y2 = this.label.allocation.y2 + paddingBottom;
+
+        this.set_allocation(box, flags);
     }
 
     // This can be overridden by a subclass, or by the createIcon
@@ -548,9 +574,11 @@ var IconGrid = GObject.registerClass({
     }
 
     _getAllocatedChildSize(child) {
-        let [,, natWidth, natHeight] = child.get_preferred_size();
-        let width = Math.min(this._getHItemSize(), natWidth);
-        let height = Math.min(this._getVItemSize(), natHeight);
+        let width = this._getHItemSize();
+
+        // Allow children to use up to 2/3 of the spacing to show labels
+        let height = this._getVItemSize() + this._getSpacing() * (2 / 3);
+
         return [width, height];
     }
 

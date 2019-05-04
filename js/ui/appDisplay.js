@@ -1578,6 +1578,17 @@ var AppIcon = GObject.registerClass({
         return this.app.get_id();
     }
 
+    vfunc_allocate(box, flags) {
+        let contentBox = this.get_theme_node().get_content_box(box);
+        let paddingBottom = box.y2 - contentBox.y2;
+
+        super.vfunc_allocate(box,flags);
+
+        box.y2 = this.icon.allocation.y2 + paddingBottom;
+
+        this.set_allocation(box, flags);
+    }
+
     popupMenu() {
         this._removeMenuTimeout();
         this.fake_release();
