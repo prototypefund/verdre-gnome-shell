@@ -203,7 +203,7 @@ var IconGrid = GObject.registerClass({
         this.rightPadding = 0;
         this.leftPadding = 0;
 
-        this._items = [];
+        this._items = new Map();
         this._clonesAnimating = [];
         // Pulled from CSS, but hardcode some defaults here
         this._spacing = 0;
@@ -217,21 +217,10 @@ var IconGrid = GObject.registerClass({
             if (!this.mapped)
                 this._cancelAnimation();
         });
-
-        this.connect('actor-added', this._childAdded.bind(this));
-        this.connect('actor-removed', this._childRemoved.bind(this));
     }
 
     _keyFocusIn(actor) {
         this.emit('child-focused', actor);
-    }
-
-    _childAdded(grid, child) {
-        child._iconGridKeyFocusInId = child.connect('key-focus-in', this._keyFocusIn.bind(this));
-    }
-
-    _childRemoved(grid, child) {
-        child.disconnect(child._iconGridKeyFocusInId);
     }
 
     vfunc_get_preferred_width(forHeight) {
@@ -641,12 +630,18 @@ var IconGrid = GObject.registerClass({
     }
 
     removeAll() {
-        this._items = [];
-        this.remove_all_children();
+        // We don't destroy the items here, only the containers
+        this._items.forEach((container, item) => {
+            item.disconnect(container._itemKeyFocusInId);
+            container.set_child(null);
+            container.destroy();
+        });
+
+        this._items.clear();
     }
 
     destroyAll() {
-        this._items = [];
+        this._items.clear();
         this.destroy_all_children();
     }
 
@@ -654,19 +649,36 @@ var IconGrid = GObject.registerClass({
         if (!(item.icon instanceof BaseIcon))
             throw new Error('Only items with a BaseIcon icon property can be added to IconGrid');
 
-        this._items.push(item);
-        if (index !== undefined)
-            this.insert_child_at_index(item.actor, index);
-        else
-            this.add_actor(item.actor);
+        let container = new St.Bin({ y_align: St.Align.START,
+                                     x_fill: true,
+                                     child: item });
+
+        item.bind_property('visible', container, 'visible',
+                           GObject.BindingFlags.SYNC_CREATE);
+
+        container._itemKeyFocusInId = item.connect('key-focus-in', () => {
+            this.emit('child-focused', item);
+        });
+        this.insert_child_at_index(container, index || -1);
+
+        this._items.set(item, container);
     }
 
     removeItem(item) {
-        this.remove_child(item.actor);
+        if (!this._items.has(item))
+            return;
+
+        let container = this._items.get(item);
+
+        // StBin destroys both the container and the item here
+        this.remove_actor(container);
+        container.destroy();
+
+        this._items.delete(item);
     }
 
     getItemAtIndex(index) {
-        return this.get_child_at_index(index);
+        return this.get_child_at_index(index).child;
     }
 
     visibleItemsCount() {
@@ -751,9 +763,9 @@ var IconGrid = GObject.registerClass({
     _updateIconSizes() {
         let scale = Math.min(this._fixedHItemSize, this._fixedVItemSize) / Math.max(this._hItemSize, this._vItemSize);
         let newIconSize = Math.floor(ICON_SIZE * scale);
-        for (let i in this._items) {
-            this._items[i].icon.setIconSize(newIconSize);
-        }
+        this._items.forEach((container, item) => {
+            item.icon.setIconSize(newIconSize);
+        });
     }
 });
 
@@ -887,7 +899,9 @@ var PaginatedIconGrid = GObject.registerClass({
 
     getItemPage(item) {
         let children = this._getVisibleChildren();
-        let index = children.indexOf(item);
+        let container = this._items.get(item);
+
+        let index = children.indexOf(container);
         if (index == -1)
             throw new Error('Item not found.');
         return Math.floor(index / this._childrenPerPage);
@@ -903,7 +917,9 @@ var PaginatedIconGrid = GObject.registerClass({
     */
     openExtraSpace(sourceItem, side, nRows) {
         let children = this._getVisibleChildren();
-        let index = children.indexOf(sourceItem.actor);
+        let container = this._items.get(sourceItem);
+
+        let index = children.indexOf(container);
         if (index == -1)
             throw new Error('Item not found.');
 
@@ -980,5 +996,15 @@ var PaginatedIconGrid = GObject.registerClass({
                                onComplete: () => { this.emit('space-closed'); }
                              });
         }
+    }
+
+    getSpaceForItem(item) {
+        let container = this._items.get(item);
+
+        let spaceLeft, spaceRight;
+        let spaceTop = container.y - this.getPageY(this.currentPage);
+        let spaceBottom = this.getPageHeight() - (spaceTop + container.height);
+
+        return [spaceLeft, spaceRight, spaceTop, spaceBottom];
     }
 });

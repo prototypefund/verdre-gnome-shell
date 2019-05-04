@@ -454,10 +454,6 @@ var AllView = class AllView extends BaseAppView {
             this._pageIndicators.animateIndicators(animationDirection);
     }
 
-    getCurrentPageY() {
-        return this._grid.getPageY(this._grid.currentPage);
-    }
-
     goToPage(pageNumber) {
         pageNumber = clamp(pageNumber, 0, this._grid.nPages() - 1);
 
@@ -645,6 +641,11 @@ var AllView = class AllView extends BaseAppView {
         // Update folder views
         for (let i = 0; i < this.folderIcons.length; i++)
             this.folderIcons[i].adaptToSize(availWidth, availHeight);
+    }
+
+    getFolderArrowSide(folderItem) {
+        let [,, spaceTop, spaceBottom] = this._grid.getSpaceForItem(folderItem);
+        return spaceTop > spaceBottom ? St.Side.BOTTOM : St.Side.TOP;
     }
 };
 Signals.addSignalMethods(AllView.prototype);
@@ -1220,13 +1221,6 @@ var FolderIcon = GObject.registerClass({
         this._parentView.openSpaceForPopup(this, this._boxPointerArrowside, this.view.nRowsDisplayedAtOnce());
     }
 
-    _calculateBoxPointerArrowSide() {
-        let spaceTop = this.y - this._parentView.getCurrentPageY();
-        let spaceBottom = this._parentView.actor.height - (spaceTop + this.height);
-
-        return spaceTop > spaceBottom ? St.Side.BOTTOM : St.Side.TOP;
-    }
-
     _updatePopupSize() {
         // StWidget delays style calculation until needed, make sure we use the correct values
         this.view._grid.ensure_style();
@@ -1244,15 +1238,15 @@ var FolderIcon = GObject.registerClass({
             return;
 
         if (this._boxPointerArrowside == St.Side.BOTTOM)
-            this._popup.actor.y = this.allocation.y1 + this.translation_y - this._popupHeight();
+            this._popup.actor.y = this.get_parent().allocation.y1 + this.get_parent().translation_y - this._popupHeight();
         else
-            this._popup.actor.y = this.allocation.y1 + this.translation_y + this.height;
+            this._popup.actor.y = this.get_parent().allocation.y1 + this.get_parent().translation_y + this.height;
     }
 
     _ensurePopup() {
         if (this._popup && !this._popupInvalidated)
             return;
-        this._boxPointerArrowside = this._calculateBoxPointerArrowSide();
+        this._boxPointerArrowside = this._parentView.getFolderArrowSide(this);
         if (!this._popup) {
             this._popup = new AppFolderPopup(this, this._boxPointerArrowside);
             this._parentView.addFolderPopup(this._popup);
