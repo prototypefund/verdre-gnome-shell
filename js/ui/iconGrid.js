@@ -341,9 +341,7 @@ var IconGrid = GObject.registerClass({
             if (columnIndex == nColumns) {
                 columnIndex = 0;
                 rowIndex++;
-            }
 
-            if (columnIndex == 0) {
                 y += this._getVItemSize() + spacing;
                 x = box.x1 + leftEmptySpace + this.leftPadding;
             } else {
@@ -501,7 +499,7 @@ var IconGrid = GObject.registerClass({
             this._clonesAnimating.push(actorClone);
             Main.uiGroup.add_actor(actorClone);
 
-            let [width, height,,] = this._getAllocatedChildSizeAndSpacing(actor);
+            let [width, height] = this._getAllocatedChildSize(actor);
             actorClone.set_size(width, height);
             let scaleX = sourceScaledWidth / width;
             let scaleY = sourceScaledHeight / height;
@@ -563,28 +561,23 @@ var IconGrid = GObject.registerClass({
         }
     }
 
-    _getAllocatedChildSizeAndSpacing(child) {
+    _getAllocatedChildSize(child) {
         let [,, natWidth, natHeight] = child.get_preferred_size();
         let width = Math.min(this._getHItemSize(), natWidth);
-        let xSpacing = Math.max(0, width - natWidth) / 2;
         let height = Math.min(this._getVItemSize(), natHeight);
-        let ySpacing = Math.max(0, height - natHeight) / 2;
-        return [width, height, xSpacing, ySpacing];
+        return [width, height];
     }
 
     _calculateChildBox(child, x, y, box) {
-        /* Center the item in its allocation horizontally */
-        let [width, height, childXSpacing, childYSpacing] =
-            this._getAllocatedChildSizeAndSpacing(child);
+        let [width, height] = this._getAllocatedChildSize(child);
 
         let childBox = new Clutter.ActorBox();
         if (Clutter.get_default_text_direction() == Clutter.TextDirection.RTL) {
-            let _x = box.x2 - (x + width);
-            childBox.x1 = Math.floor(_x - childXSpacing);
+            childBox.x1 = box.x2 - (x + width);
         } else {
-            childBox.x1 = Math.floor(x + childXSpacing);
+            childBox.x1 = x;
         }
-        childBox.y1 = Math.floor(y + childYSpacing);
+        childBox.y1 = y;
         childBox.x2 = childBox.x1 + width;
         childBox.y2 = childBox.y1 + height;
         return childBox;
@@ -829,14 +822,15 @@ var PaginatedIconGrid = GObject.registerClass({
             if (columnIndex == nColumns) {
                 columnIndex = 0;
                 rowIndex++;
-            }
-            if (columnIndex == 0) {
+
                 y += this._getVItemSize() + spacing;
                 if ((i + 1) % this._childrenPerPage == 0)
                     y +=  this._spaceBetweenPages - spacing + this.bottomPadding + this.topPadding;
+
                 x = box.x1 + leftEmptySpace + this.leftPadding;
-            } else
+            } else {
                 x += this._getHItemSize() + spacing;
+            }
         }
     }
 
