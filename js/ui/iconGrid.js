@@ -29,7 +29,7 @@ var APPICON_ANIMATION_OUT_SCALE = 3;
 var APPICON_ANIMATION_OUT_TIME = 0.25;
 
 var BaseIcon = GObject.registerClass(
-class BaseIcon extends St.Bin {
+class BaseIcon extends St.BoxLayout {
     _init(label, params) {
         params = Params.parse(params, { createIcon: null,
                                         setSizeManually: false,
@@ -40,23 +40,21 @@ class BaseIcon extends St.Bin {
             styleClass += ' overview-icon-with-label';
 
         super._init({ style_class: styleClass,
-                      x_fill: true,
-                      y_fill: true });
+                      x_expand: true, y_expand: true,
+                      vertical: true });
 
         this.connect('destroy', this._onDestroy.bind(this));
 
-        this._box = new St.BoxLayout({ vertical: true });
-        this.set_child(this._box);
 
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin({ x_align: St.Align.MIDDLE,
                                      y_align: St.Align.MIDDLE });
 
-        this._box.add_actor(this._iconBin);
+        this.add_actor(this._iconBin);
 
         if (params.showLabel) {
             this.label = new St.Label({ text: label });
-            this._box.add_actor(this.label);
+            this.add_actor(this.label);
         } else {
             this.label = null;
         }
@@ -132,10 +130,9 @@ class BaseIcon extends St.Bin {
     }
 
     animateZoomOut() {
-        // Animate only the child instead of the entire actor, so the
-        // styles like hover and running are not applied while
-        // animating.
-        zoomOutActor(this.child);
+        // Animate only the icon instead of the entire actor, so the
+        // styles like hover and running are not applied while animating.
+        zoomOutActor(this._iconBin);
     }
 });
 
