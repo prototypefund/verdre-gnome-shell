@@ -1,6 +1,6 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 
-const { Clutter, GObject, Meta, St } = imports.gi;
+const { Clutter, GObject, Meta, Pango, St } = imports.gi;
 
 const Params = imports.misc.params;
 const Tweener = imports.ui.tweener;
@@ -28,6 +28,34 @@ var AnimationDirection = {
 var APPICON_ANIMATION_OUT_SCALE = 3;
 var APPICON_ANIMATION_OUT_TIME = 0.25;
 
+var MaxHeightLabel = GObject.registerClass(
+class MaxHeightLabel extends St.Label {
+    _init(params) {
+        super._init(params);
+        this._maxHeight = -1;
+    }
+
+    set maxHeight(height) {
+        this._maxHeight = height;
+    }
+
+    vfunc_get_preferred_height(forWidth) {
+        let themeNode = this.get_theme_node();
+
+        forWidth = themeNode.adjust_for_width(forWidth);
+        let maxHeight = themeNode.adjust_for_height(this._maxHeight);
+
+        let [, lineHeight] = this.clutter_text.get_preferred_height(-1);
+        let [textMinHeight, textNatHeight] = this.clutter_text.get_preferred_height(forWidth);
+
+        if (this._maxHeight > 0 && lineHeight > 0 && textNatHeight > maxHeight)
+            return themeNode.adjust_preferred_height(textMinHeight, Math.floor(maxHeight / lineHeight) * lineHeight);
+
+        return themeNode.adjust_preferred_height(textMinHeight, textNatHeight);
+    }
+});
+
+
 var BaseIcon = GObject.registerClass(
 class BaseIcon extends St.BoxLayout {
     _init(label, params) {
@@ -45,6 +73,7 @@ class BaseIcon extends St.BoxLayout {
 
         this.connect('destroy', this._onDestroy.bind(this));
 
+        this._maxHeight = -1;
 
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin({ x_align: St.Align.MIDDLE,
@@ -53,7 +82,11 @@ class BaseIcon extends St.BoxLayout {
         this.add_actor(this._iconBin);
 
         if (params.showLabel) {
-            this.label = new St.Label({ text: label });
+            this.label = new MaxHeightLabel({ text: label });
+            this.label.clutter_text.line_wrap = true;
+            this.label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD;
+            this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+
             this.add_actor(this.label);
         } else {
             this.label = null;
@@ -69,9 +102,28 @@ class BaseIcon extends St.BoxLayout {
         this._iconThemeChangedId = cache.connect('icon-theme-changed', this._onIconThemeChanged.bind(this));
     }
 
-    vfunc_get_preferred_width(forHeight) {
-        // Return the actual height to keep the squared aspect
-        return this.get_preferred_height(-1);
+    set maxHeight(height) {
+        this._maxHeight = height;
+    }
+
+    vfunc_get_preferred_height(forWidth) {
+        let themeNode = this.get_theme_node();
+
+        forWidth = themeNode.adjust_for_width(forWidth);
+        let maxHeight = themeNode.adjust_for_height(this._maxHeight);
+
+        let [iconMinHeight, iconNatHeight] = this._iconBin.get_preferred_height(forWidth);
+
+        if (this.label) {
+            if (this._maxHeight > 0)
+                this.label.maxHeight = maxHeight - iconNatHeight;
+
+            let [labelMinHeight, labelNatHeight] = this.label.get_preferred_height(forWidth);
+            return themeNode.adjust_preferred_height(iconMinHeight + labelMinHeight,
+                                                     iconNatHeight + labelNatHeight);
+        }
+
+        return themeNode.adjust_preferred_height(iconMinHeight, iconNatHeight);
     }
 
     // This can be overridden by a subclass, or by the createIcon
@@ -323,11 +375,13 @@ var IconGrid = GObject.registerClass({
         let y = box.y1 + this.topPadding;
         let columnIndex = 0;
         let rowIndex = 0;
+        let numRows = this.nRows(availWidth);
+
         for (let i = 0; i < children.length; i++) {
             let childBox = this._calculateChildBox(children[i], x, y, box);
 
             if (this._rowLimit && rowIndex >= this._rowLimit ||
-                this._fillParent && childBox.y2 > availHeight - this.bottomPadding) {
+                this._fillParent && childBox.y2 > availHeight) {
                 children[i].hide();
             } else {
                 children[i].allocate(childBox, flags);
@@ -559,9 +613,11 @@ var IconGrid = GObject.registerClass({
     }
 
     _getAllocatedChildSize(child) {
-        let [,, natWidth, natHeight] = child.get_preferred_size();
-        let width = Math.min(this._getHItemSize(), natWidth);
-        let height = Math.min(this._getVItemSize(), natHeight);
+        let width = this._getHItemSize();
+
+        child._delegate.maxHeight = this._getVItemSize() + this._getSpacing() * (2 / 3);
+        let [, height] = child.get_preferred_height(width);
+
         return [width, height];
     }
 

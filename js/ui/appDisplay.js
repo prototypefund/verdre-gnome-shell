@@ -1504,6 +1504,20 @@ var AppIcon = class AppIcon {
         this._updateRunningStyle();
     }
 
+
+    set maxHeight(height) {
+        let themeNode = this.actor.get_theme_node();
+
+        // Subtract our own paddings and forward the maxHeight to the BaseIcon
+        height = themeNode.adjust_for_height(height);
+        this.icon.maxHeight = height;
+
+        // :(
+        this.actor.get_preferred_height(1000);
+        this.actor.get_preferred_height(2000);
+        this.actor.get_preferred_height(3000);
+    }
+
     _onDestroy() {
         if (this._stateChangedId > 0)
             this.app.disconnect(this._stateChangedId);
