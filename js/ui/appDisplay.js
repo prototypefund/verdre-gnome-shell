@@ -999,7 +999,7 @@ var AppSearchProvider = class AppSearchProvider {
 var FolderView = class FolderView extends BaseAppView {
     constructor() {
         super(null, null);
-        // If it not expand, the parent doesn't take into account its preferred_width when allocating
+        // If it doesn't expand, the parent doesn't take into account its preferred_width when allocating
         // the second time it allocates, so we apply the "Standard hack for ClutterBinLayout"
         this._grid.x_expand = true;
 
