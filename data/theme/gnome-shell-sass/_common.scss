@@ -1388,6 +1388,7 @@ StScrollBar {
   .grid-search-result {
     & .overview-icon {
       @extend %icon_tile;
+      spacing: 4px;
     }
     &:active .overview-icon,
     &:checked .overview-icon {
