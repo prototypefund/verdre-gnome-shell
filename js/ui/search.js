@@ -44,7 +44,7 @@ var SearchResult = GObject.registerClass({
                       can_focus: true,
                       track_hover: true,
                       x_align: St.Align.START,
-                      y_fill: true });
+                      x_fill: true, y_fill: true });
 
         this._delegate = this;
         this.connect('clicked', this.activate.bind(this));
@@ -61,7 +61,6 @@ class ListSearchResult extends SearchResult {
         super._init(provider, metaInfo, resultsView);
 
         this.style_class = 'list-search-result';
-        this.x_fill = true;
 
         let content = new St.BoxLayout({ style_class: 'list-search-result-content',
                                          vertical: false });
@@ -132,7 +131,10 @@ class GridSearchResult extends SearchResult {
 
         this.icon = new IconGrid.BaseIcon(this.metaInfo['name'],
                                           { createIcon: this.metaInfo['createIcon'] });
-        let content = new St.Bin({ child: this.icon });
+
+        let content = new St.Bin({ child: this.icon,
+                                   x_fill: true, y_fill: true });
+
         this.set_child(content);
         this.label_actor = this.icon.label;
     }
