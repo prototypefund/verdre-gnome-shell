@@ -1464,12 +1464,6 @@ StScrollBar {
 
   .no-frequent-applications-label { @extend %status_text; }
 
-  .app-well-app > .overview-icon.overview-icon-with-label,
-  .grid-search-result .overview-icon.overview-icon-with-label {
-    padding: 10px 8px 5px 8px;
-    spacing: 4px;
-  }
-
   // Workspace pager
   .workspace-thumbnails { //container ala dash
     @extend %overview-panel;
