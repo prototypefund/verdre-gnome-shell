@@ -51,23 +51,27 @@ class WindowCloneLayout extends Clutter.LayoutManager {
         this.layout_changed();
     }
 
-    _makeBoxForWindow(window) {
-        // We need to adjust the position of the actor because of the
-        // consequences of invisible borders -- in reality, the texture
-        // has an extra set of "padding" around it that we need to trim
-        // down.
+    _makeBoxForWindow(window, box) {
+        let availWidth = box.x2 - box.x1;
+        let availHeight = box.y2 - box.y1;
 
-        // The outer rect (from which we compute the bounding box)
-        // paradoxically is the smaller rectangle, containing the positions
-        // of the visible frame. The input rect contains everything,
-        // including the invisible border padding.
-        let inputRect = window.get_buffer_rect();
+        let bufferRect = window.get_buffer_rect();
+        let frameRect = window.get_frame_rect();
 
-        let box = new Clutter.ActorBox();
+        let leftBorder = frameRect.x - bufferRect.x;
+        let rightBorder = bufferRect.width - frameRect.width - leftBorder;
+        let topBorder = frameRect.y - bufferRect.y;
+        let bottomBorder = bufferRect.height - frameRect.height - topBorder;
 
-        box.set_origin(inputRect.x - this._boundingBox.x,
-                       inputRect.y - this._boundingBox.y);
-        box.set_size(inputRect.width, inputRect.height);
+        box.x1 -= leftBorder;
+        box.x2 += rightBorder;
+
+        box.y1 -= topBorder;
+        box.y2 += bottomBorder;
+
+        box.set_origin(bufferRect.x - this._boundingBox.x,
+                       bufferRect.y - this._boundingBox.y);
+        box.set_size(bufferRect.width, bufferRect.height);
 
         return box;
     }
@@ -82,14 +86,13 @@ class WindowCloneLayout extends Clutter.LayoutManager {
 
     vfunc_allocate(container, box, flags) {
         container.get_children().forEach(child => {
-            let realWindow;
-            if (child == container._delegate._windowClone)
-                realWindow = container._delegate.realWindow;
-            else
-                realWindow = child.source;
+            let childBox = box;
 
-            child.allocate(this._makeBoxForWindow(realWindow.meta_window),
-                           flags);
+            if (child instanceof Clutter.Clone && child.source.meta_window)
+                childBox = this._makeBoxForWindow(child.source.meta_window,
+                                                  childBox);
+
+            child.allocate(childBox, flags);
         });
     }
 });
@@ -111,13 +114,6 @@ var WindowClone = GObject.registerClass({
         this.metaWindow._delegate = this;
         this._workspace = workspace;
 
-        this._windowClone = new Clutter.Clone({ source: realWindow });
-        // We expect this to be used for all interaction rather than
-        // this._windowClone; as the former is reactive and the latter
-        // is not, this just works for most cases. However, for DND all
-        // actors are picked, so DND operations would operate on the clone.
-        // To avoid this, we hide it from pick.
-        Shell.util_set_hidden_from_pick(this._windowClone, true);
 
         // The MetaShapedTexture that we clone has a size that includes
         // the invisible border; this is inconvenient; rather than trying
@@ -126,13 +122,25 @@ var WindowClone = GObject.registerClass({
         super._init({
             reactive: true,
             can_focus: true,
-            accessible_role: Atk.Role.PUSH_BUTTON,
+            accessible_role: Atk.Role.PUSH_BUTTON
+        });
+
+        this._windowCloneContainer = new Clutter.Actor({
             layout_manager: new WindowCloneLayout()
         });
 
+        this._windowClone = new Clutter.Clone({ source: realWindow });
+        // We expect this to be used for all interaction rather than
+        // this._windowClone; as the former is reactive and the latter
+        // is not, this just works for most cases. However, for DND all
+        // actors are picked, so DND operations would operate on the clone.
+        // To avoid this, we hide it from pick.
+        Shell.util_set_hidden_from_pick(this._windowClone, true);
+
         this.set_offscreen_redirect(Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY);
 
-        this.add_child(this._windowClone);
+        this._windowCloneContainer.add_child(this._windowClone);
+        this.add_child(this._windowCloneContainer);
 
         this._delegate = this;
 
@@ -171,6 +179,16 @@ var WindowClone = GObject.registerClass({
 
         this.connect('leave-event', () => this.emit('hide-chrome'));
         this.connect('key-focus-out', () => this.emit('hide-chrome'));
+
+        this.connect('notify::allocation', () => {
+            let width = this.allocation.x2 - this.allocation.x1;
+            let height = this.allocation.y2 - this.allocation.y1;
+            let scale_x = width / this._boundingBox.width;
+            let scale_y = height / this._boundingBox.height;
+
+            this._windowCloneContainer.scale_x = scale_x;
+            this._windowCloneContainer.scale_y = scale_y;
+        });
 
         this._draggable = DND.makeDraggable(this,
                                             { restoreOnSuccess: true,
@@ -247,7 +265,8 @@ var WindowClone = GObject.registerClass({
 
             this._onMetaWindowSizeChanged();
         });
-        this.add_child(clone);
+        this._windowCloneContainer.add_child(clone);
+      //  this.add_child(clone);
     }
 
     _updateAttachedDialogs() {
@@ -270,22 +289,10 @@ var WindowClone = GObject.registerClass({
         return this._boundingBox;
     }
 
-    get width() {
-        return this._boundingBox.width;
-    }
-
-    get height() {
-        return this._boundingBox.height;
-    }
-
-    getOriginalPosition() {
-        return [this._boundingBox.x, this._boundingBox.y];
-    }
-
     _computeBoundingBox() {
         let rect = this.metaWindow.get_frame_rect();
 
-        this.get_children().forEach(child => {
+        this._windowCloneContainer.get_children().forEach(child => {
             let realWindow;
             if (child == this._windowClone)
                 realWindow = this.realWindow;
@@ -298,7 +305,7 @@ var WindowClone = GObject.registerClass({
 
         // Convert from a MetaRectangle to a native JS object
         this._boundingBox = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-        this.layout_manager.boundingBox = rect;
+        this._windowCloneContainer.layout_manager.boundingBox = this._boundingBox;
     }
 
     // Find the actor just below us, respecting reparenting done by DND code
@@ -330,7 +337,7 @@ var WindowClone = GObject.registerClass({
     }
 
     _disconnectSignals() {
-        this.get_children().forEach(child => {
+        this._windowCloneContainer.get_children().forEach(child => {
             let realWindow;
             if (child == this._windowClone)
                 realWindow = this.realWindow;
@@ -828,7 +835,7 @@ var LayoutStrategy = class {
         // thumbnails is much more important to preserve than the width of
         // them, so two windows with equal height, but maybe differering
         // widths line up.
-        let ratio = window.height / this._monitor.height;
+        let ratio = window.boundingBox.height / this._monitor.height;
 
         // The purpose of this manipulation here is to prevent windows
         // from getting too small. For something like a calculator window,
@@ -948,11 +955,12 @@ var LayoutStrategy = class {
                 let window = row.windows[j];
 
                 let s = scale * this._computeWindowScale(window) * row.additionalScale;
-                let cellWidth = window.width * s;
-                let cellHeight = window.height * s;
+                let cellWidth = window.boundingBox.width * s;
+                let cellHeight = window.boundingBox.height * s;
 
                 s = Math.min(s, WINDOW_CLONE_MAXIMUM_SCALE);
-                let cloneWidth = window.width * s;
+                let cloneWidth = window.boundingBox.width * s;
+                let cloneHeight = window.boundingBox.height * s;
 
                 let cloneX = x + (cellWidth - cloneWidth) / 2;
                 let cloneY = row.y + row.height * row.additionalScale - cellHeight + compensation;
@@ -961,7 +969,7 @@ var LayoutStrategy = class {
                 cloneX = Math.floor(cloneX);
                 cloneY = Math.floor(cloneY);
 
-                slots.push([cloneX, cloneY, s, window]);
+                slots.push([cloneX, cloneY, cloneWidth, cloneHeight, window]);
                 x += cellWidth + this._columnSpacing;
             }
         }
@@ -1010,7 +1018,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         for (let i = 0; i < windows.length; i++) {
             let window = windows[i];
             let s = this._computeWindowScale(window);
-            totalWidth += window.width * s;
+            totalWidth += window.boundingBox.width * s;
         }
 
         let idealRowWidth = totalWidth / numRows;
@@ -1032,8 +1040,8 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             for (; windowIdx < sortedWindows.length; windowIdx++) {
                 let window = sortedWindows[windowIdx];
                 let s = this._computeWindowScale(window);
-                let width = window.width * s;
-                let height = window.height * s;
+                let width = window.boundingBox.width * s;
+                let height = window.boundingBox.height * s;
                 row.fullHeight = Math.max(row.fullHeight, height);
 
                 // either new width is < idealWidth or new width is nearer from idealWidth then oldWidth
@@ -1311,7 +1319,7 @@ var Workspace = class {
 
         for (let i = 0; i < slots.length; i++) {
             let slot = slots[i];
-            let [x, y, scale, clone] = slot;
+            let [x, y, cellWidth, cellHeight, clone] = slot;
 
             clone.slotId = i;
 
@@ -1320,8 +1328,8 @@ var Workspace = class {
             if (clone.inDrag)
                 continue;
 
-            let cloneWidth = clone.width * scale;
-            let cloneHeight = clone.height * scale;
+            let cloneWidth = cellWidth;
+            let cloneHeight = cellHeight;
             clone.slot = [x, y, cloneWidth, cloneHeight];
 
             let cloneCenter = x + cloneWidth / 2;
@@ -1338,8 +1346,8 @@ var Workspace = class {
                 // Grow the clone from the center of the slot
                 clone.x = x + cloneWidth / 2;
                 clone.y = y + cloneHeight / 2;
-                clone.scale_x = 0;
-                clone.scale_y = 0;
+                clone.width = 0;
+                clone.height = 0;
                 clone.positioned = true;
             }
 
@@ -1350,10 +1358,10 @@ var Workspace = class {
                      * can be scaled up later */
                     if (initialPositioning) {
                         clone.opacity = 0;
-                        clone.scale_x = 0;
-                        clone.scale_y = 0;
                         clone.x = x;
                         clone.y = y;
+                        clone.width = cloneWidth;
+                        clone.height = cloneHeight;
                     }
 
                     clone.ease({
@@ -1363,12 +1371,12 @@ var Workspace = class {
                     });
                 }
 
-                this._animateClone(clone, clone.overlay, x, y, scale);
+                this._animateClone(clone, clone.overlay, x, y, cloneWidth, cloneHeight);
             } else {
                 // cancel any active tweens (otherwise they might override our changes)
                 clone.remove_all_transitions();
                 clone.set_position(x, y);
-                clone.set_scale(scale, scale);
+                clone.set_size(cloneWidth, cloneHeight);
                 clone.set_opacity(255);
                 clone.overlay.relayout(false);
                 this._showWindowOverlay(clone, clone.overlay);
@@ -1395,11 +1403,10 @@ var Workspace = class {
         }
     }
 
-    _animateClone(clone, overlay, x, y, scale) {
+    _animateClone(clone, overlay, x, y, width, height) {
         clone.ease({
             x, y,
-            scale_x: scale,
-            scale_y: scale,
+            width, height,
             duration: Overview.ANIMATION_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             onComplete: () => {
@@ -1456,11 +1463,12 @@ var Workspace = class {
             // this point.)
             if (win) {
                 let [stageX, stageY] = clone.get_transformed_position();
-                let [stageWidth] = clone.get_transformed_size();
+                let [stageWidth, stageHeight] = clone.get_transformed_size();
                 win._overviewHint = {
                     x: stageX,
                     y: stageY,
-                    scale: stageWidth / clone.width
+                    width: stageWidth,
+                    height: stageHeight
                 };
             }
             clone.destroy();
@@ -1537,14 +1545,15 @@ var Workspace = class {
         if (win._overviewHint) {
             let x = win._overviewHint.x - this.actor.x;
             let y = win._overviewHint.y - this.actor.y;
-            let scale = win._overviewHint.scale;
+            let width = win._overviewHint.width;
+            let height = win._overviewHint.height;
             delete win._overviewHint;
 
-            clone.slot = [x, y, clone.width * scale, clone.height * scale];
+            clone.slot = [x, y, width, height];
             clone.positioned = true;
 
             clone.set_position(x, y);
-            clone.set_scale(scale, scale);
+            clone.set_size(width, height);
             clone.overlay.relayout(false);
         }
 
@@ -1697,11 +1706,10 @@ var Workspace = class {
             overlay.hide();
 
         if (clone.metaWindow.showing_on_its_workspace()) {
-            let [origX, origY] = clone.getOriginalPosition();
-            clone.scale_x = 1;
-            clone.scale_y = 1;
-            clone.x = origX;
-            clone.y = origY;
+            clone.x = clone.boundingBox.x;
+            clone.y = clone.boundingBox.y;
+            clone.width = clone.boundingBox.width;
+            clone.height = clone.boundingBox.height;
             clone.ease({
                 opacity,
                 duration,
@@ -1749,12 +1757,11 @@ var Workspace = class {
             overlay.hide();
 
         if (clone.metaWindow.showing_on_its_workspace()) {
-            let [origX, origY] = clone.getOriginalPosition();
             clone.ease({
-                x: origX,
-                y: origY,
-                scale_x: 1,
-                scale_y: 1,
+                x: clone.boundingBox.x,
+                y: clone.boundingBox.y,
+                width: clone.boundingBox.width,
+                height: clone.boundingBox.height,
                 opacity: 255,
                 duration: Overview.ANIMATION_TIME,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD
@@ -1762,8 +1769,8 @@ var Workspace = class {
         } else {
             // The window is hidden, make it shrink and fade it out
             clone.ease({
-                scale_x: 0,
-                scale_y: 0,
+                width: 0,
+                height: 0,
                 opacity: 0,
                 duration: Overview.ANIMATION_TIME,
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD
@@ -2005,7 +2012,8 @@ var Workspace = class {
             win._overviewHint = {
                 x: actor.x,
                 y: actor.y,
-                scale: actor.scale_x
+                width: actor.width,
+                heigth: actor.height
             };
 
             let metaWindow = win.get_meta_window();
