@@ -1,5 +1,5 @@
 /* exported MediaSection */
-const { Gio, GObject, Shell, St } = imports.gi;
+const { Gio, GLib, GObject, Shell, St } = imports.gi;
 const Signals = imports.signals;
 
 const Calendar = imports.ui.calendar;
@@ -71,10 +71,32 @@ class MediaMessage extends MessageList.Message {
         this.setBody(this._player.trackTitle);
 
         if (this._player.trackCoverUrl) {
+log("MPRIS: got a track cover url: " + this._player.trackCoverUrl);
             let file = Gio.File.new_for_uri(this._player.trackCoverUrl);
-            this._icon.gicon = new Gio.FileIcon({ file: file });
+            file.query_exists_async(GLib.PRIORITY_DEFAULT, null, (file, result) => {
+
+                try {
+                    let exists = file.query_exists_finish(result);
+
+log("MPRIS: got return of query exists: exists = " + exists);
+                } catch (e) {
+log("MPRIS: failure!! " + e);
+                    return;
+                }
+
+
+
+            });
+
+
+            let icon = new Gio.FileIcon({ file });
+            if (icon == null)
+log("MPRIS: error, icon incorrect");
+
+            this._icon.gicon = icon;
             this._icon.remove_style_class_name('fallback');
         } else {
+log("MPRIS: using generic symbolic thingy");
             this._icon.icon_name = 'audio-x-generic-symbolic';
             this._icon.add_style_class_name('fallback');
         }
