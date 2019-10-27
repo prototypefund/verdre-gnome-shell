@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported BaseIcon, IconGrid, PaginatedIconGrid */
 
-const { Clutter, GLib, GObject, Graphene, Meta, St } = imports.gi;
+const { Clutter, GLib, GObject, Graphene, Meta, Pango, St } = imports.gi;
 
 const Params = imports.misc.params;
 const Main = imports.ui.main;
@@ -28,8 +28,311 @@ var AnimationDirection = {
 var APPICON_ANIMATION_OUT_SCALE = 3;
 var APPICON_ANIMATION_OUT_TIME = 250;
 
+var IconGridLayout = GObject.registerClass({
+    Signals: {
+        'children-layout': {},
+    },
+}, class IconGridLayout extends Clutter.LayoutManager {
+  _init(params) {
+    super._init(params);
+
+    // The horizontal spacing
+    this._hSpacing = 70;
+
+    // The vertical spacing
+    this._vSpacing = 70;
+
+    // The percentage we allow items to expand vertically into the bottom-spacing,
+    // to use this `_defaultItemHeight` has to be set.
+    this._maxExpandIntoVSpacing = 0.4;
+
+    // The amount of icons to try to fit into the layout when filling the whole
+    // allocation (x_align and y_align are both set to Clutter.ActorAlign.FILL).
+    // In this case the spacing properties are not used, but a dynamically
+    // calculated spacing is used instead.
+    this._nLayoutItems = 24;
+
+    // The default height of an item needed when expanding items into the
+    // vertical spacing or when filling the whole allocation.
+    this._defaultItemHeight = 0;
+  }
+
+  getItemWidth(container) {
+      // We allocate the minimum width of children and use the same width for
+      // all children...
+      let firstChild = container.get_first_child();
+      if (!firstChild)
+          return 0;
+
+      // TODO: This is a hack :(
+      let [,natH] = firstChild.get_preferred_height(-1);
+      this._defaultItemHeight = natH;
+
+      return firstChild.get_preferred_width(-1)[0];
+  }
+
+  getVisibleChildren(container) {
+      return container.get_children().filter(i => i.visible)
+  }
+
+  nColumnsForWidth(container, rowWidth) {
+    let childWidth = this.getItemWidth(container);
+    let curWidth = 0;
+    let nChildren = 0;
+
+    if (childWidth === 0)
+        return 0;
+
+    while (curWidth + childWidth <= rowWidth) {
+        curWidth += childWidth + this._hSpacing;
+        nChildren++;
+    }
+
+    return nChildren;
+  }
+
+  _calculateHSpacing(container, forWidth) {
+    let childWidth = this.getItemWidth(container);
+    let nChildren = container.get_n_children();
+    let nChildrenPerRow = this.nColumnsForWidth(container, forWidth);
+    let combinedChildrenWidthPerRow = childWidth * nChildrenPerRow;
+
+    // Special case: Only one child fits in, here we want to return 0
+    if (nChildrenPerRow == 1)
+        return 0;
+
+    let unusedWidth = forWidth - combinedChildrenWidthPerRow;
+    let spacing = unusedWidth / (nChildrenPerRow - 1);
+
+    return spacing;
+  }
+
+  /* I don't know yet what's the best thing to return by default in the
+   * get_preferred_width/height functions, a few options would be:
+   * 1) A square layout of icons (could be done using sqrt(nIcons)). This would
+   *    have the benefit of returning something useful without any fixed
+   *    dimensions, the downside is obviously that we have to calculate a
+   *    squareroot (is it that expensive though?)...
+   * 2) A single row/column for get_preferred_width() and get_preferred_height()
+   * 3) Nothing, i.e. [0, 0]. While this is the easiest and resource friendliest
+   *    solution, it feels wrong and will probably haunt us...
+   */
+  vfunc_get_preferred_width(container, forHeight) {
+    let childWidth = this.getItemWidth(container);
+    let natWidth = 0;
+
+    // Let's go with option 2) for now here, this always returns the width of a
+    // single row with all items in it.
+    this.getVisibleChildren(container).forEach((child, i) => {
+        if (this._nLayoutItems > 0 && i > this._nLayoutItems &&
+            container.get_x_align() == Clutter.ActorAlign.FILL &&
+            container.get_y_align() == Clutter.ActorAlign.FILL)
+            return;
+
+        natWidth += childWidth + this._hSpacing;
+    });
+
+    natWidth -= this._hSpacing;
+
+    return [childWidth, natWidth];
+  }
+
+  vfunc_get_preferred_height(container, forWidth) {
+    let childWidth = this.getItemWidth(container);
+    let curWidth = 0;
+    let minHeight = 0;
+    let natHeight = 0;
+    let rowMinHeight = 0;
+    let rowNatHeight = 0;
+
+    // If no forWidth is given, this returns the height of a single row with
+    // all items in it.
+    this.getVisibleChildren(container).forEach((child, i) => {
+        if (this._nLayoutItems > 0 && i > this._nLayoutItems &&
+            container.get_x_align() == Clutter.ActorAlign.FILL &&
+            container.get_y_align() == Clutter.ActorAlign.FILL)
+            return;
+
+        let [childMinHeight, childNatHeight] = this._defaultItemHeight > 0
+            ? [this._defaultItemHeight, this._defaultItemHeight]
+            : child.get_preferred_height(childWidth);
+
+        if (curWidth + childWidth > forWidth) {
+            minHeight += rowMinHeight + this._vSpacing;
+            natHeight += rowNatHeight + this._vSpacing;
+
+            curWidth = rowMinHeight = rowNatHeight = 0;
+        }
+
+        curWidth += childWidth + this._hSpacing;
+
+        rowMinHeight = Math.max(rowMinHeight, childMinHeight);
+        rowNatHeight = Math.max(rowNatHeight, childNatHeight);
+    });
+
+    minHeight += rowMinHeight;
+    natHeight += rowNatHeight;
+
+    return [minHeight, natHeight];
+  }
+
+  _calculateFillLayout(width, height, nItems) {
+    let aspectRatio = width / height;
+    let lastNCols = 0;
+    let lastNRows = 0;
+    let lastLayoutARDiff = Infinity;
+
+    /* A small algorithm to find the best number of rows and colums for a given
+     * aspect ratio: Try different layouts starting with 1 column and
+     * (nItems / 1) rows and calculate the difference between the given aspect
+     * ratio and the layout aspect ratio. Do this until the difference doesn't
+     * get smaller anymore, but starts growing, which means the last layout we
+     * calculated was the best one.
+     */
+    for (let nCols = 1; nCols <= nItems; nCols++) {
+        let nRows = nItems / nCols;
+        if (!Number.isInteger(nRows))
+            continue;
+
+        let layoutARDiff = Math.abs(aspectRatio - (nCols / nRows));
+
+        if (layoutARDiff > lastLayoutARDiff)
+            break;
+
+        lastNCols = nCols;
+        lastNRows = nRows;
+        lastLayoutARDiff = layoutARDiff;
+    }
+
+    return [lastNCols, lastNRows];
+  }
+
+  _calculateFillSpacing(childWidth, childHeight, width, height, nItems) {
+    let [nCols, nRows] = this._calculateFillLayout(width, height, nItems);
+
+    let combinedChildrenWidthPerRow = childWidth * nCols;
+    let combinedChildrenHeightPerCol = childHeight * nRows;
+
+    let unusedWidth = width - combinedChildrenWidthPerRow;
+    let unusedHeight = height - combinedChildrenHeightPerCol;
+
+    let hSpacing = unusedWidth / (nCols - 1);
+    let vSpacing = unusedHeight / (nRows - 1);
+
+    /* In case expand into vSpacing is allowed, make sure the last row can also
+     * expand. We do this by assuming one row (the last row) always expands by
+     * the allowed expansion height and then recalculating the vSpacing. This
+     * is not too great in case items in the last row don't actually expand
+     * that much, because then we have bottom padding.
+     */
+    if (this._maxExpandIntoVSpacing > 0) {
+        let allowedExpansionHeight = Math.floor(vSpacing * this._maxExpandIntoVSpacing);
+        unusedHeight -= allowedExpansionHeight;
+        vSpacing = unusedHeight / (nRows - 1);
+    }
+
+    return [hSpacing, vSpacing];
+  }
+
+  vfunc_allocate(container, box, flags) {
+    if (container.get_request_mode() != Clutter.RequestMode.HEIGHT_FOR_WIDTH)
+        throw new GObject.NotImplementedError("Currently, only the WIDTH_FOR_HEIGHT " +
+                                              "request mode is implemented.");
+
+    let availWidth = box.x2 - box.x1;
+    let availHeight = box.y2 - box.y1;
+
+    let childBox = new Clutter.ActorBox();
+    childBox.x1 = box.x1;
+    childBox.y1 = box.y1;
+    let nextRowY1 = box.y1;
+
+    let childWidth = this.getItemWidth(container);
+    let hSpacing, vSpacing;
+
+    if (this._nLayoutItems > 0 &&
+        container.get_x_align() == Clutter.ActorAlign.FILL &&
+        container.get_y_align() == Clutter.ActorAlign.FILL) {
+        // Right now we use `this._defaultItemHeight` as the height when
+        // calculating the layout to fill the allocation and just fail if it
+        // isn't set. We could also find the smallest item in the container
+        // and use that to calculate the layout.
+        if (this._defaultItemHeight == 0)
+            throw new Error("this._defaultItemHeight needs to be set for fill requests.");
+
+        [hSpacing, vSpacing] = this._calculateFillSpacing(childWidth,
+            this._defaultItemHeight, availWidth, availHeight, this._nLayoutItems);
+    } else {
+        hSpacing = this._calculateHSpacing(container, availWidth);
+        vSpacing = this._vSpacing;
+    }
+
+    this.getVisibleChildren(container).forEach(child => {
+        let [childMinHeight, childNatHeight] =
+            child.get_preferred_height(childWidth);
+
+        if (childBox.x1 + childWidth > box.x1 + availWidth) {
+            childBox.x1 = box.x1;
+
+            // The spacing we apply to the next row might make this a float and
+            // we don't want that, because it will introduce float precision issues.
+            // TODO: figure out a way where the errors don't add up...
+            childBox.y1 = Math.floor(nextRowY1);
+        }
+  
+        childBox.x2 = childBox.x1 + childWidth;
+        childBox.y2 = childBox.y1 + childNatHeight;
+
+        // Limit the allocations of the last row to the container size
+        if (childBox.y2 > box.y2)
+            childBox.y2 = box.y2;
+
+        /* Okay, this might look a little weird, some explanation:
+         * We want to allow items with extraordinary heights to expand
+         * vertically into the spacing underneath them. This is only
+         * possible if we're given a reference height for items (this._defaultItemHeight).
+         * Using this, we can check how far the item expands into the
+         * spacing underneath it.
+         */
+        let defaultChildY2 = childBox.y1 + this._defaultItemHeight;
+        let allowedExpansionHeight = Math.floor(vSpacing * this._maxExpandIntoVSpacing);
+
+        // If the item expands more than allowed, just limit the allocation to
+        // the allowed expansion height. This means we never fall into case 2)
+        // in the next check and the vSpacing is always the same.
+        if (this._defaultItemHeight > 0 && this._maxExpandIntoVSpacing > 0 &&
+            childBox.y2 - defaultChildY2 > allowedExpansionHeight)
+            childBox.y2 = defaultChildY2 + allowedExpansionHeight;
+
+        child.allocate(childBox, flags);
+
+        // Same here as with the Math.floor() of childBox.y1: We don't want to
+        // have a float value here...
+        // TODO: figure out a way where the errors don't add up...
+        childBox.x1 = Math.floor(childBox.x2 + hSpacing);
+
+        /* If expand into vSpacing is used, we set the start of the next row
+         * like this:
+         * 1) If the items y2 value is inside the `_maxExpandIntoVSpacing` threshold,
+         *    act as if it didn't expand and let the next row start after the
+         *    same spacing as "normal" rows (ie. use `_defaultItemHeight` as the
+         *    item height).
+         * 2) If the item is outside the threshold, ensure a proper vertical
+         *    spacing and apply `vSpacing` to y2 of the expanded item.
+         */
+        if (this._defaultItemHeight > 0 && this._maxExpandIntoVSpacing &&
+            childBox.y2 - defaultChildY2 <= allowedExpansionHeight)
+            nextRowY1 = Math.max(nextRowY1, defaultChildY2 + vSpacing);
+        else
+            nextRowY1 = Math.max(nextRowY1, childBox.y2 + vSpacing);
+    });
+
+    this.emit('children-layout');
+  }
+});
+
 var BaseIcon = GObject.registerClass(
-class BaseIcon extends St.Bin {
+class BaseIcon extends St.BoxLayout {
     _init(label, params) {
         params = Params.parse(params, { createIcon: null,
                                         setSizeManually: false,
@@ -39,21 +342,16 @@ class BaseIcon extends St.Bin {
         if (params.showLabel)
             styleClass += ' overview-icon-with-label';
 
-        super._init({ style_class: styleClass });
+        super._init({ style_class: styleClass,
+                      x_expand: true, y_expand: true,
+                      vertical: true });
 
         this.connect('destroy', this._onDestroy.bind(this));
-
-        this._box = new St.BoxLayout({
-            vertical: true,
-            x_expand: true,
-            y_expand: true,
-        });
-        this.set_child(this._box);
 
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin();
 
-        this._box.add_actor(this._iconBin);
+        this.add_actor(this._iconBin);
 
         if (params.showLabel) {
             this.label = new St.Label({ text: label });
@@ -61,7 +359,11 @@ class BaseIcon extends St.Bin {
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            this._box.add_actor(this.label);
+            this.label.clutter_text.line_wrap = true;
+            this.label.clutter_text.line_wrap_mode = Pango.WrapMode.WORD;
+            this.label.clutter_text.ellipsize = Pango.EllipsizeMode.END;
+
+            this.add_actor(this.label);
         } else {
             this.label = null;
         }
@@ -76,9 +378,16 @@ class BaseIcon extends St.Bin {
         this._iconThemeChangedId = cache.connect('icon-theme-changed', this._onIconThemeChanged.bind(this));
     }
 
-    vfunc_get_preferred_width(_forHeight) {
-        // Return the actual height to keep the squared aspect
-        return this.get_preferred_height(-1);
+    vfunc_allocate(box, flags) {
+        let contentBox = this.get_theme_node().get_content_box(box);
+        let paddingBottom = box.y2 - contentBox.y2;
+
+        super.vfunc_allocate(box,flags);
+
+        if (this.label)
+            box.y2 = this.label.allocation.y2 + paddingBottom;
+
+        this.set_allocation(box, flags);
     }
 
     // This can be overridden by a subclass, or by the createIcon
@@ -89,7 +398,7 @@ class BaseIcon extends St.Bin {
 
     setIconSize(size) {
         if (!this._setSizeManually)
-            throw new Error('setSizeManually has to be set to use setIconsize');
+            throw new Error('setSizeManually has to be set to use setIconSize');
 
         if (size == this.iconSize)
             return;
@@ -137,10 +446,9 @@ class BaseIcon extends St.Bin {
     }
 
     animateZoomOut() {
-        // Animate only the child instead of the entire actor, so the
-        // styles like hover and running are not applied while
-        // animating.
-        zoomOutActor(this.child);
+        // Animate only the icon instead of the entire actor, so the
+        // styles like hover and running are not applied while animating.
+        zoomOutActor(this._iconBin);
     }
 
     animateZoomOutAtPos(x, y) {
@@ -194,855 +502,168 @@ function zoomOutActorAtPos(actor, x, y) {
     });
 }
 
-var IconGrid = GObject.registerClass({
-    Signals: { 'animation-done': {},
-               'child-focused': { param_types: [Clutter.Actor.$gtype] } },
-}, class IconGrid extends St.Widget {
-    _init(params) {
-        super._init({ style_class: 'icon-grid',
-                      y_align: Clutter.ActorAlign.START });
+var IconGrid = GObject.registerClass(
+class IconGrid extends St.Widget {
+    _init() {
+        super._init({ style_class: 'icon-grid' });
 
-        params = Params.parse(params, { rowLimit: null,
-                                        columnLimit: null,
-                                        minRows: 1,
-                                        minColumns: 1,
-                                        fillParent: false,
-                                        xAlign: St.Align.MIDDLE,
-                                        padWithSpacing: false });
-        this._rowLimit = params.rowLimit;
-        this._colLimit = params.columnLimit;
-        this._minRows = params.minRows;
-        this._minColumns = params.minColumns;
-        this._xAlign = params.xAlign;
-        this._fillParent = params.fillParent;
-        this._padWithSpacing = params.padWithSpacing;
+        this._noAnimationIndexes = [];
+        this._animationStartIndex = -1;
 
-        this.topPadding = 0;
-        this.bottomPadding = 0;
-        this.rightPadding = 0;
-        this.leftPadding = 0;
-
-        this._updateIconSizesLaterId = 0;
-
-        this._items = [];
-        this._clonesAnimating = [];
-        // Pulled from CSS, but hardcode some defaults here
-        this._spacing = 0;
-        this._hItemSize = this._vItemSize = ICON_SIZE;
-        this._fixedHItemSize = this._fixedVItemSize = undefined;
-        this.connect('style-changed', this._onStyleChanged.bind(this));
-
-        this.connect('actor-added', this._childAdded.bind(this));
-        this.connect('actor-removed', this._childRemoved.bind(this));
-        this.connect('destroy', this._onDestroy.bind(this));
+        this.layout_manager = new IconGridLayout();
+        this.layout_manager.connect('children-layout', () => {
+            this._animationStartIndex = -1;
+            this._noAnimationIndexes = []
+        });;
     }
 
-    vfunc_unmap() {
-        // Cancel animations when hiding the overview, to avoid icons
-        // swarming into the void ...
-        this._resetAnimationActors();
-        super.vfunc_unmap();
-    }
-
-    _onDestroy() {
-        if (this._updateIconSizesLaterId) {
-            Meta.later_remove(this._updateIconSizesLaterId);
-            this._updateIconSizesLaterId = 0;
-        }
-    }
-
-    _keyFocusIn(actor) {
-        this.emit('child-focused', actor);
-    }
-
-    _childAdded(grid, child) {
-        child._iconGridKeyFocusInId = child.connect('key-focus-in', this._keyFocusIn.bind(this));
-
-        child._paintVisible = child.opacity > 0;
-        child._opacityChangedId = child.connect('notify::opacity', () => {
-            let paintVisible = child._paintVisible;
-            child._paintVisible = child.opacity > 0;
-            if (paintVisible !== child._paintVisible)
-                this.queue_relayout();
-        });
-    }
-
-    _childRemoved(grid, child) {
-        child.disconnect(child._iconGridKeyFocusInId);
-        delete child._iconGridKeyFocusInId;
-
-        child.disconnect(child._opacityChangedId);
-        delete child._opacityChangedId;
-        delete child._paintVisible;
-    }
-
-    vfunc_get_preferred_width(_forHeight) {
-        if (this._fillParent)
-            // Ignore all size requests of children and request a size of 0;
-            // later we'll allocate as many children as fit the parent
-            return [0, 0];
-
-        let nChildren = this.get_n_children();
-        let nColumns = this._colLimit
-            ? Math.min(this._colLimit, nChildren)
-            : nChildren;
-        let totalSpacing = Math.max(0, nColumns - 1) * this._getSpacing();
-        // Kind of a lie, but not really an issue right now.  If
-        // we wanted to support some sort of hidden/overflow that would
-        // need higher level design
-        let minSize = this._getHItemSize() + this.leftPadding + this.rightPadding;
-        let natSize = nColumns * this._getHItemSize() + totalSpacing + this.leftPadding + this.rightPadding;
-
-        return this.get_theme_node().adjust_preferred_width(minSize, natSize);
-    }
-
-    _getVisibleChildren() {
-        return this.get_children().filter(actor => actor.visible);
-    }
-
-    vfunc_get_preferred_height(forWidth) {
-        if (this._fillParent)
-            // Ignore all size requests of children and request a size of 0;
-            // later we'll allocate as many children as fit the parent
-            return [0, 0];
-
-        let themeNode = this.get_theme_node();
-        let children = this._getVisibleChildren();
-        let nColumns;
-
-        forWidth = themeNode.adjust_for_width(forWidth);
-
-        if (forWidth < 0)
-            nColumns = children.length;
-        else
-            [nColumns] = this._computeLayout(forWidth);
-
-        let nRows;
-        if (nColumns > 0)
-            nRows = Math.ceil(children.length / nColumns);
-        else
-            nRows = 0;
-        if (this._rowLimit)
-            nRows = Math.min(nRows, this._rowLimit);
-        let totalSpacing = Math.max(0, nRows - 1) * this._getSpacing();
-        let height = nRows * this._getVItemSize() + totalSpacing + this.topPadding + this.bottomPadding;
-
-        return themeNode.adjust_preferred_height(height, height);
-    }
-
-    vfunc_allocate(box, flags) {
-        this.set_allocation(box, flags);
-
-        let themeNode = this.get_theme_node();
-        box = themeNode.get_content_box(box);
-
-        if (this._fillParent) {
-            // Reset the passed in box to fill the parent
-            let parentBox = this.get_parent().allocation;
-            let gridBox = themeNode.get_content_box(parentBox);
-            box = themeNode.get_content_box(gridBox);
-        }
-
-        let children = this._getVisibleChildren();
-        let availWidth = box.x2 - box.x1;
-        let availHeight = box.y2 - box.y1;
-        let spacing = this._getSpacing();
-        let [nColumns, usedWidth] = this._computeLayout(availWidth);
-
-        let leftEmptySpace;
-        switch (this._xAlign) {
-        case St.Align.START:
-            leftEmptySpace = 0;
-            break;
-        case St.Align.MIDDLE:
-            leftEmptySpace = Math.floor((availWidth - usedWidth) / 2);
-            break;
-        case St.Align.END:
-            leftEmptySpace = availWidth - usedWidth;
-        }
-
-        let animating = this._clonesAnimating.length > 0;
-        let x = box.x1 + leftEmptySpace + this.leftPadding;
-        let y = box.y1 + this.topPadding;
-        let columnIndex = 0;
-        let rowIndex = 0;
-        for (let i = 0; i < children.length; i++) {
-            let childBox = this._calculateChildBox(children[i], x, y, box);
-
-            if (this._rowLimit && rowIndex >= this._rowLimit ||
-                this._fillParent && childBox.y2 > availHeight - this.bottomPadding) {
-                children[i].opacity = 0;
-            } else {
-                if (!animating)
-                    children[i].opacity = 255;
-                children[i].allocate(childBox, flags);
-            }
-
-            columnIndex++;
-            if (columnIndex == nColumns) {
-                columnIndex = 0;
-                rowIndex++;
-            }
-
-            if (columnIndex == 0) {
-                y += this._getVItemSize() + spacing;
-                x = box.x1 + leftEmptySpace + this.leftPadding;
-            } else {
-                x += this._getHItemSize() + spacing;
-            }
-        }
-    }
-
-    vfunc_get_paint_volume(paintVolume) {
-        // Setting the paint volume does not make sense when we don't have
-        // any allocation
-        if (!this.has_allocation())
-            return false;
-
-        let themeNode = this.get_theme_node();
-        let allocationBox = this.get_allocation_box();
-        let paintBox = themeNode.get_paint_box(allocationBox);
-
-        let origin = new Graphene.Point3D();
-        origin.x = paintBox.x1 - allocationBox.x1;
-        origin.y = paintBox.y1 - allocationBox.y1;
-        origin.z = 0.0;
-
-        paintVolume.set_origin(origin);
-        paintVolume.set_width(paintBox.x2 - paintBox.x1);
-        paintVolume.set_height(paintBox.y2 - paintBox.y1);
-
-        if (this.get_clip_to_allocation())
-            return true;
-
-        for (let child = this.get_first_child();
-            child != null;
-            child = child.get_next_sibling()) {
-
-            if (!child.visible || !child.opacity)
-                continue;
-
-            let childVolume = child.get_transformed_paint_volume(this);
-            if (!childVolume)
-                return false;
-
-            paintVolume.union(childVolume);
-        }
-
-        return true;
-    }
-
-    /*
-     * Intended to be override by subclasses if they need a different
-     * set of items to be animated.
-     */
-    _getChildrenToAnimate() {
-        return this._getVisibleChildren().filter(child => child.opacity > 0);
-    }
-
-    _resetAnimationActors() {
-        this._clonesAnimating.forEach(clone => {
-            clone.source.reactive = true;
-            clone.source.opacity = 255;
-            clone.destroy();
-        });
-        this._clonesAnimating = [];
-    }
-
-    _animationDone() {
-        this._resetAnimationActors();
-        this.emit('animation-done');
-    }
-
-    animatePulse(animationDirection) {
-        if (animationDirection != AnimationDirection.IN) {
-            throw new GObject.NotImplementedError("Pulse animation only implements " +
-                                                  "'in' animation direction");
-        }
-
-        this._resetAnimationActors();
-
-        let actors = this._getChildrenToAnimate();
-        if (actors.length == 0) {
-            this._animationDone();
-            return;
-        }
-
-        // For few items the animation can be slow, so use a smaller
-        // delay when there are less than 4 items
-        // (ANIMATION_BASE_DELAY_FOR_ITEM = 1/4 *
-        // ANIMATION_MAX_DELAY_FOR_ITEM)
-        let maxDelay = Math.min(ANIMATION_BASE_DELAY_FOR_ITEM * actors.length,
-                                ANIMATION_MAX_DELAY_FOR_ITEM);
-
-        for (let index = 0; index < actors.length; index++) {
-            let actor = actors[index];
-            actor.set_scale(0, 0);
-            actor.set_pivot_point(0.5, 0.5);
-
-            let delay = index / actors.length * maxDelay;
-            let bounceUpTime = ANIMATION_TIME_IN / 4;
-            let isLastItem = index == actors.length - 1;
-            actor.ease({
-                scale_x: ANIMATION_BOUNCE_ICON_SCALE,
-                scale_y: ANIMATION_BOUNCE_ICON_SCALE,
-                duration: bounceUpTime,
-                mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                delay,
-                onComplete: () => {
-                    let duration = ANIMATION_TIME_IN - bounceUpTime;
-                    actor.ease({
-                        scale_x: 1,
-                        scale_y: 1,
-                        duration,
-                        mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                        onComplete: () => {
-                            if (isLastItem)
-                                this._animationDone();
-                            actor.reactive = true;
-                        },
-                    });
-                },
-            });
-        }
-    }
-
-    animateSpring(animationDirection, sourceActor) {
-        this._resetAnimationActors();
-
-        let actors = this._getChildrenToAnimate();
-        if (actors.length == 0) {
-            this._animationDone();
-            return;
-        }
-
-        let [sourceX, sourceY] = sourceActor.get_transformed_position();
-        let [sourceWidth, sourceHeight] = sourceActor.get_size();
-        // Get the center
-        let [sourceCenterX, sourceCenterY] = [sourceX + sourceWidth / 2, sourceY + sourceHeight / 2];
-        // Design decision, 1/2 of the source actor size.
-        let [sourceScaledWidth, sourceScaledHeight] = [sourceWidth / 2, sourceHeight / 2];
-
-        actors.forEach(actor => {
-            let [actorX, actorY] = actor._transformedPosition = actor.get_transformed_position();
-            let [x, y] = [actorX - sourceX, actorY - sourceY];
-            actor._distance = Math.sqrt(x * x + y * y);
-        });
-        let maxDist = actors.reduce((prev, cur) => {
-            return Math.max(prev, cur._distance);
-        }, 0);
-        let minDist = actors.reduce((prev, cur) => {
-            return Math.min(prev, cur._distance);
-        }, Infinity);
-        let normalization = maxDist - minDist;
-
-        for (let index = 0; index < actors.length; index++) {
-            let actor = actors[index];
-            actor.opacity = 0;
-            actor.reactive = false;
-
-            let actorClone = new Clutter.Clone({ source: actor });
-            this._clonesAnimating.push(actorClone);
-            Main.uiGroup.add_actor(actorClone);
-
-            let [width, height] = this._getAllocatedChildSizeAndSpacing(actor);
-            actorClone.set_size(width, height);
-            let scaleX = sourceScaledWidth / width;
-            let scaleY = sourceScaledHeight / height;
-            let [adjustedSourcePositionX, adjustedSourcePositionY] = [sourceCenterX - sourceScaledWidth / 2, sourceCenterY - sourceScaledHeight / 2];
-
-            let movementParams, fadeParams;
-            if (animationDirection == AnimationDirection.IN) {
-                let isLastItem = actor._distance == minDist;
-
-                actorClone.opacity = 0;
-                actorClone.set_scale(scaleX, scaleY);
-
-                actorClone.set_position(adjustedSourcePositionX, adjustedSourcePositionY);
-
-                let delay = (1 - (actor._distance - minDist) / normalization) * ANIMATION_MAX_DELAY_FOR_ITEM;
-                let [finalX, finalY]  = actor._transformedPosition;
-                movementParams = {
-                    x: finalX,
-                    y: finalY,
-                    scale_x: 1,
-                    scale_y: 1,
-                    duration: ANIMATION_TIME_IN,
-                    mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                    delay,
-                };
-
-                if (isLastItem)
-                    movementParams.onComplete = this._animationDone.bind(this);
-
-                fadeParams = {
-                    opacity: 255,
-                    duration: ANIMATION_FADE_IN_TIME_FOR_ITEM,
-                    mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                    delay,
-                };
-            } else {
-                let isLastItem = actor._distance == maxDist;
-
-                let [startX, startY]  = actor._transformedPosition;
-                actorClone.set_position(startX, startY);
-
-                let delay = (actor._distance - minDist) / normalization * ANIMATION_MAX_DELAY_OUT_FOR_ITEM;
-                movementParams = {
-                    x: adjustedSourcePositionX,
-                    y: adjustedSourcePositionY,
-                    scale_x: scaleX,
-                    scale_y: scaleY,
-                    duration: ANIMATION_TIME_OUT,
-                    mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                    delay,
-                };
-
-                if (isLastItem)
-                    movementParams.onComplete = this._animationDone.bind(this);
-
-                fadeParams = {
-                    opacity: 0,
-                    duration: ANIMATION_FADE_IN_TIME_FOR_ITEM,
-                    mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                    delay: ANIMATION_TIME_OUT + delay - ANIMATION_FADE_IN_TIME_FOR_ITEM,
-                };
-            }
-
-            actorClone.ease(movementParams);
-            actorClone.ease(fadeParams);
-        }
-    }
-
-    _getAllocatedChildSizeAndSpacing(child) {
-        let [,, natWidth, natHeight] = child.get_preferred_size();
-        let width = Math.min(this._getHItemSize(), natWidth);
-        let xSpacing = Math.max(0, width - natWidth) / 2;
-        let height = Math.min(this._getVItemSize(), natHeight);
-        let ySpacing = Math.max(0, height - natHeight) / 2;
-        return [width, height, xSpacing, ySpacing];
-    }
-
-    _calculateChildBox(child, x, y, box) {
-        /* Center the item in its allocation horizontally */
-        let [width, height, childXSpacing, childYSpacing] =
-            this._getAllocatedChildSizeAndSpacing(child);
-
-        let childBox = new Clutter.ActorBox();
-        if (Clutter.get_default_text_direction() == Clutter.TextDirection.RTL) {
-            let _x = box.x2 - (x + width);
-            childBox.x1 = Math.floor(_x - childXSpacing);
-        } else {
-            childBox.x1 = Math.floor(x + childXSpacing);
-        }
-        childBox.y1 = Math.floor(y + childYSpacing);
-        childBox.x2 = childBox.x1 + width;
-        childBox.y2 = childBox.y1 + height;
-        return childBox;
-    }
-
-    columnsForWidth(rowWidth) {
-        return this._computeLayout(rowWidth)[0];
-    }
-
-    getRowLimit() {
-        return this._rowLimit;
-    }
-
-    _computeLayout(forWidth) {
-        this.ensure_style();
-
-        let nColumns = 0;
-        let usedWidth = this.leftPadding + this.rightPadding;
-        let spacing = this._getSpacing();
-
-        while ((this._colLimit == null || nColumns < this._colLimit) &&
-               (usedWidth + this._getHItemSize() <= forWidth)) {
-            usedWidth += this._getHItemSize() + spacing;
-            nColumns += 1;
-        }
-
-        if (nColumns > 0)
-            usedWidth -= spacing;
-
-        return [nColumns, usedWidth];
-    }
-
-    _onStyleChanged() {
-        let themeNode = this.get_theme_node();
-        this._spacing = themeNode.get_length('spacing');
-        this._hItemSize = themeNode.get_length('-shell-grid-horizontal-item-size') || ICON_SIZE;
-        this._vItemSize = themeNode.get_length('-shell-grid-vertical-item-size') || ICON_SIZE;
-        this.queue_relayout();
-    }
-
-    nRows(forWidth) {
-        let children = this._getVisibleChildren();
-        let nColumns = forWidth < 0 ? children.length : this._computeLayout(forWidth)[0];
-        let nRows = nColumns > 0 ? Math.ceil(children.length / nColumns) : 0;
-        if (this._rowLimit)
-            nRows = Math.min(nRows, this._rowLimit);
-        return nRows;
-    }
-
-    rowsForHeight(forHeight) {
-        return Math.floor((forHeight - (this.topPadding + this.bottomPadding) + this._getSpacing()) / (this._getVItemSize() + this._getSpacing()));
-    }
-
-    usedHeightForNRows(nRows) {
-        return (this._getVItemSize() + this._getSpacing()) * nRows - this._getSpacing() + this.topPadding + this.bottomPadding;
-    }
-
-    usedWidth(forWidth) {
-        return this.usedWidthForNColumns(this.columnsForWidth(forWidth));
-    }
-
-    usedWidthForNColumns(columns) {
-        let usedWidth = columns  * (this._getHItemSize() + this._getSpacing());
-        usedWidth -= this._getSpacing();
-        return usedWidth + this.leftPadding + this.rightPadding;
+    visibleItemsCount() {
+        return this.get_children().filter(c => c.visible).length;
     }
 
     removeAll() {
-        this._items = [];
         this.remove_all_children();
     }
 
     destroyAll() {
-        this._items = [];
         this.destroy_all_children();
     }
 
-    addItem(item, index) {
-        if (!(item.icon instanceof BaseIcon))
-            throw new Error('Only items with a BaseIcon icon property can be added to IconGrid');
+    _getAnimationDelayForIndex(index) {
+        if (this._animationStartIndex == -1)
+            return 0;
 
-        this._items.push(item);
-        if (index !== undefined)
-            this.insert_child_at_index(item, index);
+        let distanceFromChangedItem = Math.abs(this._animationStartIndex - index);
+        return distanceFromChangedItem * 20;
+    }
+
+    _getTotalAnimationDurationForIndex(index) {
+        return this._getAnimationDelayForIndex(index) + 350;
+    }
+
+    _onItemPositionChanged(item) {
+        let newAllocation = item.allocation;
+
+        if (item._oldAllocation) {
+            let diffX = newAllocation.x1 - item._oldAllocation.x1;
+            let diffY = newAllocation.y1 - item._oldAllocation.y1;
+
+            let childIndex = this.get_children().indexOf(item);
+
+            if (!this._noAnimationIndexes.includes(childIndex)) {
+                // Add to the old translation in case an animation is already ongoing
+                item.translation_x += -diffX;
+                item.translation_y += -diffY;
+
+                item.ease({
+                    translation_x: 0,
+                    translation_y: 0,
+                    duration: 350,
+                    delay: this._getAnimationDelayForIndex(childIndex),
+                    mode: Clutter.AnimationMode.EASE_IN_OUT_SINE,
+                    onStopped: () => {
+                        item.translation_x = item.translation_y = 0;
+                    },
+                });
+            }
+        }
+
+        item._oldAllocation = newAllocation;
+    }
+
+    _setAnimationStart(changedIndex) {
+        if (this._animationStartIndex == -1)
+            this._animationStartIndex = changedIndex;
         else
-            this.add_actor(item);
+            this._animationStartIndex = Math.min(this._animationStartIndex, changedIndex);
+    }
+
+    addItem(item, index = this.get_n_children()) {
+        this._noAnimationIndexes = this._noAnimationIndexes.map(i =>
+            index <= i ? i + 1 : i);
+
+        this._noAnimationIndexes.push(index);
+        this._setAnimationStart(index);
+
+        this.insert_child_at_index(item, index);
+
+        item._oldAllocation = item.allocation;
+        item._notifyPositionId = item.connect('notify::position',
+            this._onItemPositionChanged.bind(this));
+
+        item.set_pivot_point(0.5, 0.5);
+
+        // If the new item is at the last index, use the normal delay, if
+        // there are items after it, wait for the next item to finish its
+        // animation until we start fading in.
+        let delay = index == this.get_n_children()
+            ? this._getAnimationDelayForIndex(index)
+            : this._getTotalAnimationDurationForIndex(index + 1);
+
+        item.opacity = 0;
+        item.scale_x = 0.3;
+        item.scale_y = 0.3;
+        item.ease({
+            opacity: 255,
+            scale_x: 1,
+            scale_y: 1,
+            duration: 250,
+            delay,
+        });
+    }
+
+    moveItem(item, newIndex = 0) {
+        let oldIndex = this.get_children().indexOf(item);
+        if (oldIndex == -1)
+            return;
+
+        this._noAnimationIndexes = this._noAnimationIndexes.map(i =>
+            newIndex <= i ? i + 1 : i);
+
+        this._noAnimationIndexes.push(newIndex);
+        this._setAnimationStart(Math.min(oldIndex, newIndex));
+
+        this.set_child_at_index(item, newIndex);     
+
+        // TODO: remove the fade-in animation here, this is just for testing
+        let delay = newIndex == this.get_n_children()
+            ? this._getAnimationDelayForIndex(newIndex)
+            : this._getTotalAnimationDurationForIndex(newIndex + 1);
+
+        item.opacity = 0;
+        item.scale_x = 0.3;
+        item.scale_y = 0.3;
+        item.ease({
+            opacity: 255,
+            scale_x: 1,
+            scale_y: 1,
+            duration: 250,
+            delay,
+        });
     }
 
     removeItem(item) {
-        this.remove_child(item);
+        let index = this.get_children().indexOf(item);
+        if (index == -1)
+            return;
+
+        this._setAnimationStart(index);
+
+        item.disconnect(item._notifyPositionId);
+        delete item._notifyPositionId;
+        delete item._oldAllocation;
+
+        item.ease({
+            opacity: 0,
+            scale_x: 0.3,
+            scale_y: 0.3,
+            duration: 250,
+            onStopped: () => this.remove_actor(item),
+        });
     }
 
-    getItemAtIndex(index) {
-        return this.get_child_at_index(index);
-    }
-
-    visibleItemsCount() {
-        return this.get_children().filter(c => c.is_visible()).length;
-    }
-
-    setSpacing(spacing) {
-        this._fixedSpacing = spacing;
-    }
-
-    _getSpacing() {
-        return this._fixedSpacing ? this._fixedSpacing : this._spacing;
-    }
-
-    _getHItemSize() {
-        return this._fixedHItemSize ? this._fixedHItemSize : this._hItemSize;
-    }
-
-    _getVItemSize() {
-        return this._fixedVItemSize ? this._fixedVItemSize : this._vItemSize;
-    }
-
-    _updateSpacingForSize(availWidth, availHeight) {
-        let maxEmptyVArea = availHeight - this._minRows * this._getVItemSize();
-        let maxEmptyHArea = availWidth - this._minColumns * this._getHItemSize();
-        let maxHSpacing, maxVSpacing;
-
-        if (this._padWithSpacing) {
-            // minRows + 1 because we want to put spacing before the first row, so it is like we have one more row
-            // to divide the empty space
-            maxVSpacing = Math.floor(maxEmptyVArea / (this._minRows + 1));
-            maxHSpacing = Math.floor(maxEmptyHArea / (this._minColumns + 1));
-        } else {
-            if (this._minRows <=  1)
-                maxVSpacing = maxEmptyVArea;
-            else
-                maxVSpacing = Math.floor(maxEmptyVArea / (this._minRows - 1));
-
-            if (this._minColumns <=  1)
-                maxHSpacing = maxEmptyHArea;
-            else
-                maxHSpacing = Math.floor(maxEmptyHArea / (this._minColumns - 1));
-        }
-
-        let maxSpacing = Math.min(maxHSpacing, maxVSpacing);
-        // Limit spacing to the item size
-        maxSpacing = Math.min(maxSpacing, Math.min(this._getVItemSize(), this._getHItemSize()));
-        // The minimum spacing, regardless of whether it satisfies the row/columng minima,
-        // is the spacing we get from CSS.
-        let spacing = Math.max(this._spacing, maxSpacing);
-        this.setSpacing(spacing);
-        if (this._padWithSpacing)
-            this.topPadding = this.rightPadding = this.bottomPadding = this.leftPadding = spacing;
-    }
-
-    /*
-     * This function must to be called before iconGrid allocation,
-     * to know how much spacing can the grid has
-     */
-    adaptToSize(availWidth, availHeight) {
-        this._fixedHItemSize = this._hItemSize;
-        this._fixedVItemSize = this._vItemSize;
-        this._updateSpacingForSize(availWidth, availHeight);
-
-        if (this.columnsForWidth(availWidth) < this._minColumns || this.rowsForHeight(availHeight) < this._minRows) {
-            let neededWidth = this.usedWidthForNColumns(this._minColumns) - availWidth;
-            let neededHeight = this.usedHeightForNRows(this._minRows) - availHeight;
-
-            let neededSpacePerItem = neededWidth > neededHeight
-                ? Math.ceil(neededWidth / this._minColumns)
-                : Math.ceil(neededHeight / this._minRows);
-            this._fixedHItemSize = Math.max(this._hItemSize - neededSpacePerItem, MIN_ICON_SIZE);
-            this._fixedVItemSize = Math.max(this._vItemSize - neededSpacePerItem, MIN_ICON_SIZE);
-
-            this._updateSpacingForSize(availWidth, availHeight);
-        }
-        if (!this._updateIconSizesLaterId) {
-            this._updateIconSizesLaterId = Meta.later_add(Meta.LaterType.BEFORE_REDRAW,
-                                                          this._updateIconSizes.bind(this));
-        }
-    }
-
-    // Note that this is ICON_SIZE as used by BaseIcon, not elsewhere in IconGrid; it's a bit messed up
-    _updateIconSizes() {
-        this._updateIconSizesLaterId = 0;
-        let scale = Math.min(this._fixedHItemSize, this._fixedVItemSize) / Math.max(this._hItemSize, this._vItemSize);
-        let newIconSize = Math.floor(ICON_SIZE * scale);
-        for (let i in this._items)
-            this._items[i].icon.setIconSize(newIconSize);
-
-        return GLib.SOURCE_REMOVE;
+    nColumnsForWidth(width) {
+        return this.layout_manager.nColumnsForWidth(this, width);
     }
 });
 
-var PaginatedIconGrid = GObject.registerClass({
-    Signals: { 'space-opened': {},
-               'space-closed': {} },
-}, class PaginatedIconGrid extends IconGrid {
-    _init(params) {
-        super._init(params);
-        this._nPages = 0;
-        this.currentPage = 0;
-        this._rowsPerPage = 0;
-        this._spaceBetweenPages = 0;
-        this._childrenPerPage = 0;
-    }
-
-    vfunc_get_preferred_height(_forWidth) {
-        let height = (this._availableHeightPerPageForItems() + this.bottomPadding + this.topPadding) * this._nPages + this._spaceBetweenPages * this._nPages;
-        return [height, height];
-    }
-
-    vfunc_allocate(box, flags) {
-        if (this._childrenPerPage == 0)
-            log('computePages() must be called before allocate(); pagination will not work.');
-
-        this.set_allocation(box, flags);
-
-        if (this._fillParent) {
-            // Reset the passed in box to fill the parent
-            let parentBox = this.get_parent().allocation;
-            let gridBox = this.get_theme_node().get_content_box(parentBox);
-            box = this.get_theme_node().get_content_box(gridBox);
-        }
-        let children = this._getVisibleChildren();
-        let availWidth = box.x2 - box.x1;
-        let spacing = this._getSpacing();
-        let [nColumns, usedWidth] = this._computeLayout(availWidth);
-
-        let leftEmptySpace;
-        switch (this._xAlign) {
-        case St.Align.START:
-            leftEmptySpace = 0;
-            break;
-        case St.Align.MIDDLE:
-            leftEmptySpace = Math.floor((availWidth - usedWidth) / 2);
-            break;
-        case St.Align.END:
-            leftEmptySpace = availWidth - usedWidth;
-        }
-
-        let x = box.x1 + leftEmptySpace + this.leftPadding;
-        let y = box.y1 + this.topPadding;
-        let columnIndex = 0;
-
-        for (let i = 0; i < children.length; i++) {
-            let childBox = this._calculateChildBox(children[i], x, y, box);
-            children[i].allocate(childBox, flags);
-            children[i].show();
-
-            columnIndex++;
-            if (columnIndex == nColumns)
-                columnIndex = 0;
-
-            if (columnIndex == 0) {
-                y += this._getVItemSize() + spacing;
-                if ((i + 1) % this._childrenPerPage == 0)
-                    y +=  this._spaceBetweenPages - spacing + this.bottomPadding + this.topPadding;
-                x = box.x1 + leftEmptySpace + this.leftPadding;
-            } else {
-                x += this._getHItemSize() + spacing;
-            }
-        }
-    }
-
-    // Overridden from IconGrid
-    _getChildrenToAnimate() {
-        let children = super._getChildrenToAnimate();
-        let firstIndex = this._childrenPerPage * this.currentPage;
-        let lastIndex = firstIndex + this._childrenPerPage;
-
-        return children.slice(firstIndex, lastIndex);
-    }
-
-    _computePages(availWidthPerPage, availHeightPerPage) {
-        let [nColumns, usedWidth_] = this._computeLayout(availWidthPerPage);
-        let nRows;
-        let children = this._getVisibleChildren();
-        if (nColumns > 0)
-            nRows = Math.ceil(children.length / nColumns);
-        else
-            nRows = 0;
-        if (this._rowLimit)
-            nRows = Math.min(nRows, this._rowLimit);
-
-        // We want to contain the grid inside the parent box with padding
-        this._rowsPerPage = this.rowsForHeight(availHeightPerPage);
-        this._nPages = Math.ceil(nRows / this._rowsPerPage);
-        this._spaceBetweenPages = availHeightPerPage - (this.topPadding + this.bottomPadding) - this._availableHeightPerPageForItems();
-        this._childrenPerPage = nColumns * this._rowsPerPage;
-    }
-
-    adaptToSize(availWidth, availHeight) {
-        super.adaptToSize(availWidth, availHeight);
-        this._computePages(availWidth, availHeight);
-    }
-
-    _availableHeightPerPageForItems() {
-        return this.usedHeightForNRows(this._rowsPerPage) - (this.topPadding + this.bottomPadding);
-    }
-
-    nPages() {
-        return this._nPages;
-    }
-
-    getPageHeight() {
-        return this._availableHeightPerPageForItems();
-    }
-
-    getPageY(pageNumber) {
-        if (!this._nPages)
-            return 0;
-
-        let firstPageItem = pageNumber * this._childrenPerPage;
-        let childBox = this._getVisibleChildren()[firstPageItem].get_allocation_box();
-        return childBox.y1 - this.topPadding;
-    }
-
-    getItemPage(item) {
-        let children = this._getVisibleChildren();
-        let index = children.indexOf(item);
-        if (index == -1)
-            throw new Error('Item not found.');
-        return Math.floor(index / this._childrenPerPage);
-    }
-
-    /**
-    * openExtraSpace:
-    * @param {Clutter.Actor} sourceItem: item for which to create extra space
-    * @param {St.Side} side: where @sourceItem should be located relative to
-    *   the created space
-    * @param {number} nRows: the amount of space to create
-    *
-    * Pan view to create extra space for @nRows above or below @sourceItem.
-    */
-    openExtraSpace(sourceItem, side, nRows) {
-        let children = this._getVisibleChildren();
-        let index = children.indexOf(sourceItem);
-        if (index == -1)
-            throw new Error('Item not found.');
-
-        let pageIndex = Math.floor(index / this._childrenPerPage);
-        let pageOffset = pageIndex * this._childrenPerPage;
-
-        let childrenPerRow = this._childrenPerPage / this._rowsPerPage;
-        let sourceRow = Math.floor((index - pageOffset) / childrenPerRow);
-
-        let nRowsAbove = side == St.Side.TOP ? sourceRow + 1 : sourceRow;
-        let nRowsBelow = this._rowsPerPage - nRowsAbove;
-
-        let nRowsUp, nRowsDown;
-        if (side == St.Side.TOP) {
-            nRowsDown = Math.min(nRowsBelow, nRows);
-            nRowsUp = nRows - nRowsDown;
-        } else {
-            nRowsUp = Math.min(nRowsAbove, nRows);
-            nRowsDown = nRows - nRowsUp;
-        }
-
-        let childrenDown = children.splice(pageOffset +
-                                           nRowsAbove * childrenPerRow,
-                                           nRowsBelow * childrenPerRow);
-        let childrenUp = children.splice(pageOffset,
-                                         nRowsAbove * childrenPerRow);
-
-        // Special case: On the last row with no rows below the icon,
-        // there's no need to move any rows either up or down
-        if (childrenDown.length == 0 && nRowsUp == 0) {
-            this._translatedChildren = [];
-            this.emit('space-opened');
-        } else {
-            this._translateChildren(childrenUp, St.DirectionType.UP, nRowsUp);
-            this._translateChildren(childrenDown, St.DirectionType.DOWN, nRowsDown);
-            this._translatedChildren = childrenUp.concat(childrenDown);
-        }
-    }
-
-    _translateChildren(children, direction, nRows) {
-        let translationY = nRows * (this._getVItemSize() + this._getSpacing());
-        if (translationY == 0)
-            return;
-
-        if (direction == St.DirectionType.UP)
-            translationY *= -1;
-
-        for (let i = 0; i < children.length; i++) {
-            children[i].translation_y = 0;
-            let params = {
-                translation_y: translationY,
-                duration: EXTRA_SPACE_ANIMATION_TIME,
-                mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-            };
-            if (i == (children.length - 1))
-                params.onComplete = () => this.emit('space-opened');
-            children[i].ease(params);
-        }
-    }
-
-    closeExtraSpace() {
-        if (!this._translatedChildren || !this._translatedChildren.length) {
-            this.emit('space-closed');
-            return;
-        }
-
-        for (let i = 0; i < this._translatedChildren.length; i++) {
-            if (!this._translatedChildren[i].translation_y)
-                continue;
-            this._translatedChildren[i].ease({
-                translation_y: 0,
-                duration: EXTRA_SPACE_ANIMATION_TIME,
-                mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-                onComplete: () => this.emit('space-closed'),
-            });
-        }
-    }
-});

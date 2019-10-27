@@ -154,19 +154,11 @@ var BaseAppView = GObject.registerClass({
             columnLimit: MAX_COLUMNS,
             minRows: MIN_ROWS,
             minColumns: MIN_COLUMNS,
-            padWithSpacing: true,
         }, true);
 
-        if (this.use_pagination)
-            this._grid = new IconGrid.PaginatedIconGrid(gridParams);
-        else
-            this._grid = new IconGrid.IconGrid(gridParams);
-
-        this._grid.connect('child-focused', (grid, actor) => {
-            this._childFocused(actor);
-        });
-        // Standard hack for ClutterBinLayout
-        this._grid.x_expand = true;
+        this._grid = new IconGrid.IconGrid(gridParams);
+        this._grid.y_expand = true;
+        this._grid.clip_to_allocation = true;
 
         this._items = {};
         this._allItems = [];
@@ -244,28 +236,11 @@ var BaseAppView = GObject.registerClass({
         }
     }
 
-    _doSpringAnimation(animationDirection) {
-        this._grid.opacity = 255;
-        this._grid.animateSpring(
-            animationDirection,
-            Main.overview.dash.showAppsButton);
-    }
-
     animate(animationDirection, onComplete) {
-        if (onComplete) {
-            let animationDoneId = this._grid.connect('animation-done', () => {
-                this._grid.disconnect(animationDoneId);
-                onComplete();
-            });
-        }
-
         if (animationDirection == IconGrid.AnimationDirection.IN) {
-            let id = this._grid.connect('paint', () => {
-                this._grid.disconnect(id);
-                this._doSpringAnimation(animationDirection);
-            });
+            this._grid.show();
         } else {
-            this._doSpringAnimation(animationDirection);
+            this._grid.hide();
         }
     }
 
@@ -289,10 +264,6 @@ var BaseAppView = GObject.registerClass({
 
         this._grid.ease(params);
     }
-
-    adaptToSize(_width, _height) {
-        throw new GObject.NotImplementedError(`adaptToSize in ${this.constructor.name}`);
-    }
 });
 
 var AllView = GObject.registerClass({
@@ -306,21 +277,21 @@ var AllView = GObject.registerClass({
             use_pagination: true,
         });
 
-        this._scrollView = new St.ScrollView({
-            style_class: 'all-apps',
-            x_expand: true,
-            y_expand: true,
-            reactive: true,
-        });
-        this.add_actor(this._scrollView);
+       // this._scrollView = new St.ScrollView({
+       //     style_class: 'all-apps',
+       //     x_expand: true,
+       //     y_expand: true,
+       //     reactive: true,
+       // });
+       // this.add_actor(this._scrollView);
         this._grid._delegate = this;
 
-        this._scrollView.set_policy(St.PolicyType.NEVER,
-                                    St.PolicyType.EXTERNAL);
-        this._adjustment = this._scrollView.vscroll.adjustment;
-        this._adjustment.connect('notify::value', adj => {
-            this._pageIndicators.setCurrentPosition(adj.value / adj.page_size);
-        });
+       // this._scrollView.set_policy(St.PolicyType.NEVER,
+       //                             St.PolicyType.EXTERNAL);
+       // this._adjustment = this._scrollView.vscroll.adjustment;
+       // this._adjustment.connect('notify::value', adj => {
+       //     this._pageIndicators.setCurrentPosition(adj.value / adj.page_size);
+       // });
 
         this._pageIndicators = new PageIndicators.AnimatedPageIndicators();
         this._pageIndicators.connect('page-activated',
@@ -333,14 +304,14 @@ var AllView = GObject.registerClass({
         this.folderIcons = [];
 
         this._stack = new St.Widget({ layout_manager: new Clutter.BinLayout() });
-        let box = new St.BoxLayout({
+     /*   let box = new St.BoxLayout({
             vertical: true,
             y_align: Clutter.ActorAlign.START,
         });
-
+*/
         this._grid.currentPage = 0;
         this._stack.add_actor(this._grid);
-        this._eventBlocker = new St.Widget({
+      /*  this._eventBlocker = new St.Widget({
             x_expand: true,
             y_expand: true,
             reactive: true,
@@ -352,13 +323,17 @@ var AllView = GObject.registerClass({
         this._scrollView.add_actor(box);
 
         this._scrollView.connect('scroll-event', this._onScroll.bind(this));
+*/
+
+        this._stack.y_expand = true;
+        this.add_actor(this._stack);
 
         let panAction = new Clutter.PanAction({ interpolate: false });
         panAction.connect('pan', this._onPan.bind(this));
         panAction.connect('gesture-cancel', this._onPanEnd.bind(this));
         panAction.connect('gesture-end', this._onPanEnd.bind(this));
         this._panAction = panAction;
-        this._scrollView.add_action(panAction);
+    //    this._scrollView.add_action(panAction);
         this._panning = false;
         this._clickAction = new Clutter.ClickAction();
         this._clickAction.connect('clicked', () => {
@@ -370,7 +345,7 @@ var AllView = GObject.registerClass({
             if (!this._currentPopup.contains(actor))
                 this._currentPopup.popdown();
         });
-        this._eventBlocker.add_action(this._clickAction);
+//        this._eventBlocker.add_action(this._clickAction);
 
         this._currentPopup = null;
         this._displayingPopup = false;
@@ -383,7 +358,7 @@ var AllView = GObject.registerClass({
         this._lastOvershootTimeoutId = 0;
 
         Main.overview.connect('hidden', () => this.goToPage(0));
-        this._grid.connect('space-opened', () => {
+/*        this._grid.connect('space-opened', () => {
             let fadeEffect = this._scrollView.get_effect('fade');
             if (fadeEffect)
                 fadeEffect.enabled = false;
@@ -393,7 +368,7 @@ var AllView = GObject.registerClass({
         this._grid.connect('space-closed', () => {
             this._displayingPopup = false;
         });
-
+*/
         this._redisplayWorkId = Main.initializeDeferredWork(this, this._redisplay.bind(this));
 
         Shell.AppSystem.get_default().connect('installed-changed', () => {
@@ -440,7 +415,7 @@ var AllView = GObject.registerClass({
     }
 
     _refilterApps() {
-        let filteredApps = this._allItems.filter(icon => !icon.visible);
+      /*  let filteredApps = this._allItems.filter(icon => !icon.visible);
 
         this._allItems.forEach(icon => {
             if (icon instanceof AppIcon)
@@ -459,7 +434,7 @@ var AllView = GObject.registerClass({
         filteredApps.filter(icon => icon.visible).forEach(icon => {
             if (icon instanceof AppIcon)
                 icon.scaleIn();
-        });
+        });*/
     }
 
     getAppInfos() {
@@ -522,22 +497,15 @@ var AllView = GObject.registerClass({
 
     // Overridden from BaseAppView
     animate(animationDirection, onComplete) {
-        this._scrollView.reactive = false;
-        let completionFunc = () => {
-            this._scrollView.reactive = true;
-            if (onComplete)
-                onComplete();
-        };
-
         if (animationDirection == IconGrid.AnimationDirection.OUT &&
             this._displayingPopup && this._currentPopup) {
             this._currentPopup.popdown();
             let spaceClosedId = this._grid.connect('space-closed', () => {
                 this._grid.disconnect(spaceClosedId);
-                super.animate(animationDirection, completionFunc);
+                super.animate(animationDirection);
             });
         } else {
-            super.animate(animationDirection, completionFunc);
+            super.animate(animationDirection);
             if (animationDirection == IconGrid.AnimationDirection.OUT)
                 this._pageIndicators.animateIndicators(animationDirection);
         }
@@ -565,6 +533,8 @@ var AllView = GObject.registerClass({
     }
 
     goToPage(pageNumber) {
+        return;
+
         pageNumber = clamp(pageNumber, 0, this._grid.nPages() - 1);
 
         if (this._grid.currentPage == pageNumber && this._displayingPopup && this._currentPopup)
@@ -694,7 +664,7 @@ var AllView = GObject.registerClass({
     addFolderPopup(popup) {
         this._stack.add_actor(popup);
         popup.connect('open-state-changed', (o, isOpen) => {
-            this._eventBlocker.visible = isOpen;
+//            this._eventBlocker.visible = isOpen;
 
             if (this._currentPopup) {
                 this._currentPopup.disconnect(this._currentPopupDestroyId);
@@ -708,7 +678,7 @@ var AllView = GObject.registerClass({
                 this._currentPopupDestroyId = popup.connect('destroy', () => {
                     this._currentPopup = null;
                     this._currentPopupDestroyId = 0;
-                    this._eventBlocker.visible = false;
+//                    this._eventBlocker.visible = false;
                 });
             }
             this._updateIconOpacities(isOpen);
@@ -735,45 +705,6 @@ var AllView = GObject.registerClass({
                 mode: Clutter.AnimationMode.EASE_OUT_QUAD,
             });
         }
-    }
-
-    // Called before allocation to calculate dynamic spacing
-    adaptToSize(width, height) {
-        let box = new Clutter.ActorBox();
-        box.x1 = 0;
-        box.x2 = width;
-        box.y1 = 0;
-        box.y2 = height;
-        box = this.get_theme_node().get_content_box(box);
-        box = this._scrollView.get_theme_node().get_content_box(box);
-        box = this._grid.get_theme_node().get_content_box(box);
-        let availWidth = box.x2 - box.x1;
-        let availHeight = box.y2 - box.y1;
-        let oldNPages = this._grid.nPages();
-
-        this._grid.adaptToSize(availWidth, availHeight);
-
-        let fadeOffset = Math.min(this._grid.topPadding,
-                                  this._grid.bottomPadding);
-        this._scrollView.update_fade_effect(fadeOffset, 0);
-        if (fadeOffset > 0)
-            this._scrollView.get_effect('fade').fade_edges = true;
-
-        if (this._availWidth != availWidth || this._availHeight != availHeight || oldNPages != this._grid.nPages()) {
-            Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
-                this._adjustment.value = 0;
-                this._grid.currentPage = 0;
-                this._pageIndicators.setNPages(this._grid.nPages());
-                this._pageIndicators.setCurrentPosition(0);
-                return GLib.SOURCE_REMOVE;
-            });
-        }
-
-        this._availWidth = availWidth;
-        this._availHeight = availHeight;
-        // Update folder views
-        for (let i = 0; i < this.folderIcons.length; i++)
-            this.folderIcons[i].adaptToSize(availWidth, availHeight);
     }
 
     _resetOvershoot() {
@@ -836,7 +767,7 @@ var AllView = GObject.registerClass({
         };
         DND.addDragMonitor(this._dragMonitor);
 
-        this._eventBlocker.visible = false;
+//        this._eventBlocker.visible = false;
     }
 
     _onDragMotion(dragEvent) {
@@ -860,7 +791,7 @@ var AllView = GObject.registerClass({
             this._dragMonitor = null;
         }
 
-        this._eventBlocker.visible = this._currentPopup !== null;
+//        this._eventBlocker.visible = this._currentPopup !== null;
         this._resetOvershoot();
     }
 
@@ -935,7 +866,7 @@ class FrequentView extends BaseAppView {
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
             y_expand: true,
-        }, { fillParent: true });
+        });
 
         this._noFrequentAppsLabel = new St.Label({ text: _("Frequently used applications will appear here"),
                                                    style_class: 'no-frequent-applications-label',
@@ -997,19 +928,6 @@ class FrequentView extends BaseAppView {
 
         return apps;
     }
-
-    // Called before allocation to calculate dynamic spacing
-    adaptToSize(width, height) {
-        let box = new Clutter.ActorBox();
-        box.x1 = box.y1 = 0;
-        box.x2 = width;
-        box.y2 = height;
-        box = this.get_theme_node().get_content_box(box);
-        box = this._grid.get_theme_node().get_content_box(box);
-        let availWidth = box.x2 - box.x1;
-        let availHeight = box.y2 - box.y1;
-        this._grid.adaptToSize(availWidth, availHeight);
-    }
 });
 
 var Views = {
@@ -1037,20 +955,6 @@ class ControlsBoxLayout extends Clutter.BoxLayout {
         let totalSpacing = this.spacing * (childrenCount - 1);
         return [maxMinWidth * childrenCount + totalSpacing,
                 maxNaturalWidth * childrenCount + totalSpacing];
-    }
-});
-
-var ViewStackLayout = GObject.registerClass({
-    Signals: { 'allocated-size-changed': { param_types: [GObject.TYPE_INT,
-                                                         GObject.TYPE_INT] } },
-}, class ViewStackLayout extends Clutter.BinLayout {
-    vfunc_allocate(actor, box, flags) {
-        let availWidth = box.x2 - box.x1;
-        let availHeight = box.y2 - box.y1;
-        // Prepare children of all views for the upcoming allocation, calculate all
-        // the needed values to adapt available size
-        this.emit('allocated-size-changed', availWidth, availHeight);
-        super.vfunc_allocate(actor, box, flags);
     }
 });
 
@@ -1085,10 +989,9 @@ class AppDisplay extends St.BoxLayout {
                                  x_expand: true });
         this._views[Views.ALL] = { view, 'control': button };
 
-        this._viewStackLayout = new ViewStackLayout();
-        this._viewStack = new St.Widget({ x_expand: true, y_expand: true,
-                                          layout_manager: this._viewStackLayout });
-        this._viewStackLayout.connect('allocated-size-changed', this._onAllocatedSizeChanged.bind(this));
+        this._viewStackLayout = new Clutter.BinLayout();
+        this._viewStack = new St.Widget({ x_expand: true, y_expand: true, layout_manager: this._viewStackLayout });
+      //  this._viewStackLayout.connect('allocated-size-changed', this._onAllocatedSizeChanged.bind(this));
         this.add_actor(this._viewStack);
         let layout = new ControlsBoxLayout({ homogeneous: true });
         this._controls = new St.Widget({
@@ -1207,18 +1110,6 @@ class AppDisplay extends St.BoxLayout {
     selectApp(id) {
         this._showView(Views.ALL);
         this._views[Views.ALL].view.selectApp(id);
-    }
-
-    _onAllocatedSizeChanged(actor, width, height) {
-        let box = new Clutter.ActorBox();
-        box.x1 = box.y1 = 0;
-        box.x2 = width;
-        box.y2 = height;
-        box = this._viewStack.get_theme_node().get_content_box(box);
-        let availWidth = box.x2 - box.x1;
-        let availHeight = box.y2 - box.y1;
-        for (let i = 0; i < this._views.length; i++)
-            this._views[i].view.adaptToSize(availWidth, availHeight);
     }
 });
 
@@ -1376,30 +1267,6 @@ class FolderView extends BaseAppView {
         return false;
     }
 
-    adaptToSize(width, height) {
-        this._parentAvailableWidth = width;
-        this._parentAvailableHeight = height;
-
-        this._grid.adaptToSize(width, height);
-
-        // To avoid the fade effect being applied to the unscrolled grid,
-        // the offset would need to be applied after adjusting the padding;
-        // however the final padding is expected to be too small for the
-        // effect to look good, so use the unadjusted padding
-        let fadeOffset = Math.min(this._grid.topPadding,
-                                  this._grid.bottomPadding);
-        this._scrollView.update_fade_effect(fadeOffset, 0);
-
-        // Set extra padding to avoid popup or close button being cut off
-        this._grid.topPadding = Math.max(this._grid.topPadding - this._offsetForEachSide, 0);
-        this._grid.bottomPadding = Math.max(this._grid.bottomPadding - this._offsetForEachSide, 0);
-        this._grid.leftPadding = Math.max(this._grid.leftPadding - this._offsetForEachSide, 0);
-        this._grid.rightPadding = Math.max(this._grid.rightPadding - this._offsetForEachSide, 0);
-
-        this.set_width(this.usedWidth());
-        this.set_height(this.usedHeight());
-    }
-
     _getPageAvailableSize() {
         let pageBox = new Clutter.ActorBox();
         pageBox.x1 = pageBox.y1 = 0;
@@ -1425,10 +1292,6 @@ class FolderView extends BaseAppView {
         let [availWidthPerPage, availHeightPerPage] = this._getPageAvailableSize();
         let maxRows = this._grid.rowsForHeight(availHeightPerPage) - 1;
         return Math.min(this._grid.nRows(availWidthPerPage), maxRows);
-    }
-
-    setPaddingOffsets(offset) {
-        this._offsetForEachSide = offset;
     }
 
     _loadApps() {
@@ -1692,6 +1555,7 @@ var FolderIcon = GObject.registerClass({
             this._popup.popup();
             this._updatePopupPosition();
         });
+        this._parentView.extraSpace = this.view
         this._parentView.openSpaceForPopup(this, this._boxPointerArrowside, this.view.nRowsDisplayedAtOnce());
     }
 
@@ -1709,9 +1573,6 @@ var FolderIcon = GObject.registerClass({
         let offsetForEachSide = Math.ceil((this._popup.getOffset(St.Side.TOP) +
                                            this._popup.getOffset(St.Side.BOTTOM) -
                                            this._popup.getCloseButtonOverlap()) / 2);
-        // Add extra padding to prevent boxpointer decorations and close button being cut off
-        this.view.setPaddingOffsets(offsetForEachSide);
-        this.view.adaptToSize(this._parentAvailableWidth, this._parentAvailableHeight);
     }
 
     _updatePopupPosition() {
@@ -1816,13 +1677,6 @@ var FolderIcon = GObject.registerClass({
         this._menuManager.ignoreRelease();
     }
 
-    adaptToSize(width, height) {
-        this._parentAvailableWidth = width;
-        this._parentAvailableHeight = height;
-        if (this._popup)
-            this.view.adaptToSize(width, height);
-        this._popupInvalidated = true;
-    }
 });
 
 var RenameFolderMenuItem = GObject.registerClass(

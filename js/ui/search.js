@@ -354,13 +354,13 @@ class GridSearchResults extends SearchResultsBase {
     _init(provider, resultsView) {
         super._init(provider, resultsView);
 
-        this._grid = new IconGrid.IconGrid({ rowLimit: MAX_GRID_SEARCH_RESULTS_ROWS,
-                                             xAlign: St.Align.START });
+        this._grid = new IconGrid.IconGrid({ rowLimit: MAX_GRID_SEARCH_RESULTS_ROWS });
+        this._grid.x_align = Clutter.ActorAlign.CENTER;
 
-        this._bin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
-        this._bin.set_child(this._grid);
+      //  this._bin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
+      //  this._bin.set_child(this._grid);
 
-        this._resultDisplayBin.set_child(this._bin);
+        this._resultDisplayBin.set_child(this._grid);
     }
 
     _onDestroy() {
@@ -396,12 +396,15 @@ class GridSearchResults extends SearchResultsBase {
     }
 
     _getMaxDisplayedResults() {
-        let width = this.allocation.get_width();
+        let width = this._resultDisplayBin.allocation.get_width();
         if (width == 0)
             return -1;
 
-        let nCols = this._grid.columnsForWidth(width);
-        return nCols * this._grid.getRowLimit();
+        let nCols = this._grid.nColumnsForWidth(width);
+        if (nCols == 0)
+            return -1;
+
+        return nCols;
     }
 
     _clearResultDisplay() {
@@ -419,7 +422,7 @@ class GridSearchResults extends SearchResultsBase {
 
     getFirstResult() {
         if (this._grid.visibleItemsCount() > 0)
-            return this._grid.getItemAtIndex(0);
+            return this._grid.get_child_at_index(0);
         else
             return null;
     }
