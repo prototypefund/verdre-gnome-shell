@@ -1008,7 +1008,7 @@ _st_theme_get_matched_properties (StTheme        *theme,
   g_return_val_if_fail (ST_IS_THEME (theme), NULL);
   g_return_val_if_fail (ST_IS_THEME_NODE (node), NULL);
 
-  for (origin = ORIGIN_UA; origin < NB_ORIGINS; origin++)
+  for (origin = 0; origin < 1; origin++)
     {
       sheet = cr_cascade_get_sheet (theme->cascade, origin);
       if (!sheet)

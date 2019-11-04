@@ -510,6 +510,7 @@ static void
 st_widget_real_style_changed (StWidget *self)
 {
   clutter_actor_queue_redraw ((ClutterActor *) self);
+
   notify_children_of_style_change ((ClutterActor *) self);
 }
 
@@ -1769,10 +1770,7 @@ st_widget_recompute_style (StWidget    *widget,
     paint_equal = st_icon_colors_equal (old_theme_node->icon_colors,
                                         st_theme_node_get_icon_colors (new_theme_node));
 
-  if (!paint_equal || !geometry_equal)
     g_signal_emit (widget, signals[STYLE_CHANGED], 0);
-  else
-    notify_children_of_style_change ((ClutterActor *) widget);
 
   priv->is_style_dirty = FALSE;
 }
