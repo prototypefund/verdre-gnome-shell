@@ -618,7 +618,7 @@ g_warning("TEXTURE_CACHE: imag null");
 
       g_task_set_check_cancellable (task, TRUE);
 g_warning("TEXTURE_CACHE: returning pointer after success, task was cancelled? %d", g_cancellable_is_cancelled (g_task_get_cancellable (task)));
-      g_task_return_pointer (task, image, NULL);
+      g_task_return_pointer (task, g_object_ref (image), g_object_unref);
     }
 
 out:
@@ -889,13 +889,11 @@ request_texture_from_cache (StTextureCache       *cache,
   ClutterContent *image;
   AsyncTextureLoadData *pending_request, *request;
 
-
   /* First, do a lookup and check if we already have the texture cached */
   image = g_hash_table_lookup (priv->keyed_cache, key);
   if (image != NULL)
     {
-      g_task_return_pointer (task, image, NULL);
-      g_object_unref (task);
+      g_task_return_pointer (task, g_object_ref (image), g_object_unref);
       return;
     }
 
@@ -1043,6 +1041,9 @@ st_texture_cache_load_gicon_async (StTextureCache      *cache,
                               colors ? st_icon_colors_ref (colors) : NULL,
                               info, size, size, paint_scale, resource_scale,
                               task);
+
+  g_free (key);
+  g_object_unref (task);
 }
 
 /**
@@ -1390,6 +1391,9 @@ st_texture_cache_load_file_async (StTextureCache      *cache,
                               paint_scale, resource_scale, task);
 
   ensure_monitor_for_file (cache, file);
+
+  g_free (key);
+  g_object_unref (task);
 }
 
 /**
@@ -1450,15 +1454,15 @@ st_texture_cache_load_file_sync_to_cogl_texture (StTextureCache *cache,
       if (!image)
         goto out;
 
-      if (policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
-        g_hash_table_insert (cache->priv->keyed_cache, g_strdup (key), image);
+//      if (policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
+  //      g_hash_table_insert (cache->priv->keyed_cache, g_strdup (key), image);
     }
 
   /* Because the texture is loaded synchronously, we won't call
    * clutter_image_set_data(), so it's safe to use the texture
    * of ClutterImage here. */
   texdata = clutter_image_get_texture (CLUTTER_IMAGE (image));
-  cogl_object_ref (texdata);
+//  cogl_object_ref (texdata); // FIXME: do we need a check for the forever policy here?
 
   ensure_monitor_for_file (cache, file);
 

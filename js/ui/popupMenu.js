@@ -414,7 +414,7 @@ class PopupImageMenuItem extends PopupBaseMenuItem {
         super._init(params);
 
         this._icon = new St.Icon({ style_class: 'popup-menu-icon',
-                                   x_align: Clutter.ActorAlign.END });
+                                   x_align: St.Align.END });
         this.add_child(this._icon);
         this.label = new St.Label({ text: text });
         this.add_child(this.label);
