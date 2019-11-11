@@ -588,8 +588,8 @@ g_warning("TEXTURE_CACHE: pixbuf is NULL, returning errors");
               goto out;
             }
 
-          g_hash_table_insert (priv->keyed_cache, g_strdup (data->key),
-                               g_object_ref (image));
+         // g_hash_table_insert (priv->keyed_cache, g_strdup (data->key),
+         //                      image);
         }
     }
   else
@@ -678,6 +678,7 @@ load_texture_async (StTextureCache       *cache,
   else if (data->icon_info)
     {
       StIconColors *colors = data->colors;
+      //colors = NULL;
       if (colors)
         {
           GdkRGBA foreground_color, success_color, warning_color, error_color;
@@ -862,12 +863,12 @@ st_texture_cache_load (StTextureCache       *cache,
   if (!texture)
     {
       texture = load (cache, key, data, error);
-      if (texture && policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
-        g_hash_table_insert (cache->priv->keyed_cache, g_strdup (key), texture);
+    //  if (texture && policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
+    //    g_hash_table_insert (cache->priv->keyed_cache, g_strdup (key), texture);
     }
 
-  if (texture && policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
-    cogl_object_ref (texture);
+//  if (texture && policy == ST_TEXTURE_CACHE_POLICY_FOREVER)
+  //  cogl_object_ref (texture);
 
   return texture;
 }

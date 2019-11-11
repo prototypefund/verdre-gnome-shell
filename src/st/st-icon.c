@@ -64,7 +64,6 @@ struct _StIconPrivate
   GCancellable     *load_cancellable;
 
   gint              prop_icon_size;  /* icon size set as property */
-  gint              theme_icon_size; /* icon size from theme node */
   gint              icon_size;       /* icon size we are using */
 
   CoglPipeline     *shadow_pipeline;
@@ -279,7 +278,7 @@ update_icon_texture (StIcon *icon)
    * correct size even when no texture is set. */
   clutter_actor_set_size (priv->icon_actor, priv->icon_size, priv->icon_size);
 
-  /* If we're still loading and older texture, cancel that. */ 
+  /* If we're still loading and older texture, cancel that. */
   if (priv->load_cancellable)
     {
       g_cancellable_cancel (priv->load_cancellable);
@@ -306,29 +305,50 @@ update_icon_texture (StIcon *icon)
 }
 
 static void
-st_icon_style_changed (StWidget *widget)
+st_icon_style_changed (StWidget *widget,
+                       StThemeNode *old_theme_node,
+                       StThemeNode *new_theme_node)
 {
   StIcon *self = ST_ICON (widget);
-  StThemeNode *theme_node = st_widget_get_theme_node (widget);
   StIconPrivate *priv = self->priv;
+  gboolean style_changed = FALSE;
+  StShadow *new_shadow;
 
-  st_icon_clear_shadow_pipeline (self);
-  g_clear_pointer (&priv->shadow_spec, st_shadow_unref);
-
-  priv->shadow_spec = st_theme_node_get_shadow (theme_node, "icon-shadow");
-
-  if (priv->shadow_spec && priv->shadow_spec->inset)
+  new_shadow = st_theme_node_get_shadow (new_theme_node, "icon-shadow");
+  if (priv->shadow_spec == NULL || new_shadow == NULL ||
+      !st_shadow_equal (priv->shadow_spec, new_shadow))
     {
-      g_warning ("The icon-shadow property does not support inset shadows");
-      st_shadow_unref (priv->shadow_spec);
-      priv->shadow_spec = NULL;
+      st_icon_clear_shadow_pipeline (self);
+      g_clear_pointer (&priv->shadow_spec, st_shadow_unref);
+
+      priv->shadow_spec = new_shadow;
+
+      if (priv->shadow_spec && priv->shadow_spec->inset)
+        {
+          g_warning ("The icon-shadow property does not support inset shadows");
+          st_shadow_unref (priv->shadow_spec);
+          priv->shadow_spec = NULL;
+        }
     }
 
-  priv->theme_icon_size = (int)(0.5 + st_theme_node_get_length (theme_node, "icon-size"));
+  style_changed = update_icon_size (self);
+  if (style_changed)
+g_warning("ST_ICON: icon size changed, upating texture");
 
-  /* If the icon size changed, the texture was regenerated anyway. */
-  if (!update_icon_size (self))
+
+  if (old_theme_node == NULL)
+    style_changed = TRUE;
+
+  if (!style_changed && old_theme_node != NULL)
+    style_changed = !st_icon_colors_equal (st_theme_node_get_icon_colors (old_theme_node),
+                                           st_theme_node_get_icon_colors (new_theme_node)) ||
+                    st_theme_node_get_icon_style (old_theme_node) !=
+                    st_theme_node_get_icon_style (new_theme_node);
+
+  if (style_changed) {
+g_warning("ST_ICON: updating texture because style changed");
     update_icon_texture (self);
+}
 }
 
 static void
@@ -412,7 +432,7 @@ st_icon_init (StIcon *self)
 
   clutter_actor_add_child (CLUTTER_ACTOR (self), self->priv->icon_actor);
 
-  /* Set the icon size to -1 here to make sure we apply the scale to the
+  /* Set the icon sizes to -1 here to make sure we apply the scale to the
    * default size on the first "style-changed" signal. */
   self->priv->icon_size = -1;
   self->priv->prop_icon_size = -1;
@@ -463,10 +483,11 @@ static gboolean
 update_icon_size (StIcon *icon)
 {
   StIconPrivate *priv = icon->priv;
-  int new_size;
+  int new_size, theme_icon_size;
   gint scale = 1;
   ClutterActor *stage;
   StThemeContext *context;
+  StThemeNode *theme_node;
 
   stage = clutter_actor_get_stage (CLUTTER_ACTOR (icon));
   if (stage != NULL)
@@ -476,16 +497,23 @@ update_icon_size (StIcon *icon)
     }
 
   if (priv->prop_icon_size > 0)
-    new_size = priv->prop_icon_size * scale;
-  else if (priv->theme_icon_size > 0)
-    new_size = priv->theme_icon_size;
+    {
+      new_size = priv->prop_icon_size * scale;
+    }
   else
-    new_size = DEFAULT_ICON_SIZE * scale;
+    {
+      theme_node = st_widget_get_theme_node (ST_WIDGET (icon));
+      theme_icon_size = (int)(0.5 + st_theme_node_get_length (theme_node, "icon-size"));
+
+      if (theme_icon_size > 0)
+        new_size = theme_icon_size;
+      else
+        new_size = DEFAULT_ICON_SIZE * scale;
+    }
 
   if (new_size != priv->icon_size)
     {
       priv->icon_size = new_size;
-      update_icon_texture (icon);
       return TRUE;
     }
 
@@ -544,7 +572,9 @@ st_icon_set_icon_size (StIcon *icon,
   if (priv->prop_icon_size != size)
     {
       priv->prop_icon_size = size;
-      update_icon_size (icon);
+      if (update_icon_size (icon))
+        update_icon_texture (icon);
+
       g_object_notify_by_pspec (G_OBJECT (icon), props[PROP_ICON_SIZE]);
     }
 }

@@ -293,7 +293,9 @@ st_entry_update_hint_visibility (StEntry *self)
 }
 
 static void
-st_entry_style_changed (StWidget *self)
+st_entry_style_changed (StWidget *self,
+                         StThemeNode *old_theme_node,
+                         StThemeNode *new_theme_node)
 {
   StEntryPrivate *priv = ST_ENTRY_PRIV (self);
   StThemeNode *theme_node;
@@ -329,7 +331,7 @@ st_entry_style_changed (StWidget *self)
   g_free (font_string);
   g_free (font_name);
 
-  ST_WIDGET_CLASS (st_entry_parent_class)->style_changed (self);
+  ST_WIDGET_CLASS (st_entry_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }
 
 static gboolean

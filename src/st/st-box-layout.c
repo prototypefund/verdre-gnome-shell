@@ -573,7 +573,9 @@ st_box_layout_get_paint_volume (ClutterActor       *actor,
 }
 
 static void
-st_box_layout_style_changed (StWidget *self)
+st_box_layout_style_changed (StWidget *self,
+                         StThemeNode *old_theme_node,
+                         StThemeNode *new_theme_node)
 {
   StThemeNode *theme_node = st_widget_get_theme_node (self);
   ClutterBoxLayout *layout;
@@ -584,7 +586,7 @@ st_box_layout_style_changed (StWidget *self)
   spacing = st_theme_node_get_length (theme_node, "spacing");
   clutter_box_layout_set_spacing (layout, (int)(spacing + 0.5));
 
-  ST_WIDGET_CLASS (st_box_layout_parent_class)->style_changed (self);
+  ST_WIDGET_CLASS (st_box_layout_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }
 
 static void

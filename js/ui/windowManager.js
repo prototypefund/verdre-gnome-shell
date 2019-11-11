@@ -1436,16 +1436,20 @@ var WindowManager = class {
     }
 
     _sizeChangeWindow(shellwm, actor, whichChange, oldFrameRect, _oldBufferRect) {
+        log("WINDOW: size change");
         let types = [Meta.WindowType.NORMAL];
         if (!this._shouldAnimateActor(actor, types)) {
+            log("WINDOW: should not animate...");
             shellwm.completed_size_change(actor);
             return;
         }
 
         if (oldFrameRect.width > 0 && oldFrameRect.height > 0)
             this._prepareAnimationInfo(shellwm, actor, oldFrameRect, whichChange);
-        else
+        else {
+            log("WINDOW: completing animation immediately...");
             shellwm.completed_size_change(actor);
+}
     }
 
     _prepareAnimationInfo(shellwm, actor, oldFrameRect, _change) {
@@ -1472,10 +1476,13 @@ var WindowManager = class {
     }
 
     _sizeChangedWindow(shellwm, actor) {
+        log("WINDOW: size changeDD");
+
         if (!actor.__animationInfo)
             return;
         if (this._resizing.has(actor))
             return;
+        log("WINDOW: not resizing it");
 
         let actorClone = actor.__animationInfo.clone;
         let targetRect = actor.meta_window.get_frame_rect();
@@ -1596,6 +1603,8 @@ var WindowManager = class {
     }
 
     _mapWindow(shellwm, actor) {
+
+        log("WINDOW: map window");
         actor._windowType = actor.meta_window.get_window_type();
         actor._notifyWindowTypeSignalId =
             actor.meta_window.connect('notify::window-type', () => {
@@ -1631,6 +1640,17 @@ var WindowManager = class {
         switch (actor._windowType) {
         case Meta.WindowType.NORMAL:
             actor.set_pivot_point(0.5, 1.0);
+
+            let rect = actor.meta_window.get_frame_rect();
+
+            let [minW, minH, prefWidth, prefHeight] = actor.get_preferred_size();
+
+            log("WINDOW: window actor size is width " + actor.width + " height " + actor.height);
+            log("WINDOW: window actor pref size is width " + prefWidth + " height " + prefHeight);
+            log("WINDOW: starting map animation at x " + actor.x + " y " + actor.y);
+
+            log("WINDOW: frame rect x " + rect.x + " y " + rect.y + " width " + rect.width + " height " + rect.height);
+
             actor.scale_x = 0.01;
             actor.scale_y = 0.05;
             actor.opacity = 0;

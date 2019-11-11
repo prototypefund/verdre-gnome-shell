@@ -735,7 +735,9 @@ adjust_with_direction (StAdjustment           *adj,
 }
 
 static void
-st_scroll_view_style_changed (StWidget *widget)
+st_scroll_view_style_changed (StWidget *widget,
+                         StThemeNode *old_theme_node,
+                         StThemeNode *new_theme_node)
 {
   StScrollView *self = ST_SCROLL_VIEW (widget);
   StScrollViewPrivate *priv = self->priv;
@@ -748,7 +750,7 @@ st_scroll_view_style_changed (StWidget *widget)
   st_widget_style_changed (ST_WIDGET (priv->hscroll));
   st_widget_style_changed (ST_WIDGET (priv->vscroll));
 
-  ST_WIDGET_CLASS (st_scroll_view_parent_class)->style_changed (widget);
+  ST_WIDGET_CLASS (st_scroll_view_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
 
 static gboolean

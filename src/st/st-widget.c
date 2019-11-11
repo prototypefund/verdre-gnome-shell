@@ -986,7 +986,9 @@ st_widget_class_init (StWidgetClass *klass)
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (StWidgetClass, style_changed),
                   NULL, NULL, NULL,
-                  G_TYPE_NONE, 0);
+                  G_TYPE_NONE, 2,
+                  ST_TYPE_THEME_NODE,
+                  ST_TYPE_THEME_NODE);
 
   /**
    * StWidget::popup-menu:
@@ -1770,7 +1772,11 @@ st_widget_recompute_style (StWidget    *widget,
     paint_equal = st_icon_colors_equal (old_theme_node->icon_colors,
                                         st_theme_node_get_icon_colors (new_theme_node));
 
-    g_signal_emit (widget, signals[STYLE_CHANGED], 0);
+
+// if (!paint_equal || !geometry_equal)
+   g_signal_emit (widget, signals[STYLE_CHANGED], 0, old_theme_node, new_theme_node);
+//  else
+//    notify_children_of_style_change ((ClutterActor *) widget);
 
   priv->is_style_dirty = FALSE;
 }
