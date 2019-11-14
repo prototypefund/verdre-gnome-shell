@@ -740,12 +740,25 @@ st_scroll_view_style_changed (StWidget    *widget,
                               StThemeNode *new_theme_node)
 {
   StScrollView *self = ST_SCROLL_VIEW (widget);
-  StScrollViewPrivate *priv = self->priv;
+  gdouble vfade_offset, hfade_offset;
+  gdouble old_vfade_offset, old_hfade_offset;
 
-  StThemeNode *theme_node = st_widget_get_theme_node (widget);
-  gdouble vfade_offset = st_theme_node_get_length (theme_node, "-st-vfade-offset");
-  gdouble hfade_offset = st_theme_node_get_length (theme_node, "-st-hfade-offset");
-  st_scroll_view_update_fade_effect (self, vfade_offset, hfade_offset);
+  vfade_offset = st_theme_node_get_length (new_theme_node, "-st-vfade-offset");
+  hfade_offset = st_theme_node_get_length (new_theme_node, "-st-hfade-offset");
+
+  if (old_theme_node)
+    {
+      old_vfade_offset = st_theme_node_get_length (old_theme_node, "-st-vfade-offset");
+      old_hfade_offset = st_theme_node_get_length (old_theme_node, "-st-hfade-offset");
+
+      if (old_vfade_offset != vfade_offset ||
+          old_hfade_offset != hfade_offset)
+        st_scroll_view_update_fade_effect (self, vfade_offset, hfade_offset);
+    }
+  else
+    {
+      st_scroll_view_update_fade_effect (self, vfade_offset, hfade_offset);
+    }
 
   st_widget_style_changed (ST_WIDGET (priv->hscroll));
   st_widget_style_changed (ST_WIDGET (priv->vscroll));
