@@ -213,6 +213,8 @@ st_icon_style_changed (StWidget    *widget,
   priv->theme_icon_size = (int)(0.5 + st_theme_node_get_length (new_theme_node, "icon-size"));
   st_icon_update_icon_size (self);
   st_icon_update (self);
+
+  ST_WIDGET_CLASS (st_icon_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
 
 static void
