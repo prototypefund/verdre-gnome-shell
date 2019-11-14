@@ -124,7 +124,7 @@ st_label_style_changed (StWidget    *self,
 
   g_clear_pointer (&priv->text_shadow_pipeline, cogl_object_unref);
 
-  _st_set_text_from_style ((ClutterText *)priv->label, new_theme_node);
+  _st_set_text_from_style ((ClutterText *)priv->label, old_theme_node, new_theme_node);
 
   ST_WIDGET_CLASS (st_label_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }

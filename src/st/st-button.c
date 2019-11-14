@@ -94,20 +94,6 @@ G_DEFINE_TYPE_WITH_PRIVATE (StButton, st_button, ST_TYPE_BIN);
 static GType st_button_accessible_get_type (void) G_GNUC_CONST;
 
 static void
-st_button_update_label_style (StButton *button)
-{
-  ClutterActor *label;
-
-  label = st_bin_get_child (ST_BIN (button));
-
-  /* check the child is really a label */
-  if (!CLUTTER_IS_TEXT (label))
-    return;
-
-  _st_set_text_from_style (CLUTTER_TEXT (label), st_widget_get_theme_node (ST_WIDGET (button)));
-}
-
-static void
 st_button_style_changed (StWidget    *widget,
                          StThemeNode *old_theme_node,
                          StThemeNode *new_theme_node)
@@ -116,13 +102,15 @@ st_button_style_changed (StWidget    *widget,
   StButtonPrivate *priv = st_button_get_instance_private (button);
   StButtonClass *button_class = ST_BUTTON_GET_CLASS (button);
   double spacing;
+  ClutterActor *label;
 
   spacing = 6;
   st_theme_node_lookup_length (new_theme_node, "border-spacing", FALSE, &spacing);
   priv->spacing = (int)(0.5 + spacing);
 
-  /* update the label styling */
-  st_button_update_label_style (button);
+  label = st_bin_get_child (ST_BIN (button));
+  if (CLUTTER_IS_TEXT (label))
+    _st_set_text_from_style (CLUTTER_TEXT (label), old_theme_node, new_theme_node);
 
   /* run a transition if applicable */
   if (button_class->transition)
@@ -636,7 +624,7 @@ st_button_set_label (StButton    *button,
     }
 
   /* Fake a style change so that we reset the style properties on the label */
-  st_widget_style_changed (ST_WIDGET (button));
+ // st_widget_style_changed (ST_WIDGET (button));
 
   g_object_notify_by_pspec (G_OBJECT (button), props[PROP_LABEL]);
 }

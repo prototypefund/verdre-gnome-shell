@@ -53,7 +53,8 @@ void _st_actor_get_preferred_height (ClutterActor *actor,
                                      gfloat       *natural_height_p);
 
 void _st_set_text_from_style (ClutterText *text,
-                              StThemeNode *theme_node);
+                              StThemeNode *old_theme_node,
+                              StThemeNode *new_theme_node);
 
 CoglPipeline * _st_create_texture_pipeline (CoglTexture *src_texture);
 

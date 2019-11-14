@@ -101,35 +101,127 @@ _st_actor_get_preferred_height (ClutterActor *actor,
 /**
  * _st_set_text_from_style:
  * @text: Target #ClutterText
- * @theme_node: Source #StThemeNode
+ * @old_theme_node: The old #StThemeNode or %NULL
+ * @new_theme_node: The new #StThemeNode
  *
  * Set various GObject properties of the @text object using
- * CSS information from @theme_node.
+ * CSS information from @new_theme_node and comparing it to
+ * @old_theme_node to prevent unnecessary changes.
  */
 void
 _st_set_text_from_style (ClutterText *text,
-                         StThemeNode *theme_node)
+                         StThemeNode *old_theme_node,
+                         StThemeNode *new_theme_node)
 {
-
   ClutterColor color;
-  StTextDecoration decoration;
-  PangoAttrList *attribs = NULL;
   const PangoFontDescription *font;
-  StTextAlign align;
+  StTextDecoration decoration;
   gdouble spacing;
   gchar *font_features;
+  StTextAlign align;
 
-  st_theme_node_get_foreground_color (theme_node, &color);
-  clutter_text_set_color (text, &color);
+  PangoAttrList *attribs = NULL;
 
-  font = st_theme_node_get_font (theme_node);
-  clutter_text_set_font_description (text, (PangoFontDescription *) font);
+  st_theme_node_get_foreground_color (new_theme_node, &color);
+  font = st_theme_node_get_font (new_theme_node);
+  decoration = st_theme_node_get_text_decoration (new_theme_node);
+  spacing = st_theme_node_get_letter_spacing (new_theme_node);
+  font_features = st_theme_node_get_font_features (new_theme_node);
+  align = st_theme_node_get_text_align (new_theme_node);
 
-  attribs = pango_attr_list_new ();
-
-  decoration = st_theme_node_get_text_decoration (theme_node);
-  if (decoration)
+  if (old_theme_node)
     {
+      g_warning("LABEL: style-change inside good block");
+
+      ClutterColor old_color;
+      const PangoFontDescription *old_font;
+      StTextDecoration old_decoration;
+      gdouble old_spacing;
+      gchar *old_font_features;
+      StTextAlign old_align;
+
+      st_theme_node_get_foreground_color (old_theme_node, &old_color);
+      old_font = st_theme_node_get_font (old_theme_node);
+      old_decoration = st_theme_node_get_text_decoration (old_theme_node);
+      old_spacing = st_theme_node_get_letter_spacing (old_theme_node);
+      old_font_features = st_theme_node_get_font_features (old_theme_node);
+      old_align = st_theme_node_get_text_align (old_theme_node);
+
+      if (!clutter_color_equal (&old_color, &color))
+        clutter_text_set_color (text, &color);
+
+      if (!pango_font_description_equal (old_font, font))
+        clutter_text_set_font_description (text, (PangoFontDescription *) font);
+
+      if (old_decoration != decoration)
+        {
+          if (!attribs)
+            attribs = pango_attr_list_new ();
+
+          if (decoration & ST_TEXT_DECORATION_UNDERLINE)
+            {
+              PangoAttribute *underline = pango_attr_underline_new (PANGO_UNDERLINE_SINGLE);
+              pango_attr_list_insert (attribs, underline);
+            }
+          if (decoration & ST_TEXT_DECORATION_LINE_THROUGH)
+            {
+              PangoAttribute *strikethrough = pango_attr_strikethrough_new (TRUE);
+              pango_attr_list_insert (attribs, strikethrough);
+            }
+          /* Pango doesn't have an equivalent attribute for _OVERLINE, and we deliberately
+           * skip BLINK (for now...)
+           */
+        }
+
+      if (old_spacing != spacing)
+        {
+          if (!attribs)
+            attribs = pango_attr_list_new ();
+
+          PangoAttribute *letter_spacing = pango_attr_letter_spacing_new ((int)(.5 + spacing) * PANGO_SCALE);
+          pango_attr_list_insert (attribs, letter_spacing);
+        }
+
+      if ((old_font_features && font_features && strcmp (old_font_features, font_features) != 0) ||
+          (!old_font_features && font_features) ||
+          (old_font_features && !font_features))
+        {
+          if (!attribs)
+            attribs = pango_attr_list_new ();
+
+          pango_attr_list_insert (attribs, pango_attr_font_features_new (font_features));
+        }
+
+      g_free (old_font_features);
+      g_free (font_features);
+
+      if (attribs)
+        {
+          clutter_text_set_attributes (text, attribs);
+          pango_attr_list_unref (attribs);
+        }
+
+      if (old_align != align)
+        {
+          if (align == ST_TEXT_ALIGN_JUSTIFY)
+            {
+              clutter_text_set_justify (text, TRUE);
+              clutter_text_set_line_alignment (text, PANGO_ALIGN_LEFT);
+            }
+          else
+            {
+              clutter_text_set_justify (text, FALSE);
+              clutter_text_set_line_alignment (text, (PangoAlignment) align);
+            }
+        }
+    }
+  else
+    {
+      clutter_text_set_color (text, &color);
+
+      clutter_text_set_font_description (text, (PangoFontDescription *) font);
+
+      attribs = pango_attr_list_new ();
       if (decoration & ST_TEXT_DECORATION_UNDERLINE)
         {
           PangoAttribute *underline = pango_attr_underline_new (PANGO_UNDERLINE_SINGLE);
@@ -143,37 +235,28 @@ _st_set_text_from_style (ClutterText *text,
       /* Pango doesn't have an equivalent attribute for _OVERLINE, and we deliberately
        * skip BLINK (for now...)
        */
-    }
 
-  spacing = st_theme_node_get_letter_spacing (theme_node);
-  if (spacing)
-    {
       PangoAttribute *letter_spacing = pango_attr_letter_spacing_new ((int)(.5 + spacing) * PANGO_SCALE);
       pango_attr_list_insert (attribs, letter_spacing);
-    }
 
-  font_features = st_theme_node_get_font_features (theme_node);
-  if (font_features)
-    {
-      pango_attr_list_insert (attribs, pango_attr_font_features_new (font_features));
+      if (font_features)
+        pango_attr_list_insert (attribs, pango_attr_font_features_new (font_features));
+
       g_free (font_features);
-    }
 
-  clutter_text_set_attributes (text, attribs);
+      clutter_text_set_attributes (text, attribs);
+      pango_attr_list_unref (attribs);
 
-  if (attribs)
-    pango_attr_list_unref (attribs);
-
-  align = st_theme_node_get_text_align (theme_node);
-  if (align == ST_TEXT_ALIGN_JUSTIFY)
-    {
-      clutter_text_set_justify (text, TRUE);
-      clutter_text_set_line_alignment (text, PANGO_ALIGN_LEFT);
-    }
-  else
-    {
-      clutter_text_set_justify (text, FALSE);
-      clutter_text_set_line_alignment (text, (PangoAlignment) align);
+      if (align == ST_TEXT_ALIGN_JUSTIFY)
+        {
+          clutter_text_set_justify (text, TRUE);
+          clutter_text_set_line_alignment (text, PANGO_ALIGN_LEFT);
+        }
+      else
+        {
+          clutter_text_set_justify (text, FALSE);
+          clutter_text_set_line_alignment (text, (PangoAlignment) align);
+        }
     }
 }
 

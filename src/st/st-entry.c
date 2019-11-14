@@ -305,7 +305,7 @@ st_entry_style_changed (StWidget    *self,
 
   cogl_clear_object (&priv->text_shadow_material);
 
-  _st_set_text_from_style (CLUTTER_TEXT (priv->entry), new_theme_node);
+  _st_set_text_from_style (CLUTTER_TEXT (priv->entry), old_theme_node, new_theme_node);
 
   if (st_theme_node_lookup_length (new_theme_node, "caret-size", TRUE, &size))
     clutter_text_set_cursor_size (CLUTTER_TEXT (priv->entry), (int)(.5 + size));
