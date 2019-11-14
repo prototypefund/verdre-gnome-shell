@@ -108,9 +108,9 @@ st_drawing_area_style_changed (StWidget    *self,
                                StThemeNode *old_theme_node,
                                StThemeNode *new_theme_node)
 {
-  (ST_WIDGET_CLASS (st_drawing_area_parent_class))->style_changed (self, old_theme_node, new_theme_node);
-
   st_drawing_area_queue_repaint (ST_DRAWING_AREA (self));
+
+  ST_WIDGET_CLASS (st_drawing_area_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }
 
 static void

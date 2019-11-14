@@ -117,8 +117,6 @@ st_button_style_changed (StWidget    *widget,
   StButtonClass *button_class = ST_BUTTON_GET_CLASS (button);
   double spacing;
 
-  ST_WIDGET_CLASS (st_button_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
-
   spacing = 6;
   st_theme_node_lookup_length (new_theme_node, "border-spacing", FALSE, &spacing);
   priv->spacing = (int)(0.5 + spacing);
@@ -131,6 +129,8 @@ st_button_style_changed (StWidget    *widget,
     {
       button_class->transition (button);
     }
+
+  ST_WIDGET_CLASS (st_button_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
 
 static void

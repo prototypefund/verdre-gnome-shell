@@ -107,8 +107,6 @@ class BaseIcon extends St.Bin {
     }
 
     vfunc_style_changed(oldThemeNode, newThemeNode) {
-        super.vfunc_style_changed(oldThemeNode, newThemeNode);
-
         let size;
         if (this._setSizeManually) {
             size = this.iconSize;
@@ -117,10 +115,10 @@ class BaseIcon extends St.Bin {
             size = found ? len : ICON_SIZE;
         }
 
-        if (this.iconSize == size && this._iconBin.child)
-            return;
+        if (this.iconSize != size || !this._iconBin.child)
+            this._createIconTexture(size);
 
-        this._createIconTexture(size);
+        super.vfunc_style_changed(oldThemeNode, newThemeNode);
     }
 
     _onDestroy() {
