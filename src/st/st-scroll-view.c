@@ -760,9 +760,6 @@ st_scroll_view_style_changed (StWidget    *widget,
       st_scroll_view_update_fade_effect (self, vfade_offset, hfade_offset);
     }
 
-  st_widget_style_changed (ST_WIDGET (priv->hscroll));
-  st_widget_style_changed (ST_WIDGET (priv->vscroll));
-
   ST_WIDGET_CLASS (st_scroll_view_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
 
