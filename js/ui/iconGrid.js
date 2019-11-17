@@ -666,10 +666,17 @@ var IconGrid = GObject.registerClass({
     }
 
     _onStyleChanged(a, oldThemeNode, newThemeNode) {
-        this._spacing = newThemeNode.get_length('spacing');
-        this._hItemSize = newThemeNode.get_length('-shell-grid-horizontal-item-size') || ICON_SIZE;
-        this._vItemSize = newThemeNode.get_length('-shell-grid-vertical-item-size') || ICON_SIZE;
-        this.queue_relayout();
+        let spacing = newThemeNode.get_length('spacing');
+        let hItemSize = newThemeNode.get_length('-shell-grid-horizontal-item-size') || ICON_SIZE;
+        let vItemSize = newThemeNode.get_length('-shell-grid-vertical-item-size') || ICON_SIZE;
+
+        if (this._spacing != spacing || this._hItemSize != hItemSize ||
+            this._vItemSize != vItemSize) {
+            this._spacing = spacing;
+            this._hItemSize = hItemSize;
+            this._vItemSize = vItemSize;
+            this.queue_relayout();
+        }
     }
 
     nRows(forWidth) {
