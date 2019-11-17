@@ -28,11 +28,9 @@ class ButtonBox extends St.Widget {
         this._minHPadding = this._natHPadding = 0.0;
     }
 
-    _onStyleChanged(actor) {
-        let themeNode = actor.get_theme_node();
-
-        this._minHPadding = themeNode.get_length('-minimum-hpadding');
-        this._natHPadding = themeNode.get_length('-natural-hpadding');
+    _onStyleChanged(actor, oldThemeNode, newThemeNode) {
+        this._minHPadding = newThemeNode.get_length('-minimum-hpadding');
+        this._natHPadding = newThemeNode.get_length('-natural-hpadding');
     }
 
     vfunc_get_preferred_width(_forHeight) {

@@ -710,10 +710,10 @@ class EventMessage extends MessageList.Message {
         this.setIcon(this._icon);
     }
 
-    vfunc_style_changed() {
+    vfunc_style_changed(oldThemeNode, newThemeNode) {
         let iconVisible = this.get_parent().has_style_pseudo_class('first-child');
         this._icon.opacity = iconVisible ? 255 : 0;
-        super.vfunc_style_changed();
+        super.vfunc_style_changed(oldThemeNode, newThemeNode);
     }
 
     _formatEventTime() {

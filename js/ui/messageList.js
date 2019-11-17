@@ -42,8 +42,8 @@ class URLHighlighter extends St.Label {
             x_align: Clutter.ActorAlign.START,
         });
         this._linkColor = '#ccccff';
-        this.connect('style-changed', () => {
-            let [hasColor, color] = this.get_theme_node().lookup_color('link-color', false);
+        this.connect('style-changed', (a, oldThemeNode, newThemeNode) => {
+            let [hasColor, color] = newThemeNode.lookup_color('link-color', false);
             if (hasColor) {
                 let linkColor = color.to_string().substr(0, 7);
                 if (linkColor != this._linkColor) {

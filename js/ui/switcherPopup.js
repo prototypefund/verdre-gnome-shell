@@ -347,8 +347,8 @@ var SwitcherList = GObject.registerClass({
         let layoutManager = this._list.get_layout_manager();
 
         this._list.spacing = 0;
-        this._list.connect('style-changed', () => {
-            this._list.spacing = this._list.get_theme_node().get_length('spacing');
+        this._list.connect('style-changed', (a, oldThemeNode, newThemeNode) => {
+            this._list.spacing = newThemeNode.get_length('spacing');
         });
 
         this._scrollView = new St.ScrollView({ style_class: 'hfade',

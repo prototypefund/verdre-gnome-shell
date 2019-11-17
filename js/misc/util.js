@@ -382,9 +382,9 @@ class CloseButton extends St.Button {
         this.translation_y = themeNode.get_length('-shell-close-overlap-y') + offY;
     }
 
-    vfunc_style_changed() {
+    vfunc_style_changed(oldThemeNode, newThemeNode) {
         this._sync();
-        super.vfunc_style_changed();
+        super.vfunc_style_changed(oldThemeNode, newThemeNode);
     }
 });
 

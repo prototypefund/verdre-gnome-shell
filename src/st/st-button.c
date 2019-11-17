@@ -108,18 +108,19 @@ st_button_update_label_style (StButton *button)
 }
 
 static void
-st_button_style_changed (StWidget *widget)
+st_button_style_changed (StWidget    *widget,
+                         StThemeNode *old_theme_node,
+                         StThemeNode *new_theme_node)
 {
   StButton *button = ST_BUTTON (widget);
   StButtonPrivate *priv = st_button_get_instance_private (button);
   StButtonClass *button_class = ST_BUTTON_GET_CLASS (button);
-  StThemeNode *theme_node = st_widget_get_theme_node (ST_WIDGET (button));
   double spacing;
 
-  ST_WIDGET_CLASS (st_button_parent_class)->style_changed (widget);
+  ST_WIDGET_CLASS (st_button_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 
   spacing = 6;
-  st_theme_node_lookup_length (theme_node, "border-spacing", FALSE, &spacing);
+  st_theme_node_lookup_length (new_theme_node, "border-spacing", FALSE, &spacing);
   priv->spacing = (int)(0.5 + spacing);
 
   /* update the label styling */

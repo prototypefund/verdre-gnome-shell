@@ -396,14 +396,16 @@ scroll_bar_update_positions (StScrollBar *bar)
 }
 
 static void
-st_scroll_bar_style_changed (StWidget *widget)
+st_scroll_bar_style_changed (StWidget    *widget,
+                             StThemeNode *old_theme_node,
+                             StThemeNode *new_theme_node)
 {
   StScrollBarPrivate *priv = ST_SCROLL_BAR_PRIVATE (widget);
 
   st_widget_style_changed (ST_WIDGET (priv->trough));
   st_widget_style_changed (ST_WIDGET (priv->handle));
 
-  ST_WIDGET_CLASS (st_scroll_bar_parent_class)->style_changed (widget);
+  ST_WIDGET_CLASS (st_scroll_bar_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
 
 static void

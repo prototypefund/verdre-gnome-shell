@@ -191,16 +191,17 @@ st_icon_paint (ClutterActor *actor)
 }
 
 static void
-st_icon_style_changed (StWidget *widget)
+st_icon_style_changed (StWidget    *widget,
+                       StThemeNode *old_theme_node,
+                       StThemeNode *new_theme_node)
 {
   StIcon *self = ST_ICON (widget);
-  StThemeNode *theme_node = st_widget_get_theme_node (widget);
   StIconPrivate *priv = self->priv;
 
   st_icon_clear_shadow_pipeline (self);
   g_clear_pointer (&priv->shadow_spec, st_shadow_unref);
 
-  priv->shadow_spec = st_theme_node_get_shadow (theme_node, "icon-shadow");
+  priv->shadow_spec = st_theme_node_get_shadow (new_theme_node, "icon-shadow");
 
   if (priv->shadow_spec && priv->shadow_spec->inset)
     {
@@ -209,7 +210,7 @@ st_icon_style_changed (StWidget *widget)
       priv->shadow_spec = NULL;
     }
 
-  priv->theme_icon_size = (int)(0.5 + st_theme_node_get_length (theme_node, "icon-size"));
+  priv->theme_icon_size = (int)(0.5 + st_theme_node_get_length (new_theme_node, "icon-size"));
   st_icon_update_icon_size (self);
   st_icon_update (self);
 }

@@ -293,10 +293,11 @@ st_entry_update_hint_visibility (StEntry *self)
 }
 
 static void
-st_entry_style_changed (StWidget *self)
+st_entry_style_changed (StWidget    *self,
+                        StThemeNode *old_theme_node,
+                        StThemeNode *new_theme_node)
 {
   StEntryPrivate *priv = ST_ENTRY_PRIV (self);
-  StThemeNode *theme_node;
   ClutterColor color;
   const PangoFontDescription *font;
   gchar *font_string, *font_name;
@@ -304,23 +305,21 @@ st_entry_style_changed (StWidget *self)
 
   cogl_clear_object (&priv->text_shadow_material);
 
-  theme_node = st_widget_get_theme_node (self);
+  _st_set_text_from_style (CLUTTER_TEXT (priv->entry), new_theme_node);
 
-  _st_set_text_from_style (CLUTTER_TEXT (priv->entry), theme_node);
-
-  if (st_theme_node_lookup_length (theme_node, "caret-size", TRUE, &size))
+  if (st_theme_node_lookup_length (new_theme_node, "caret-size", TRUE, &size))
     clutter_text_set_cursor_size (CLUTTER_TEXT (priv->entry), (int)(.5 + size));
 
-  if (st_theme_node_lookup_color (theme_node, "caret-color", TRUE, &color))
+  if (st_theme_node_lookup_color (new_theme_node, "caret-color", TRUE, &color))
     clutter_text_set_cursor_color (CLUTTER_TEXT (priv->entry), &color);
 
-  if (st_theme_node_lookup_color (theme_node, "selection-background-color", TRUE, &color))
+  if (st_theme_node_lookup_color (new_theme_node, "selection-background-color", TRUE, &color))
     clutter_text_set_selection_color (CLUTTER_TEXT (priv->entry), &color);
 
-  if (st_theme_node_lookup_color (theme_node, "selected-color", TRUE, &color))
+  if (st_theme_node_lookup_color (new_theme_node, "selected-color", TRUE, &color))
     clutter_text_set_selected_text_color (CLUTTER_TEXT (priv->entry), &color);
 
-  font = st_theme_node_get_font (theme_node);
+  font = st_theme_node_get_font (new_theme_node);
   font_string = pango_font_description_to_string (font);
   font_name = g_strdup (clutter_text_get_font_name (CLUTTER_TEXT (priv->entry)));
   clutter_text_set_font_name (CLUTTER_TEXT (priv->entry), font_string);
@@ -329,7 +328,7 @@ st_entry_style_changed (StWidget *self)
   g_free (font_string);
   g_free (font_name);
 
-  ST_WIDGET_CLASS (st_entry_parent_class)->style_changed (self);
+  ST_WIDGET_CLASS (st_entry_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }
 
 static gboolean

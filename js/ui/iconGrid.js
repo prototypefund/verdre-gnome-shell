@@ -106,15 +106,14 @@ class BaseIcon extends St.Bin {
         this._iconBin.child = this.icon;
     }
 
-    vfunc_style_changed() {
-        super.vfunc_style_changed();
-        let node = this.get_theme_node();
+    vfunc_style_changed(oldThemeNode, newThemeNode) {
+        super.vfunc_style_changed(oldThemeNode, newThemeNode);
 
         let size;
         if (this._setSizeManually) {
             size = this.iconSize;
         } else {
-            let [found, len] = node.lookup_length('icon-size', false);
+            let [found, len] = newThemeNode.lookup_length('icon-size', false);
             size = found ? len : ICON_SIZE;
         }
 
@@ -668,11 +667,10 @@ var IconGrid = GObject.registerClass({
         return [nColumns, usedWidth];
     }
 
-    _onStyleChanged() {
-        let themeNode = this.get_theme_node();
-        this._spacing = themeNode.get_length('spacing');
-        this._hItemSize = themeNode.get_length('-shell-grid-horizontal-item-size') || ICON_SIZE;
-        this._vItemSize = themeNode.get_length('-shell-grid-vertical-item-size') || ICON_SIZE;
+    _onStyleChanged(a, oldThemeNode, newThemeNode) {
+        this._spacing = newThemeNode.get_length('spacing');
+        this._hItemSize = newThemeNode.get_length('-shell-grid-horizontal-item-size') || ICON_SIZE;
+        this._vItemSize = newThemeNode.get_length('-shell-grid-vertical-item-size') || ICON_SIZE;
         this.queue_relayout();
     }
 

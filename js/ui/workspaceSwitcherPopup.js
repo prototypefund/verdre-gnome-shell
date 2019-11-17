@@ -20,8 +20,8 @@ class WorkspaceSwitcherPopupList extends St.Widget {
             ? Clutter.Orientation.VERTICAL
             : Clutter.Orientation.HORIZONTAL;
 
-        this.connect('style-changed', () => {
-            this._itemSpacing = this.get_theme_node().get_length('spacing');
+        this.connect('style-changed', (a, oldThemeNode, newThemeNode) => {
+            this._itemSpacing = newThemeNode.get_length('spacing');
         });
     }
 

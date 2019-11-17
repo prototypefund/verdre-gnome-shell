@@ -116,15 +116,17 @@ st_label_get_property (GObject    *gobject,
 }
 
 static void
-st_label_style_changed (StWidget *self)
+st_label_style_changed (StWidget    *self,
+                        StThemeNode *old_theme_node,
+                        StThemeNode *new_theme_node)
 {
   StLabelPrivate *priv = ST_LABEL(self)->priv;
 
   g_clear_pointer (&priv->text_shadow_pipeline, cogl_object_unref);
 
-  _st_set_text_from_style ((ClutterText *)priv->label, st_widget_get_theme_node (self));
+  _st_set_text_from_style ((ClutterText *)priv->label, new_theme_node);
 
-  ST_WIDGET_CLASS (st_label_parent_class)->style_changed (self);
+  ST_WIDGET_CLASS (st_label_parent_class)->style_changed (self, old_theme_node, new_theme_node);
 }
 
 static void

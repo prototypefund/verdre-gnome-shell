@@ -194,7 +194,7 @@ shell_tray_manager_new (void)
 }
 
 static void
-shell_tray_manager_style_changed (StWidget *theme_widget,
+shell_tray_manager_style_changed (StWidget *theme_widget, StThemeNode *old_theme_node, StThemeNode *new_theme_node,
                                   gpointer  user_data)
 {
   ShellTrayManager *manager = user_data;
@@ -217,7 +217,7 @@ shell_tray_manager_manage_screen (ShellTrayManager *manager,
   g_signal_connect_object (theme_widget, "style-changed",
                            G_CALLBACK (shell_tray_manager_style_changed),
                            manager, 0);
-  shell_tray_manager_style_changed (theme_widget, manager);
+  shell_tray_manager_style_changed (theme_widget, NULL, NULL, manager);
 }
 
 static void

@@ -507,7 +507,9 @@ notify_children_of_style_change (ClutterActor *self)
 }
 
 static void
-st_widget_real_style_changed (StWidget *self)
+st_widget_real_style_changed (StWidget    *self,
+                              StThemeNode *old_theme_node,
+                              StThemeNode *new_theme_node)
 {
   clutter_actor_queue_redraw ((ClutterActor *) self);
   notify_children_of_style_change ((ClutterActor *) self);
@@ -975,9 +977,17 @@ st_widget_class_init (StWidgetClass *klass)
   /**
    * StWidget::style-changed:
    * @widget: the #StWidget
+   * @old_theme_node: The old, invalid #StThemeNode of @widget
+   * @new_theme_node: The new #StThemeNode of @widget
    *
    * Emitted when the style information that the widget derives from the
-   * theme changes
+   * theme changed.
+   * If the #StWidget had a style set before the style-change, @old_theme_node
+   * will be set to the old #StThemeNode, otherwise it will be %NULL.
+   * @new_theme_node will always be set to the new #StThemeNode.
+   * In the signal handler the CSS properties set in @old_theme_node and
+   * @new_theme_node should be compared and action should only be taken in
+   * case a property changed.
    */
   signals[STYLE_CHANGED] =
     g_signal_new ("style-changed",
@@ -985,7 +995,9 @@ st_widget_class_init (StWidgetClass *klass)
                   G_SIGNAL_RUN_LAST,
                   G_STRUCT_OFFSET (StWidgetClass, style_changed),
                   NULL, NULL, NULL,
-                  G_TYPE_NONE, 0);
+                  G_TYPE_NONE, 2,
+                  ST_TYPE_THEME_NODE,
+                  ST_TYPE_THEME_NODE);
 
   /**
    * StWidget::popup-menu:
@@ -1770,7 +1782,7 @@ st_widget_recompute_style (StWidget    *widget,
                                         st_theme_node_get_icon_colors (new_theme_node));
 
   if (!paint_equal || !geometry_equal)
-    g_signal_emit (widget, signals[STYLE_CHANGED], 0);
+    g_signal_emit (widget, signals[STYLE_CHANGED], 0, old_theme_node, new_theme_node);
   else
     notify_children_of_style_change ((ClutterActor *) widget);
 

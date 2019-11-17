@@ -42,10 +42,9 @@ function _patchContainerClass(containerClass) {
 function _patchLayoutClass(layoutClass, styleProps) {
     if (styleProps) {
         layoutClass.prototype.hookup_style = function (container) {
-            container.connect('style-changed', () => {
-                let node = container.get_theme_node();
+            container.connect('style-changed', (a, oldThemeNode, newThemeNode) => {
                 for (let prop in styleProps) {
-                    let [found, length] = node.lookup_length(styleProps[prop], false);
+                    let [found, length] = newThemeNode.lookup_length(styleProps[prop], false);
                     if (found)
                         this[prop] = length;
                 }

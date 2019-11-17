@@ -61,7 +61,9 @@ struct _StWidgetClass
   ClutterActorClass parent_class;
 
   /* signals */
-  void     (* style_changed)       (StWidget         *self);
+  void     (* style_changed)       (StWidget         *self,
+                                    StThemeNode      *old_theme_node,
+                                    StThemeNode      *new_theme_node);
   void     (* popup_menu)          (StWidget         *self);
   void     (* resource_scale_changed) (StWidget         *self);
 

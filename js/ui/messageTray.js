@@ -671,10 +671,9 @@ class SourceActorWithLabel extends SourceActor {
                                         layout_manager: new Clutter.BinLayout() });
         this._counterBin.hide();
 
-        this._counterBin.connect('style-changed', () => {
-            let themeNode = this._counterBin.get_theme_node();
-            this._counterBin.translation_x = themeNode.get_length('-shell-counter-overlap-x');
-            this._counterBin.translation_y = themeNode.get_length('-shell-counter-overlap-y');
+        this._counterBin.connect('style-changed', (a, oldThemeNode, newThemeNode) => {
+            this._counterBin.translation_x = newThemeNode.get_length('-shell-counter-overlap-x');
+            this._counterBin.translation_y = newThemeNode.get_length('-shell-counter-overlap-y');
         });
 
         this.add_actor(this._counterBin);
