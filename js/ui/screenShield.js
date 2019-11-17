@@ -397,11 +397,14 @@ class ScreenShieldArrow extends St.Bin {
     }
 
     vfunc_style_changed(oldThemeNode, newThemeNode) {
+        let oldShadow = oldThemeNode.get_shadow('-arrow-shadow');
         this._shadow = newThemeNode.get_shadow('-arrow-shadow');
-        if (this._shadow)
-            this._shadowHelper = St.ShadowHelper.new(this._shadow);
-        else
-            this._shadowHelper = null;
+
+        if (oldShadow != this._shadow) {
+            this._shadowHelper = this._shadow
+                                 ? St.ShadowHelper.new(this._shadow)
+                                 : null;
+        }
 
         super.vfunc_style_changed(oldThemeNode, newThemeNode);
     }
