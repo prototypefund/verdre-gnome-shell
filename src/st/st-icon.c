@@ -197,22 +197,40 @@ st_icon_style_changed (StWidget    *widget,
 {
   StIcon *self = ST_ICON (widget);
   StIconPrivate *priv = self->priv;
+  StShadow *new_shadow;
+  gboolean style_changed = FALSE;
 
-  st_icon_clear_shadow_pipeline (self);
-  g_clear_pointer (&priv->shadow_spec, st_shadow_unref);
-
-  priv->shadow_spec = st_theme_node_get_shadow (new_theme_node, "icon-shadow");
-
-  if (priv->shadow_spec && priv->shadow_spec->inset)
+  new_shadow = st_theme_node_get_shadow (new_theme_node, "icon-shadow");
+  if ((priv->shadow_spec && new_shadow && !st_shadow_equal (priv->shadow_spec, new_shadow)) ||
+      (priv->shadow_spec && !new_shadow) ||
+      (!priv->shadow_spec && new_shadow))
     {
-      g_warning ("The icon-shadow property does not support inset shadows");
-      st_shadow_unref (priv->shadow_spec);
-      priv->shadow_spec = NULL;
+      st_icon_clear_shadow_pipeline (self);
+      g_clear_pointer (&priv->shadow_spec, st_shadow_unref);
+
+      priv->shadow_spec = new_shadow;
+
+      if (priv->shadow_spec && priv->shadow_spec->inset)
+        {
+          g_warning ("The icon-shadow property does not support inset shadows");
+          st_shadow_unref (priv->shadow_spec);
+          priv->shadow_spec = NULL;
+        }
     }
 
   priv->theme_icon_size = (int)(0.5 + st_theme_node_get_length (new_theme_node, "icon-size"));
-  st_icon_update_icon_size (self);
-  st_icon_update (self);
+  style_changed = st_icon_update_icon_size (self);
+
+  if (!style_changed && old_theme_node)
+    style_changed = !st_icon_colors_equal (st_theme_node_get_icon_colors (old_theme_node),
+                                           st_theme_node_get_icon_colors (new_theme_node));
+
+  if (!style_changed && old_theme_node)
+    style_changed = st_theme_node_get_icon_style (old_theme_node) !=
+                    st_theme_node_get_icon_style (new_theme_node);
+
+ if (style_changed || !old_theme_node)
+     st_icon_update (self);
 
   ST_WIDGET_CLASS (st_icon_parent_class)->style_changed (widget, old_theme_node, new_theme_node);
 }
