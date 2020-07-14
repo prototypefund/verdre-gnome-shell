@@ -36,7 +36,7 @@ const FOLDER_DIALOG_ANIMATION_TIME = 200;
 const OVERSHOOT_THRESHOLD = 20;
 const OVERSHOOT_TIMEOUT = 1000;
 
-const DELAYED_MOVE_TIMEOUT = 500;
+const DELAYED_MOVE_TIMEOUT = 160;
 
 let discreteGpuAvailable = false;
 
@@ -197,7 +197,6 @@ var BaseAppView = GObject.registerClass({
         this._lastOvershootTimeoutId = 0;
         this._delayedMoveId = 0;
         this._targetDropPosition = null;
-        this._nudgedItem = null;
 
         this._dragBeginId = 0;
         this._dragEndId = 0;
@@ -334,18 +333,17 @@ var BaseAppView = GObject.registerClass({
             return;
 
         const source = dragEvent.source;
-        const [item, dragLocation] = this.getDropTarget(x, y);
+        const [page, position, dragLocation] = this.getDropTarget(x, y, source);
+        const item = position !== -1
+            ? this._grid.getItemAt(page, position) : null;
 
         // Dragging over invalid parts of the grid cancels the timeout
-        if (!item ||
-            item === source ||
+        if (item === source ||
+            dragLocation === IconGrid.DragLocation.INVALID ||
             dragLocation === IconGrid.DragLocation.ON_ICON) {
             this._removeDelayedMove();
-            this._removeNudge();
             return;
         }
-
-        const [page, position] = this._grid.getItemPosition(item);
 
         if (!this._targetDropPosition ||
             this._targetDropPosition.page !== page ||
@@ -357,13 +355,10 @@ var BaseAppView = GObject.registerClass({
             this._delayedMoveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
                 DELAYED_MOVE_TIMEOUT, () => {
                     this.moveItem(source, page, position);
-                    this._removeNudge();
                     this._targetDropPosition = null;
                     this._delayedMoveId = 0;
                     return GLib.SOURCE_REMOVE;
                 });
-
-            this._nudgeItem(item, dragLocation);
         }
     }
 
@@ -373,38 +368,6 @@ var BaseAppView = GObject.registerClass({
             this._delayedMoveId = 0;
         }
         this._targetDropPosition = null;
-    }
-
-    _nudgeItem(item, dragLocation) {
-        if (this._nudgedItem)
-            this._removeNudge();
-
-        const params = {
-            duration: DELAYED_MOVE_TIMEOUT,
-            mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
-        };
-
-        const rtl = this.get_text_direction() === Clutter.TextDirection.RTL;
-        const nudgeOffset = item.width / 4;
-        if (dragLocation === IconGrid.DragLocation.START_EDGE)
-            params.translation_x = nudgeOffset * (rtl ? -1 : 1);
-        else if (dragLocation === IconGrid.DragLocation.END_EDGE)
-            params.translation_x = -nudgeOffset * (rtl ? -1 : 1);
-
-        item.ease(params);
-        this._nudgedItem = item;
-    }
-
-    _removeNudge() {
-        if (!this._nudgedItem)
-            return;
-
-        this._nudgedItem.ease({
-            translation_x: 0,
-            duration: DELAYED_MOVE_TIMEOUT,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-        });
-        this._nudgedItem = null;
     }
 
     _resetOvershoot() {
@@ -498,7 +461,6 @@ var BaseAppView = GObject.registerClass({
         }
 
         this._resetOvershoot();
-        this._removeNudge();
     }
 
     _onDragCancelled() {
@@ -766,8 +728,46 @@ var BaseAppView = GObject.registerClass({
         this._grid.goToPage(pageNumber, animate);
     }
 
-    getDropTarget(x, y) {
+    getDropTarget(x, y, source) {
         let [item, dragLocation] = this._grid.getDropTarget(x, y);
+
+        const page = this._grid.currentPage;
+
+        const [sourcePage, sourcePosition] = this._grid.getItemPosition(source);
+        const targetPage = this._grid.currentPage;
+        let targetPosition = item
+            ? this._grid.getItemPosition(item)[1] : -1;
+
+        // In case we're hovering over the edge of an item but the
+        // reflow will happen in the opposite direction (the drag
+        // can't "naturally push the item away"), we instead set the
+        // drop target to the adjacent item that can be pushed away
+        // in the reflow-direction.
+        //
+        // We must avoid doing that if we're hovering over the first
+        // or last column though, in that case there is no adjacent
+        // icon we could push away.
+        if (dragLocation === IconGrid.DragLocation.START_EDGE &&
+            targetPosition > sourcePosition &&
+            targetPage === sourcePage) {
+            const nColumns = this._grid.layout_manager.columns_per_page;
+            const targetColumn = targetPosition % nColumns;
+
+            if (targetColumn > 0) {
+                targetPosition -= 1;
+                dragLocation = IconGrid.DragLocation.END_EDGE;
+            }
+        } else if (dragLocation === IconGrid.DragLocation.END_EDGE &&
+            (targetPosition < sourcePosition ||
+             targetPage !== sourcePage)) {
+            const nColumns = this._grid.layout_manager.columns_per_page;
+            const targetColumn = targetPosition % nColumns;
+
+            if (targetColumn < nColumns - 1) {
+                targetPosition += 1;
+                dragLocation = IconGrid.DragLocation.START_EDGE;
+            }
+        }
 
         // Append to the page if dragging over empty area
         if (dragLocation === IconGrid.DragLocation.EMPTY_SPACE) {
@@ -775,11 +775,10 @@ var BaseAppView = GObject.registerClass({
             const pageItems =
                 this._grid.getItemsAtPage(currentPage).filter(c => c.visible);
 
-            item = pageItems[pageItems.length - 1];
-            dragLocation = IconGrid.DragLocation.END_EDGE;
+            targetPosition = pageItems.length;
         }
 
-        return [item, dragLocation];
+        return [targetPage, targetPosition, dragLocation];
     }
 
     moveItem(item, newPage, newPosition) {
