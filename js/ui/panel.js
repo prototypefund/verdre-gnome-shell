@@ -825,6 +825,9 @@ class Panel extends St.Widget {
         this._rightCorner = new PanelCorner(St.Side.RIGHT);
         this.add_child(this._rightCorner);
 
+        this._colorizeEffect = new Clutter.ColorizeEffect();
+        this.add_effect_with_name('colorize', this._colorizeEffect);
+
         Main.overview.connect('showing', () => {
             this.add_style_pseudo_class('overview');
             this._updateWindowNearState();
@@ -1338,5 +1341,18 @@ class Panel extends St.Widget {
                    metaWindow.maximized_vertically &&
                    stageX > rect.x && stageX < rect.x + rect.width;
         });
+    }
+
+    vfunc_style_changed() {
+        super.vfunc_style_changed();
+
+        const themeNode = this.get_theme_node();
+        const duration = themeNode.get_transition_duration();
+        const color = themeNode.get_color('tint-color');
+
+        if (!this._colorizeEffect.tint.equal(color)) {
+            this.remove_transition('@effects.colorize.tint');
+            this.ease_property('@effects.colorize.tint', color, { duration });
+        }
     }
 });

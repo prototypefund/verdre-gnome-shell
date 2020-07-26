@@ -136,6 +136,7 @@
 
   // normal button
   @if $t==normal {
+  transition-duration: 300ms;
     color: $tc;
     background-color: lighten($c, 3%);
     border-color: draw_border_color($c);
@@ -241,65 +242,69 @@
 //
 
   $_opacity: 1;
-  color: white;
-  tint-color: #ccc;
+  $_color: #ccc;
+  $_highlight_color: $selected_fg_color;
   $_shadow: none;
-  $_activeButtonBackground: rgba(255, 255, 255, 0.15);
 
   @if $t==noisy or $t==overview-noisy or $t==window-near or $t==high-contrast {
-    $_activeButtonBackground: rgba(255, 255, 255, 0.25);
+    .panel-button {
+      &:active, &:focus {
+        box-shadow: inset 0 -2px 0px lighten($selected_bg_color,5%);
+      }
+    }
   }
   @else if $t==normal or $t==dark or $t==overview or $t==login-screen {
     $_opacity: 0;
-    tint-color: #eee;
+    $_color: #eee;
+    $_highlight_color: white;
     $_shadow: 0px 1px 2px rgba(0, 0, 0, 0.9);
+
+    .panel-button {
+      &:active, &:focus {
+        box-shadow: inset 0 -1px 0px white;
+      }
+    }
   }
   @else if $t==bright {
     $_opacity: 0;
-    tint-color: rgba(0, 0, 0, 0.75);
-    $_shadow: 0px 1px 2px rgba(255, 255, 255, 0.1);
-    $_activeButtonBackground: rgba(255, 255, 255, 0.10);
+    $_color: rgba(0, 0, 0, 0.75);
+    $_highlight_color: black;
+    $_shadow: 0px 1px 0px rgba(255, 255, 255, 0.15);
+
+    .panel-button {
+      &:active, &:focus {
+        box-shadow: inset 0 -1px 0px darken($osd_bg_color, 10%);
+      }
+    }
   }
 
   background-color: rgba(0, 0, 0, $_opacity);
 
   .panel-button {
-
-
+    color: $_color;
     text-shadow: $_shadow;
-    icon-shadow: $_shadow;
 
     .system-status-icon,
     .app-menu-icon > StIcon,
     .messages-indicator-icon,
     .popup-menu-arrow,
     .app-menu-spinner {
+      color: $_color;
       icon-shadow: $_shadow;
     }
 
     &:hover, &:active, &:overview, &:focus, &:checked {
-      transition-duration: 150ms;
-      box-shadow: inset 0 0 0 100px $_activeButtonBackground;
-      border: 3px solid transparent;
-      border-radius: 99px;
+      color: $_highlight_color;
 
-
-      // The clock display needs to have the background on .clock
-      &.clock-display {
-        box-shadow: none;
-        border: 0;
-
-        .clock {
-          transition-duration: 150ms;
-          box-shadow: inset 0 0 0 100px $_activeButtonBackground;
-          border-top: 3px solid transparent;
-          border-bottom: 3px solid transparent;
-          border-radius: 99px;
-        }
+      .system-status-icon,
+      .app-menu-icon > StIcon,
+      .messages-indicator-icon,
+      .popup-menu-arrow,
+      .app-menu-spinner {
+        color: $_highlight_color;
       }
     }
   }
-
 
   // We have to use opacity instead of background-color for the corner because
   // the corner uses custom drawing code that we animate manually.
