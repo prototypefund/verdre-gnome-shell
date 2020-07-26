@@ -1735,7 +1735,7 @@ st_widget_recompute_style (StWidget    *widget,
     paint_equal = st_icon_colors_equal (old_theme_node->icon_colors,
                                         st_theme_node_get_icon_colors (new_theme_node));
 
-  if (!paint_equal || !geometry_equal)
+  //if (!paint_equal || !geometry_equal)
     g_signal_emit (widget, signals[STYLE_CHANGED], 0);
 
   priv->is_style_dirty = FALSE;
