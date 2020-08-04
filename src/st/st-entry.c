@@ -1318,6 +1318,8 @@ st_entry_set_primary_icon (StEntry      *entry,
   priv = st_entry_get_instance_private (entry);
 
   _st_entry_set_icon (entry, &priv->primary_icon, icon);
+
+  g_object_notify_by_pspec (G_OBJECT (entry), props[PROP_PRIMARY_ICON]);
 }
 
 /**
@@ -1355,6 +1357,8 @@ st_entry_set_secondary_icon (StEntry      *entry,
   priv = st_entry_get_instance_private (entry);
 
   _st_entry_set_icon (entry, &priv->secondary_icon, icon);
+
+  g_object_notify_by_pspec (G_OBJECT (entry), props[PROP_SECONDARY_ICON]);
 }
 
 /**
