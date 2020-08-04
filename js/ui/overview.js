@@ -22,6 +22,7 @@ const WorkspaceThumbnail = imports.ui.workspaceThumbnail;
 // or from the overview completely after ANIMATION_TIME,
 // and don't want the shading animation to get cut off
 var SHADE_ANIMATION_TIME = 200;
+const SEARCH_ENTRY_ANIMATION_TIME = 250;
 
 var DND_WINDOW_SWITCH_TIMEOUT = 750;
 
@@ -77,6 +78,105 @@ var ShellInfo = class {
     }
 };
 
+var ExpandingSearchEntry = GObject.registerClass(
+class ExpandingSearchEntry extends St.Bin {
+    _init() {
+        super._init({
+            style_class: 'expanding-search-entry',
+            track_hover: true,
+            reactive: true,
+        });
+
+        this.child = new St.Entry({
+            style_class: 'search-entry',
+            /* Translators: this is the text displayed
+               in the search entry when no search is
+               active; it should not exceed ~30
+               characters. */
+            hint_text: _('Type to search'),
+            track_hover: true,
+            can_focus: true,
+            x_align: Clutter.ActorAlign.CENTER,
+        });
+        this.child.clutter_text.connect('key-focus-in',
+            this._expandEntry.bind(this));
+        this.child.clutter_text.connect('key-focus-out',
+            this._maybeShrinkEntry.bind(this));
+        this.child.connect('notify::text',
+            this._maybeShrinkEntry.bind(this));
+        this.child.connect('notify::secondary-icon',
+            this._secondaryIconChanged.bind(this));
+        this.child.connect('notify::pseudo-class',
+            this._syncFocusCssClass.bind(this));
+
+        const clickAction = new Clutter.ClickAction();
+        clickAction.connect('clicked', () => this.child.grab_key_focus());
+        this.add_action(clickAction);
+    }
+
+    get entry() {
+        return this.child;
+    }
+
+    _expandEntry() {
+        this.child.ease({
+            width: this.width,
+            duration: SEARCH_ENTRY_ANIMATION_TIME,
+        });
+    }
+
+    _maybeShrinkEntry() {
+        if (this.child.text !== '')
+            return;
+
+        if (this.child.clutter_text.has_key_focus())
+            return;
+
+        const { naturalWidthSet } = this.child;
+        this.child.natural_width_set = false;
+        const [, width] = this.child.get_preferred_width(-1);
+        this.child.natural_width_set = naturalWidthSet;
+
+        this.child.ease({
+            width,
+            duration: SEARCH_ENTRY_ANIMATION_TIME,
+            onStopped: () => {
+                this.child.width = -1;
+            },
+        });
+    }
+
+    _secondaryIconChanged() {
+        if (!this.child.secondary_icon)
+            return;
+
+        const currentTransition = this.child.get_transition('width');
+        if (!currentTransition) {
+            this.child.secondary_icon.remove_transition('opacity');
+            this.child.secondary_icon.opacity = 255;
+            return;
+        }
+
+        this.child.secondary_icon.opacity = 0;
+        currentTransition.connect('stopped', () => {
+            if (!this.child.secondary_icon)
+                return;
+
+            this.child.secondary_icon.ease({
+                opacity: 255,
+                duration: 150,
+            });
+        });
+    }
+
+    _syncFocusCssClass() {
+        if (this.child.pseudo_class.includes('focus'))
+            this.add_style_pseudo_class('focus');
+        else
+            this.remove_style_pseudo_class('focus');
+    }
+});
+
 var OverviewActor = GObject.registerClass(
 class OverviewActor extends St.BoxLayout {
     _init() {
@@ -99,24 +199,11 @@ class OverviewActor extends St.BoxLayout {
         });
         this.add_actor(panelGhost);
 
-        this._searchEntry = new St.Entry({
-            style_class: 'search-entry',
-            /* Translators: this is the text displayed
-               in the search entry when no search is
-               active; it should not exceed ~30
-               characters. */
-            hint_text: _('Type to search'),
-            track_hover: true,
-            can_focus: true,
-        });
-        this._searchEntry.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
-        let searchEntryBin = new St.Bin({
-            child: this._searchEntry,
-            x_align: Clutter.ActorAlign.CENTER,
-        });
-        this.add_actor(searchEntryBin);
+        this._searchEntry = new ExpandingSearchEntry();
+        this._searchEntry.x_align = Clutter.ActorAlign.CENTER;
+        this.add_child(this._searchEntry);
 
-        this._controls = new OverviewControls.ControlsManager(this._searchEntry);
+        this._controls = new OverviewControls.ControlsManager(this._searchEntry.entry);
 
         // Add our same-line elements after the search entry
         this.add_child(this._controls);
@@ -127,7 +214,7 @@ class OverviewActor extends St.BoxLayout {
     }
 
     get searchEntry() {
-        return this._searchEntry;
+        return this._searchEntry.entry;
     }
 
     get viewSelector() {
