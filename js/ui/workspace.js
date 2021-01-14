@@ -464,10 +464,13 @@ var WorkspaceLayout = GObject.registerClass({
         const [topOversize, bottomOversize] = window.chromeHeights();
         const [leftOversize, rightOversize] = window.chromeWidths();
 
+        const oversize =
+            Math.max(topOversize, bottomOversize, leftOversize, rightOversize);
+
         if (rowSpacing)
-            rowSpacing += topOversize + bottomOversize;
+            rowSpacing += oversize;
         if (colSpacing)
-            colSpacing += Math.max(leftOversize, rightOversize);
+            colSpacing += oversize;
 
         if (containerBox) {
             // add some padding around preview area
@@ -479,10 +482,10 @@ var WorkspaceLayout = GObject.registerClass({
             containerBox.y1 += height * (1 - MAXIMUM_PREVIEW_AREA) / 2;
 
             const [topOverlap, bottomOverlap] = window.overlapHeights();
-            containerBox.x1 += leftOversize + topOverlap;
-            containerBox.x2 -= rightOversize;
-            containerBox.y1 += topOversize;
-            containerBox.y2 -= bottomOversize + bottomOverlap;
+            containerBox.x1 += oversize + topOverlap;
+            containerBox.x2 -= oversize;
+            containerBox.y1 += oversize;
+            containerBox.y2 -= oversize + bottomOverlap;
         }
 
         return [rowSpacing, colSpacing, containerBox];
