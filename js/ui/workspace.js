@@ -24,6 +24,8 @@ var WINDOW_REPOSITIONING_DELAY = 750;
 var LAYOUT_SCALE_WEIGHT = 1;
 var LAYOUT_SPACE_WEIGHT = 0.1;
 
+const BACKGROUND_SCALE = 0.92;
+
 // Window Thumbnail Layout Algorithm
 // =================================
 //
@@ -612,8 +614,24 @@ var WorkspaceLayout = GObject.registerClass({
                 this._windowSlots = this._getWindowSlots(box.copy());
         }
 
-        if (this._background)
-            this._background.allocate(box);
+        if (this._background) {
+            let backgroundBox = box.copy();
+
+            const [boxX, boxY] = backgroundBox.get_origin();
+            const [boxWidth, boxHeight] = backgroundBox.get_size();
+
+            backgroundBox.scale(BACKGROUND_SCALE);
+            const [backgroundBoxWidth, backgroundBoxHeight] = backgroundBox.get_size();
+
+            backgroundBox.set_origin(
+                boxX + (boxWidth - backgroundBoxWidth) / 2,
+                boxY + (boxHeight - backgroundBoxHeight) / 2);
+
+            backgroundBox = box.interpolate(backgroundBox,
+                this._stateAdjustment.value);
+
+            this._background.allocate(backgroundBox);
+        }
 
         const allocationScale = containerBox.get_width() / this._workarea.width;
 
