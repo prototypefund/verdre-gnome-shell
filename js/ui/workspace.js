@@ -207,7 +207,7 @@ function keepSameRowOrCol(curWidth, extraWidth, idealWidth) {
     return false;
 }
 
-var UnalignedLayoutStrategy = class extends LayoutStrategy {
+var UnalignedHorizontalLayoutStrategy = class extends LayoutStrategy {
     // Computes and returns an individual scaling factor for @window,
     // to be applied in addition to the overall layout scale.
     _computeWindowScale(window) {
@@ -635,7 +635,7 @@ var WorkspaceLayout = GObject.registerClass({
 
         // We look for the largest scale that allows us to fit the
         // largest row/tallest column on the workspace.
-        this._layoutStrategy = new UnalignedLayoutStrategy({
+        this._layoutStrategy = new UnalignedHorizontalLayoutStrategy({
             monitor: Main.layoutManager.monitors[this._monitorIndex],
             rowSpacing,
             columnSpacing,
