@@ -287,9 +287,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         let horizontalScale = spacedWidth / layout.gridWidth;
         let verticalScale = spacedHeight / layout.gridHeight;
 
-        // Thumbnails should be less than 70% of the original size
-        let scale = Math.min(
-            horizontalScale, verticalScale, WINDOW_PREVIEW_MAXIMUM_SCALE);
+        let scale = Math.min(horizontalScale, verticalScale);
 
         let scaledLayoutWidth = layout.gridWidth * scale + hspacing;
         let scaledLayoutHeight = layout.gridHeight * scale + vspacing;
