@@ -528,6 +528,307 @@ var UnalignedHorizontalLayoutStrategy = class extends LayoutStrategy {
     }
 };
 
+var UnalignedVerticalLayoutStrategy = class extends LayoutStrategy {
+    _computeWindowScale(window) {
+        let ratio = window.boundingBox.width / this._monitor.width;
+        return Util.lerp(1.5, 1, ratio);
+    }
+
+    _addWindowToCol(window, col, width, height) {
+        col.windows.push(window);
+        col.fullWidth = Math.max(col.fullWidth, width);
+        col.fullHeight += height;
+    }
+
+    _chooseColForWindow(curCol, nextCol, curWindow, windows, idealColHeight) {
+        const s = this._computeWindowScale(curWindow);
+        const width = curWindow.boundingBox.width * s;
+        const height = curWindow.boundingBox.height * s;
+
+        if (!nextCol || keepSameRowOrCol(curCol.fullHeight, height, idealColHeight)) {
+            this._addWindowToCol(curWindow, curCol, width, height);
+            return false;
+        }
+
+        // Try squeezing a few more windows into the current column
+        windows.forEach(w => {
+            const wScale = this._computeWindowScale(w);
+            const wWidth = w.boundingBox.width * wScale
+            const wHeight = w.boundingBox.height * wScale;
+
+            if (keepSameRowOrCol(curCol.fullHeight, wHeight, idealColHeight)) {
+                this._addWindowToCol(w, curCol, wWidth, wHeight);
+                windows.splice(windows.indexOf(w), 1);
+            }
+        });
+
+        this._addWindowToCol(curWindow, nextCol, width, height);
+        return true;
+    }
+
+    computeLayout(windows, layoutParams) {
+        layoutParams = Params.parse(layoutParams, {
+            numCols: 0,
+        });
+
+        if (layoutParams.numCols === 0)
+            throw new Error(`${this.constructor.name}: No numCols given in layout params`);
+
+        const numCols = layoutParams.numCols;
+
+        windows = windows.slice();
+
+        let totalHeight = 0;
+        let maximizedWindows = [];
+        let heightWithoutMaximized = 0;
+        windows = windows.filter(w => {
+            const height = w.boundingBox.height * this._computeWindowScale(w);
+            totalHeight += height;
+
+            if (w.metaWindow.maximized_horizontally &&
+                w.metaWindow.maximized_vertically) {
+                maximizedWindows.push(w);
+                return false;
+            }
+
+            heightWithoutMaximized += height;
+            return true;
+        });
+
+        const idealColHeights = distributeSizes(numCols, totalHeight);
+
+        // We will split all the windows into two parts judging by their
+        // horizontal position.
+        let leftPart = [];
+        let leftPartHeight = 0;
+        let rightPart = [];
+
+        windows.sort((a, b) => a.windowCenter.x - b.windowCenter.x);
+        windows.forEach(w => {
+            const height = w.boundingBox.height * this._computeWindowScale(w);
+
+            if (!keepSameRowOrCol(leftPartHeight, height, heightWithoutMaximized / 2)) {
+                rightPart.push(w);
+                return;
+            }
+
+            leftPart.push(w);
+            leftPartHeight += height;
+        });
+
+        // Spread maximized windows equally across the leftPart and rightPart.
+        // We do this because (in case a lot of non-maximized windows are in
+        // one half of the monitor) it might happen that one part has no
+        // maximized windows at all, while the other part has all of them.
+        // So the idea here is to ensure the center colums will get filled
+        // with the maximized windows in the end.
+        const startWithLeftPart = leftPartHeight < heightWithoutMaximized / 2;
+
+        maximizedWindows.forEach((w, i) => {
+            const height = w.boundingBox.height * this._computeWindowScale(w);
+
+            if (i % 2 === (startWithLeftPart ? 0 : 1)) {
+                leftPart.push(w);
+                leftPartHeight += height;
+            } else {
+                rightPart.push(w);
+            }
+        });
+
+        // We've now prepared the leftPart and the rightPart, now sort both
+        // by descending window size.
+        leftPart.sort((a, b) =>
+            b.boundingBox.width * b.boundingBox.height -
+            a.boundingBox.width * a.boundingBox.height);
+        rightPart.sort((a, b) =>
+            b.boundingBox.width * b.boundingBox.height -
+            a.boundingBox.width * a.boundingBox.height);
+
+        // Create the cols array, figure out the center column index and then
+        // finally loop through the leftPart and rightPart in an alternating
+        // manner, adding windows starting from the center col.
+        let cols = [];
+        for (let i = 0; i < numCols; i++)
+            cols.push(newRowOrCol());
+
+        const hasSingleCenterCol = numCols % 2 === 1;
+        const centerColIndex = Math.floor(numCols / 2);
+
+        let colsLeftIndex = centerColIndex;
+        let colsRightIndex = centerColIndex;
+        if (!hasSingleCenterCol && centerColIndex !== 0)
+            colsLeftIndex -= 1;
+
+        // One more thing: If there's a single center column we fill that col
+        // by alternating between windows from the leftPart and the rightPart.
+        // Now in case the rightPart is larger than the leftPart, we want to try
+        // putting more windows of the rightPart into the center column, so in
+        // that case start the process by taking a window from the rightPart.
+        const startWithRightWindow =
+            hasSingleCenterCol && leftPartHeight < totalHeight / 2;
+
+        let curLeftWindow = leftPart.shift();
+        let curRightWindow = rightPart.shift();
+        while (curLeftWindow || curRightWindow) {
+            if (!startWithRightWindow) {
+                if (curLeftWindow) {
+                    const curCol = cols[colsLeftIndex];
+                    const nextCol = colsLeftIndex === 0 ? null : cols[colsLeftIndex - 1];
+
+                    if (this._chooseColForWindow(curCol, nextCol, curLeftWindow,
+                                                 leftPart, idealColHeights[colsLeftIndex]))
+                        colsLeftIndex -= 1;
+
+                    curLeftWindow = leftPart.shift();
+                }
+            }
+
+            if (curRightWindow) {
+                const curCol = cols[colsRightIndex];
+                const nextCol = colsRightIndex === 0 ? null : cols[colsRightIndex + 1];
+
+                if (this._chooseColForWindow(curCol, nextCol, curRightWindow,
+                                             rightPart, idealColHeights[colsRightIndex]))
+                    colsRightIndex += 1;
+
+                curRightWindow = rightPart.shift();
+            }
+
+            if (startWithRightWindow) {
+                if (curLeftWindow) {
+                    const curCol = cols[colsLeftIndex];
+                    const nextCol = colsLeftIndex === 0 ? null : cols[colsLeftIndex - 1];
+
+                    if (this._chooseColForWindow(curCol, nextCol, curLeftWindow,
+                                                 leftPart, idealColHeights[colsLeftIndex]))
+                        colsLeftIndex -= 1;
+
+                    curLeftWindow = leftPart.shift();
+                }
+            }
+        }
+
+        let gridWidth = 0;
+        let maxCol;
+        for (const col of cols) {
+            col.windows.sort((a, b) => a.windowCenter.y - b.windowCenter.y);
+
+            if (!maxCol || col.fullHeight > maxCol.fullHeight)
+                maxCol = col;
+            gridWidth += col.fullWidth;
+        }
+
+        return {
+            numCols,
+            cols,
+            maxRows: maxCol.windows.length,
+            gridWidth,
+            gridHeight: maxCol.fullHeight,
+        };
+    }
+
+    computeWindowSlots(layout, area) {
+        if (layout.gridWidth === 0 || layout.gridHeight === 0)
+            return [];
+
+        let { cols } = layout;
+
+        const hspacing = (layout.numCols - 1) * this._columnSpacing;
+        const vspacing = (layout.maxRows - 1) * this._rowSpacing;
+
+        const spacedWidth = area.width - hspacing;
+        const spacedHeight = area.height - vspacing;
+
+        const horizontalScale = spacedWidth / layout.gridWidth;
+        const verticalScale = spacedHeight / layout.gridHeight;
+
+        const scale = Math.min(horizontalScale, verticalScale);
+
+        for (const col of cols) {
+            col.scaledWidth = col.fullWidth * scale;
+            col.scaledHeight = col.fullHeight * scale;
+        }
+
+        let slots = [];
+
+        const horizontalSpacing = (cols.length - 1) * this._columnSpacing;
+        const additionalHorizontalScale =
+            Math.min(1, (area.width - horizontalSpacing) / (layout.gridWidth * scale));
+
+        // keep track how much smaller the grid becomes due to scaling
+        // so it can be centered again
+        let compensation = 0;
+        let x = 0;
+        for (const col of cols) {
+            // If this window layout row doesn't fit in the actual
+            // geometry, then apply an additional scale to it.
+            const verticalSpacing = (col.windows.length - 1) * this._rowSpacing;
+            const additionalVerticalScale =
+                Math.min(1, (area.height - verticalSpacing) / col.scaledHeight);
+
+            if (additionalVerticalScale < additionalHorizontalScale) {
+                col.additionalScale = additionalVerticalScale;
+
+                // Only consider the scaling in addition to the vertical scaling for centering.
+                compensation += (additionalHorizontalScale - additionalVerticalScale) * col.scaledWidth;
+            } else {
+                col.additionalScale = additionalHorizontalScale;
+
+                // No compensation when scaling vertically since centering based on a too large
+                // height would undo what vertical scaling is trying to achieve.
+            }
+
+            col.x = area.x + Math.max(area.width - (layout.gridWidth * scale + horizontalSpacing), 0) / 2 + x;
+            col.y = area.y + Math.max(area.height - (col.scaledHeight * col.additionalScale + verticalSpacing), 0) / 2;
+            x += col.scaledWidth * col.additionalScale + this._columnSpacing;
+        }
+
+        compensation /= 2;
+
+        for (let i = 0; i < cols.length; i++) {
+            const col = cols[i];
+            const colX = col.x + compensation;
+            const colWidth = col.scaledWidth * col.additionalScale;
+            let y = col.y;
+
+            for (const window of col.windows) {
+                let s = scale * this._computeWindowScale(window) * col.additionalScale;
+                const cellWidth = window.boundingBox.width * s;
+                const cellHeight = window.boundingBox.height * s;
+
+                s = Math.min(s, WINDOW_PREVIEW_MAXIMUM_SCALE);
+                const cloneWidth = window.boundingBox.width * s;
+                const cloneHeight = window.boundingBox.height * s;
+
+                let cloneX;
+                let cloneY = y + (cellHeight - cloneHeight) / 2;
+
+                // If there's only one col, align window horizontally centered inside the col
+                if (cols.length === 1)
+                    cloneX = colX + (colWidth - cloneWidth) / 2;
+                // If this is the leftmost col, align window to the right edge of the col
+                else if (i === 0)
+                    cloneX = colX + colWidth - cellWidth;
+                // If this is the rightmost col, align window to the left edge of the col
+                else if (i === cols.length - 1)
+                    cloneX = colX;
+                // For any in-between cols, also align the window horizontally centered inside the col
+                else
+                    cloneX = colX + (colWidth - cloneWidth) / 2;
+
+                // Align with the pixel grid to prevent blurry windows at scale = 1
+                cloneX = Math.floor(cloneX);
+                cloneY = Math.floor(cloneY);
+
+                slots.push([cloneX, cloneY, cloneWidth, cloneHeight, window]);
+                y += cellHeight + this._rowSpacing;
+            }
+        }
+
+        return slots;
+    }
+};
+
 function animateAllocation(actor, box) {
     if (actor.allocation.equal(box) ||
         actor.allocation.get_width() === 0 ||
