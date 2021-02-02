@@ -187,6 +187,38 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         row.windows.sort((a, b) => a.windowCenter.x - b.windowCenter.x);
     }
 
+    _addWindowToRow(window, row, width, height) {
+        row.windows.push(window);
+        row.fullWidth += width;
+        row.fullHeight = Math.max(row.fullHeight, height);
+    }
+
+    _chooseRowForWindow(curRow, nextRow, curWindow, windows, idealRowWidth) {
+        const s = this._computeWindowScale(curWindow);
+        const width = curWindow.boundingBox.width * s;
+        const height = curWindow.boundingBox.height * s;
+
+        if (!nextRow || this._keepSameRow(curRow.fullWidth, width, idealRowWidth)) {
+            this._addWindowToRow(curWindow, curRow, width, height);
+            return false;
+        }
+
+        // Try squeezing a few more windows into the current row
+        windows.forEach(w => {
+            const wScale = this._computeWindowScale(w);
+            const wWidth = w.boundingBox.width * wScale
+            const wHeight = w.boundingBox.height * wScale;
+
+            if (this._keepSameRow(curRow.fullWidth, wWidth, idealRowWidth)) {
+                this._addWindowToRow(w, curRow, wWidth, wHeight);
+                windows.splice(windows.indexOf(w), 1);
+            }
+        });
+
+        this._addWindowToRow(curWindow, nextRow, width, height);
+        return true;
+    }
+
     computeLayout(windows, layoutParams) {
         layoutParams = Params.parse(layoutParams, {
             numRows: 0,
@@ -197,47 +229,141 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
 
         const numRows = layoutParams.numRows;
 
-        let rows = [];
+        windows = windows.slice();
+
         let totalWidth = 0;
-        for (let i = 0; i < windows.length; i++) {
-            let window = windows[i];
-            let s = this._computeWindowScale(window);
-            totalWidth += window.boundingBox.width * s;
-        }
+        let maximizedWindows = [];
+        let widthWithoutMaximized = 0;
+        windows = windows.filter(w => {
+            const width = w.boundingBox.width * this._computeWindowScale(w);
+            totalWidth += width;
 
-        let idealRowWidth = totalWidth / numRows;
+            if (w.metaWindow.maximized_horizontally &&
+                w.metaWindow.maximized_vertically) {
+                maximizedWindows.push(w);
+                return false;
+            }
 
-        // Sort windows vertically to minimize travel distance.
-        // This affects what rows the windows get placed in.
-        let sortedWindows = windows.slice();
-        sortedWindows.sort((a, b) => a.windowCenter.y - b.windowCenter.y);
+            widthWithoutMaximized += width;
+            return true;
+        });
 
-        let windowIdx = 0;
-        for (let i = 0; i < numRows; i++) {
-            let row = this._newRow();
-            rows.push(row);
+        const idealRowWidth = totalWidth / numRows;
 
-            for (; windowIdx < sortedWindows.length; windowIdx++) {
-                let window = sortedWindows[windowIdx];
-                let s = this._computeWindowScale(window);
-                let width = window.boundingBox.width * s;
-                let height = window.boundingBox.height * s;
-                row.fullHeight = Math.max(row.fullHeight, height);
+        // We will split all the windows into two parts judging by their
+        // vertical position.
+        let topPart = [];
+        let topPartWidth = 0;
+        let bottomPart = [];
 
-                // either new width is < idealWidth or new width is nearer from idealWidth then oldWidth
-                if (this._keepSameRow(row.fullWidth, width, idealRowWidth) || (i === numRows - 1)) {
-                    row.windows.push(window);
-                    row.fullWidth += width;
-                } else {
-                    break;
+        windows.sort((a, b) => a.windowCenter.y - b.windowCenter.y);
+        windows.forEach(w => {
+            const width = w.boundingBox.width * this._computeWindowScale(w);
+
+            if (!this._keepSameRow(topPartWidth, width, widthWithoutMaximized / 2)) {
+                bottomPart.push(w);
+                return;
+            }
+
+            topPart.push(w);
+            topPartWidth += width;
+        });
+
+        // Spread maximized windows equally across the topPart and bottomPart.
+        // We do this because (in case a lot of non-maximized windows are in
+        // one half of the monitor) it might happen that one part has no
+        // maximized windows at all, while the other part has all of them.
+        // So the idea here is to ensure the center colums will get filled
+        // with the maximized windows in the end.
+        const startWithTopPart = topPartWidth < widthWithoutMaximized / 2;
+
+        maximizedWindows.forEach((w, i) => {
+            const width = w.boundingBox.width * this._computeWindowScale(w);
+
+            if (i % 2 === (startWithTopPart ? 0 : 1)) {
+                topPart.push(w);
+                topPartWidth += width;
+            } else {
+                bottomPart.push(w);
+            }
+        });
+
+        // We've now prepared the topPart and the bottomPart, now sort both
+        // by descending window size.
+        topPart.sort((a, b) =>
+            b.boundingBox.width * b.boundingBox.height -
+            a.boundingBox.width * a.boundingBox.height);
+        bottomPart.sort((a, b) =>
+            b.boundingBox.width * b.boundingBox.height -
+            a.boundingBox.width * a.boundingBox.height);
+
+        // Prepare the rows array, figure out the center row and then finally
+        // loop through the topPart and bottomPart in an alternating manner,
+        // adding windows starting from the center row.
+        let rows = [];
+        for (let i = 0; i < numRows; i++)
+            rows.push(this._newRow());
+
+        const hasSingleCenterRow = numRows % 2 === 1;
+        const centerRowIndex = Math.floor(numRows / 2);
+
+        let rowsUpIndex = centerRowIndex;
+        let rowsDownIndex = centerRowIndex;
+        if (!hasSingleCenterRow && centerRowIndex !== 0)
+            rowsUpIndex -= 1;
+
+        // One more thing: If there's a single center row we fill that row
+        // by alternating between windows from the topPart and the bottomPart.
+        // Now in case the bottomPart is larger than the topPart, we want to try
+        // putting more windows of the bottomPart into the center row, so in
+        // that case start the process by taking a window from the bottomPart.
+        const startWithBottomWindow =
+            hasSingleCenterRow && topPartWidth < totalWidth / 2;
+
+        let curTopWindow = topPart.shift();
+        let curBottomWindow = bottomPart.shift();
+        while (curTopWindow || curBottomWindow) {
+            if (!startWithBottomWindow) {
+                if (curTopWindow) {
+                    const curRow = rows[rowsUpIndex];
+                    const nextRow = rowsUpIndex === 0 ? null : rows[rowsUpIndex - 1];
+
+                    if (this._chooseRowForWindow(curRow, nextRow, curTopWindow,
+                                                 topPart, idealRowWidth))
+                        rowsUpIndex -= 1;
+
+                    curTopWindow = topPart.shift();
+                }
+            }
+
+            if (curBottomWindow) {
+                const curRow = rows[rowsDownIndex];
+                const nextRow = rowsDownIndex === 0 ? null : rows[rowsDownIndex + 1];
+
+                if (this._chooseRowForWindow(curRow, nextRow, curBottomWindow,
+                                             bottomPart, idealRowWidth))
+                    rowsDownIndex += 1;
+
+                curBottomWindow = bottomPart.shift();
+            }
+
+            if (startWithBottomWindow) {
+                if (curTopWindow) {
+                    const curRow = rows[rowsUpIndex];
+                    const nextRow = rowsUpIndex === 0 ? null : rows[rowsUpIndex - 1];
+
+                    if (this._chooseRowForWindow(curRow, nextRow, curTopWindow,
+                                                 topPart, idealRowWidth))
+                        rowsUpIndex -= 1;
+
+                    curTopWindow = topPart.shift();
                 }
             }
         }
 
         let gridHeight = 0;
         let maxRow;
-        for (let i = 0; i < numRows; i++) {
-            let row = rows[i];
+        for (const row of rows) {
             this._sortRow(row);
 
             if (!maxRow || row.fullWidth > maxRow.fullWidth)
