@@ -128,6 +128,51 @@ var LayoutStrategy = class {
     }
 };
 
+const OUTER_SIZES_REDUCTION_FACTOR = 0.20;
+const MIN_OUTER_SIZE = 0.6;
+
+// This function creates an array and will distribute the size that's passed
+// across n rows or cols, creating an elliptical shape. For example passing
+// a num of seven rows will distribute sizes in a shape like this:
+//
+//   **
+//   **
+//  ****
+// ******
+//  ****
+//   **
+//   **
+function distributeSizes(num, fullSize) {
+    if (num === 1)
+        return [1];
+
+    let curVal = 100;
+    const reductionFactor = 100 * OUTER_SIZES_REDUCTION_FACTOR;
+    const minVal = 100 * MIN_OUTER_SIZE;
+    let ret;
+
+    if (num % 2 === 0) {
+        ret = [curVal, curVal];
+        num -= 2;
+    } else {
+        ret = [curVal];
+        num -= 1;
+    }
+
+    for (let i = 0; i < Math.floor(num / 2); i++) {
+        if (curVal - reductionFactor >= minVal)
+            curVal -= reductionFactor;
+
+        ret.unshift(curVal);
+        ret.push(curVal);
+    }
+
+    const totalSum = ret.reduce((accumulator, curVal) => accumulator + curVal, 0);
+    ret = ret.map(v => (v / totalSum) * fullSize);
+
+    return ret;
+}
+
 var UnalignedLayoutStrategy = class extends LayoutStrategy {
     _newRow() {
         // Row properties:
@@ -248,7 +293,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             return true;
         });
 
-        const idealRowWidth = totalWidth / numRows;
+        const idealRowWidths = distributeSizes(numRows, totalWidth);
 
         // We will split all the windows into two parts judging by their
         // vertical position.
@@ -329,7 +374,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                     const nextRow = rowsUpIndex === 0 ? null : rows[rowsUpIndex - 1];
 
                     if (this._chooseRowForWindow(curRow, nextRow, curTopWindow,
-                                                 topPart, idealRowWidth))
+                                                 topPart, idealRowWidths[rowsUpIndex]))
                         rowsUpIndex -= 1;
 
                     curTopWindow = topPart.shift();
@@ -341,7 +386,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 const nextRow = rowsDownIndex === 0 ? null : rows[rowsDownIndex + 1];
 
                 if (this._chooseRowForWindow(curRow, nextRow, curBottomWindow,
-                                             bottomPart, idealRowWidth))
+                                             bottomPart, idealRowWidths[rowsDownIndex]))
                     rowsDownIndex += 1;
 
                 curBottomWindow = bottomPart.shift();
@@ -353,7 +398,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                     const nextRow = rowsUpIndex === 0 ? null : rows[rowsUpIndex - 1];
 
                     if (this._chooseRowForWindow(curRow, nextRow, curTopWindow,
-                                                 topPart, idealRowWidth))
+                                                 topPart, idealRowWidths[rowsUpIndex]))
                         rowsUpIndex -= 1;
 
                     curTopWindow = topPart.shift();
