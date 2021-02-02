@@ -173,25 +173,41 @@ function distributeSizes(num, fullSize) {
     return ret;
 }
 
-var UnalignedLayoutStrategy = class extends LayoutStrategy {
-    _newRow() {
-        // Row properties:
-        //
-        // * x, y are the position of row, relative to area
-        //
-        // * width, height are the scaled versions of fullWidth, fullHeight
-        //
-        // * width also has the spacing in between windows. It's not in
-        //   fullWidth, as the spacing is constant, whereas fullWidth is
-        //   meant to be scaled
-        //
-        // * neither height/fullHeight have any sort of spacing or padding
-        return { x: 0, y: 0,
-                 fullWidth: 0, fullHeight: 0,
-                 scaledWidth: 0, scaledHeight: 0,
-                 windows: [] };
-    }
+function newRowOrCol() {
+    // * x, y are the position of row, relative to area
+    // * width, height are the scaled versions of fullWidth, fullHeight
+    // * width also has the spacing in between windows. It's not in
+    //   fullWidth, as the spacing is constant, whereas fullWidth is
+    //   meant to be scaled
+    // * neither height/fullHeight have any sort of spacing or padding
+    return {
+        x: 0,
+        y: 0,
+        fullWidth: 0,
+        fullHeight: 0,
+        scaledWidth: 0,
+        scaledHeight: 0,
+        windows: [],
+    };
+};
 
+function keepSameRowOrCol(curWidth, extraWidth, idealWidth) {
+    // If the new window fits inside the idealWidth, perfect
+    if (curWidth + extraWidth <= idealWidth)
+        return true;
+
+    const oldRatio = curWidth / idealWidth;
+    const newRatio = (curWidth + extraWidth) / idealWidth;
+
+    // Check if the row with the new window gets closer to the idealWidth
+    // than without it. If it does, we add the window to the row.
+    if (Math.abs(1 - newRatio) <= Math.abs(1 - oldRatio))
+        return true;
+
+    return false;
+}
+
+var UnalignedLayoutStrategy = class extends LayoutStrategy {
     // Computes and returns an individual scaling factor for @window,
     // to be applied in addition to the overall layout scale.
     _computeWindowScale(window) {
@@ -208,22 +224,6 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
 
         // Map from [0, 1] to [1.5, 1]
         return Util.lerp(1.5, 1, ratio);
-    }
-
-    _keepSameRow(curWidth, extraWidth, idealWidth) {
-        // If the new window fits inside the idealWidth, perfect
-        if (curWidth + extraWidth <= idealWidth)
-            return true;
-
-        const oldRatio = curWidth / idealWidth;
-        const newRatio = (curWidth + extraWidth) / idealWidth;
-
-        // Check if the row with the new window gets closer to the idealWidth
-        // than without it. If it does, we add the window to the row.
-        if (Math.abs(1 - newRatio) <= Math.abs(1 - oldRatio))
-            return true;
-
-        return false;
     }
 
     _sortRow(row) {
@@ -243,7 +243,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         const width = curWindow.boundingBox.width * s;
         const height = curWindow.boundingBox.height * s;
 
-        if (!nextRow || this._keepSameRow(curRow.fullWidth, width, idealRowWidth)) {
+        if (!nextRow || keepSameRowOrCol(curRow.fullWidth, width, idealRowWidth)) {
             this._addWindowToRow(curWindow, curRow, width, height);
             return false;
         }
@@ -254,7 +254,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             const wWidth = w.boundingBox.width * wScale
             const wHeight = w.boundingBox.height * wScale;
 
-            if (this._keepSameRow(curRow.fullWidth, wWidth, idealRowWidth)) {
+            if (keepSameRowOrCol(curRow.fullWidth, wWidth, idealRowWidth)) {
                 this._addWindowToRow(w, curRow, wWidth, wHeight);
                 windows.splice(windows.indexOf(w), 1);
             }
@@ -305,7 +305,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         windows.forEach(w => {
             const width = w.boundingBox.width * this._computeWindowScale(w);
 
-            if (!this._keepSameRow(topPartWidth, width, widthWithoutMaximized / 2)) {
+            if (!keepSameRowOrCol(topPartWidth, width, widthWithoutMaximized / 2)) {
                 bottomPart.push(w);
                 return;
             }
@@ -347,7 +347,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         // adding windows starting from the center row.
         let rows = [];
         for (let i = 0; i < numRows; i++)
-            rows.push(this._newRow());
+            rows.push(newRowOrCol());
 
         const hasSingleCenterRow = numRows % 2 === 1;
         const centerRowIndex = Math.floor(numRows / 2);
