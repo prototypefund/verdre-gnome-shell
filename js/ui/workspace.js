@@ -185,14 +185,17 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         }
     }
 
-    _keepSameRow(row, window, width, idealRowWidth) {
-        if (row.fullWidth + width <= idealRowWidth)
+    _keepSameRow(curWidth, extraWidth, idealWidth) {
+        // If the new window fits inside the idealWidth, perfect
+        if (curWidth + extraWidth <= idealWidth)
             return true;
 
-        let oldRatio = row.fullWidth / idealRowWidth;
-        let newRatio = (row.fullWidth + width) / idealRowWidth;
+        const oldRatio = curWidth / idealWidth;
+        const newRatio = (curWidth + extraWidth) / idealWidth;
 
-        if (Math.abs(1 - newRatio) < Math.abs(1 - oldRatio))
+        // Check if the row with the new window gets closer to the idealWidth
+        // than without it. If it does, we add the window to the row.
+        if (Math.abs(1 - newRatio) <= Math.abs(1 - oldRatio))
             return true;
 
         return false;
@@ -242,7 +245,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 row.fullHeight = Math.max(row.fullHeight, height);
 
                 // either new width is < idealWidth or new width is nearer from idealWidth then oldWidth
-                if (this._keepSameRow(row, window, width, idealRowWidth) || (i === numRows - 1)) {
+                if (this._keepSameRow(row.fullWidth, width, idealRowWidth) || (i === numRows - 1)) {
                     row.windows.push(window);
                     row.fullWidth += width;
                 } else {
