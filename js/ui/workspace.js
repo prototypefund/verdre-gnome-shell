@@ -275,6 +275,9 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
     }
 
     computeScaleAndSpace(layout, area) {
+        if (layout.gridWidth === 0 || layout.gridHeight === 0)
+            return [0, 0];
+
         let hspacing = (layout.maxColumns - 1) * this._columnSpacing;
         let vspacing = (layout.numRows - 1) * this._rowSpacing;
 
