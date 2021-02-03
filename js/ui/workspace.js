@@ -176,15 +176,6 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         return Util.lerp(1.5, 1, ratio);
     }
 
-    _computeRowSizes(layout) {
-        let { rows, scale } = layout;
-        for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
-            row.width = row.fullWidth * scale + (row.windows.length - 1) * this._columnSpacing;
-            row.height = row.fullHeight * scale;
-        }
-    }
-
     _keepSameRow(curWidth, extraWidth, idealWidth) {
         // If the new window fits inside the idealWidth, perfect
         if (curWidth + extraWidth <= idealWidth)
@@ -293,15 +284,30 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         let scaledLayoutHeight = layout.gridHeight * scale + vspacing;
         let space = (scaledLayoutWidth * scaledLayoutHeight) / (area.width * area.height);
 
-        layout.scale = scale;
-
         return [scale, space];
     }
 
     computeWindowSlots(layout, area) {
-        this._computeRowSizes(layout);
+        if (layout.gridWidth === 0 || layout.gridHeight === 0)
+            return [];
 
-        let { rows, scale } = layout;
+        let { rows } = layout;
+
+        const hspacing = (layout.maxColumns - 1) * this._columnSpacing;
+        const vspacing = (layout.numRows - 1) * this._rowSpacing;
+
+        const spacedWidth = area.width - hspacing;
+        const spacedHeight = area.height - vspacing;
+
+        const horizontalScale = spacedWidth / layout.gridWidth;
+        const verticalScale = spacedHeight / layout.gridHeight;
+
+        const scale = Math.min(horizontalScale, verticalScale);
+
+        for (const row of rows) {
+            row.width = row.fullWidth * scale + (row.windows.length - 1) * this._columnSpacing;
+            row.height = row.fullHeight * scale;
+        }
 
         let slots = [];
 
