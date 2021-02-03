@@ -800,21 +800,9 @@ var UnalignedVerticalLayoutStrategy = class extends LayoutStrategy {
                 const cloneWidth = window.boundingBox.width * s;
                 const cloneHeight = window.boundingBox.height * s;
 
-                let cloneX;
+                // Align windows horizontally centered inside each column
+                let cloneX = colX + (colWidth - cloneWidth) / 2;
                 let cloneY = y + (cellHeight - cloneHeight) / 2;
-
-                // If there's only one col, align window horizontally centered inside the col
-                if (cols.length === 1)
-                    cloneX = colX + (colWidth - cloneWidth) / 2;
-                // If this is the leftmost col, align window to the right edge of the col
-                else if (i === 0)
-                    cloneX = colX + colWidth - cellWidth;
-                // If this is the rightmost col, align window to the left edge of the col
-                else if (i === cols.length - 1)
-                    cloneX = colX;
-                // For any in-between cols, also align the window horizontally centered inside the col
-                else
-                    cloneX = colX + (colWidth - cloneWidth) / 2;
 
                 // Align with the pixel grid to prevent blurry windows at scale = 1
                 cloneX = Math.floor(cloneX);
