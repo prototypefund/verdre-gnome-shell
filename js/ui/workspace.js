@@ -969,6 +969,13 @@ var WorkspaceLayout = GObject.registerClass({
             lastHorizontalSpace = space;
         }
 
+        // Force horizontal layout if we have more than 4 windows, the vertical
+        // layout looks weird with more windows.
+        if (this._sortedWindows.length > 4) {
+            this._layoutStrategy = horizontalLayoutStrategy;
+            return lastHorizontalLayout;
+        }
+
         const verticalLayoutStrategy = new UnalignedVerticalLayoutStrategy({
             monitor: Main.layoutManager.monitors[this._monitorIndex],
             rowSpacing,
