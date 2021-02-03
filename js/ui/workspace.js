@@ -187,8 +187,8 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         //
         // * neither height/fullHeight have any sort of spacing or padding
         return { x: 0, y: 0,
-                 width: 0, height: 0,
                  fullWidth: 0, fullHeight: 0,
+                 scaledWidth: 0, scaledHeight: 0,
                  windows: [] };
     }
 
@@ -443,22 +443,15 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         const scale = Math.min(horizontalScale, verticalScale);
 
         for (const row of rows) {
-            row.width = row.fullWidth * scale + (row.windows.length - 1) * this._columnSpacing;
-            row.height = row.fullHeight * scale;
+            row.scaledWidth = row.fullWidth * scale;
+            row.scaledHeight = row.fullHeight * scale;
         }
 
         let slots = [];
 
-        // Do this in three parts.
-        let heightWithoutSpacing = 0;
-        for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
-            heightWithoutSpacing += row.height;
-        }
-
         const verticalSpacing = (rows.length - 1) * this._rowSpacing;
         const additionalVerticalScale =
-            Math.min(1, (area.height - verticalSpacing) / heightWithoutSpacing);
+            Math.min(1, (area.height - verticalSpacing) / (layout.gridHeight * scale));
 
         // keep track how much smaller the grid becomes due to scaling
         // so it can be centered again
@@ -469,15 +462,14 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             // If this window layout row doesn't fit in the actual
             // geometry, then apply an additional scale to it.
             const horizontalSpacing = (row.windows.length - 1) * this._columnSpacing;
-            const widthWithoutSpacing = row.width - horizontalSpacing;
             const additionalHorizontalScale =
-                Math.min(1, (area.width - horizontalSpacing) / widthWithoutSpacing);
+                Math.min(1, (area.width - horizontalSpacing) / row.scaledWidth);
 
             if (additionalHorizontalScale < additionalVerticalScale) {
                 row.additionalScale = additionalHorizontalScale;
 
                 // Only consider the scaling in addition to the vertical scaling for centering.
-                compensation += (additionalVerticalScale - additionalHorizontalScale) * row.height;
+                compensation += (additionalVerticalScale - additionalHorizontalScale) * row.scaledHeight;
             } else {
                 row.additionalScale = additionalVerticalScale;
 
@@ -485,9 +477,9 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 // height would undo what vertical scaling is trying to achieve.
             }
 
-            row.x = area.x + (Math.max(area.width - (widthWithoutSpacing * row.additionalScale + horizontalSpacing), 0) / 2);
-            row.y = area.y + (Math.max(area.height - (heightWithoutSpacing + verticalSpacing), 0) / 2) + y;
-            y += row.height * row.additionalScale + this._rowSpacing;
+            row.x = area.x + (Math.max(area.width - (row.scaledWidth * row.additionalScale + horizontalSpacing), 0) / 2);
+            row.y = area.y + (Math.max(area.height - (layout.gridHeight * scale + verticalSpacing), 0) / 2) + y;
+            y += row.scaledHeight * row.additionalScale + this._rowSpacing;
         }
 
         compensation /= 2;
@@ -506,7 +498,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 const cloneHeight = window.boundingBox.height * s;
 
                 let cloneX = x + (cellWidth - cloneWidth) / 2;
-                let cloneY = row.y + row.height * row.additionalScale - cellHeight + compensation;
+                let cloneY = row.y + row.scaledHeight * row.additionalScale - cellHeight + compensation;
 
                 // Align with the pixel grid to prevent blurry windows at scale = 1
                 cloneX = Math.floor(cloneX);
