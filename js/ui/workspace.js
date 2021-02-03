@@ -16,14 +16,6 @@ var MAXIMUM_PREVIEW_AREA = 0.98;
 
 var WINDOW_REPOSITIONING_DELAY = 750;
 
-// When calculating a layout, we calculate the scale of windows and the percent
-// of the available area the new layout uses. If the values for the new layout,
-// when weighted with the values as below, are worse than the previous layout's,
-// we stop looking for a new layout and use the previous layout.
-// Otherwise, we keep looking for a new layout.
-var LAYOUT_SCALE_WEIGHT = 1;
-var LAYOUT_SPACE_WEIGHT = 0.1;
-
 var WINDOW_ANIMATION_MAX_NUMBER_BLENDING = 3;
 
 // Window Thumbnail Layout Algorithm
@@ -120,22 +112,19 @@ var LayoutStrategy = class {
         throw new GObject.NotImplementedError(`computeLayout in ${this.constructor.name}`);
     }
 
-    // Given @layout and @area, compute the overall scale of the layout and
-    // space occupied by the layout.
-    //
-    // This method returns an array where the first element is the scale and
-    // the second element is the space.
-    //
-    // This method must be called before calling computeWindowSlots(), as it
-    // sets the fixed overall scale of the layout.
-    computeScaleAndSpace(_layout, _area) {
-        throw new GObject.NotImplementedError(`computeScaleAndSpace in ${this.constructor.name}`);
-    }
-
     // Returns an array with final position and size information for each
     // window of the layout, given a bounding area that it will be inside of.
     computeWindowSlots(_layout, _area) {
         throw new GObject.NotImplementedError(`computeWindowSlots in ${this.constructor.name}`);
+    }
+
+    computeOccupiedSpace(layout, area) {
+        const slots = this.computeWindowSlots(layout, area);
+
+        let space = 0;
+        slots.forEach(s => { space = s[2] * s[3]; });
+
+        return space;
     }
 };
 
@@ -263,28 +252,6 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             gridWidth: maxRow.fullWidth,
             gridHeight,
         };
-    }
-
-    computeScaleAndSpace(layout, area) {
-        if (layout.gridWidth === 0 || layout.gridHeight === 0)
-            return [0, 0];
-
-        let hspacing = (layout.maxColumns - 1) * this._columnSpacing;
-        let vspacing = (layout.numRows - 1) * this._rowSpacing;
-
-        let spacedWidth = area.width - hspacing;
-        let spacedHeight = area.height - vspacing;
-
-        let horizontalScale = spacedWidth / layout.gridWidth;
-        let verticalScale = spacedHeight / layout.gridHeight;
-
-        let scale = Math.min(horizontalScale, verticalScale);
-
-        let scaledLayoutWidth = layout.gridWidth * scale + hspacing;
-        let scaledLayoutHeight = layout.gridHeight * scale + vspacing;
-        let space = (scaledLayoutWidth * scaledLayoutHeight) / (area.width * area.height);
-
-        return [scale, space];
     }
 
     computeWindowSlots(layout, area) {
@@ -444,25 +411,6 @@ var WorkspaceLayout = GObject.registerClass({
         });
     }
 
-    _isBetterScaleAndSpace(oldScale, oldSpace, scale, space) {
-        let spacePower = (space - oldSpace) * LAYOUT_SPACE_WEIGHT;
-        let scalePower = (scale - oldScale) * LAYOUT_SCALE_WEIGHT;
-
-        if (scale > oldScale && space > oldSpace) {
-            // Win win -- better scale and better space
-            return true;
-        } else if (scale > oldScale && space <= oldSpace) {
-            // Keep new layout only if scale gain outweighs aspect space loss
-            return scalePower > spacePower;
-        } else if (scale <= oldScale && space > oldSpace) {
-            // Keep new layout only if aspect space gain outweighs scale loss
-            return spacePower > scalePower;
-        } else {
-            // Lose -- worse scale and space
-            return false;
-        }
-    }
-
     _adjustSpacingAndPadding(rowSpacing, colSpacing, containerBox) {
         if (this._sortedWindows.length === 0)
             return [colSpacing, rowSpacing, containerBox];
@@ -515,7 +463,6 @@ var WorkspaceLayout = GObject.registerClass({
 
         let lastLayout = null;
         let lastNumColumns = -1;
-        let lastScale = 0;
         let lastSpace = 0;
 
         for (let numRows = 1; ; numRows++) {
@@ -530,10 +477,9 @@ var WorkspaceLayout = GObject.registerClass({
             const layout = this._layoutStrategy.computeLayout(this._sortedWindows, {
                 numRows,
             });
+            const space = this._layoutStrategy.computeOccupiedSpace(layout, area);
 
-            const [scale, space] = this._layoutStrategy.computeScaleAndSpace(layout, area);
-
-            if (!this._isBetterScaleAndSpace(lastScale, lastSpace, scale, space)) {
+            if (!space > lastSpace) {
                 if (!lastLayout)
                     lastLayout = layout;
                 break;
@@ -541,7 +487,6 @@ var WorkspaceLayout = GObject.registerClass({
 
             lastLayout = layout;
             lastNumColumns = numColumns;
-            lastScale = scale;
             lastSpace = space;
         }
 
