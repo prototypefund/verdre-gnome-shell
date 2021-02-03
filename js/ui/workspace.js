@@ -486,6 +486,8 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
+            const rowY = row.y + compensation;
+            const rowHeight = row.scaledHeight * row.additionalScale;
             let x = row.x;
 
             for (const window of row.windows) {
@@ -498,7 +500,20 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 const cloneHeight = window.boundingBox.height * s;
 
                 let cloneX = x + (cellWidth - cloneWidth) / 2;
-                let cloneY = row.y + row.scaledHeight * row.additionalScale - cellHeight + compensation;
+                let cloneY;
+
+                // If there's only one row, align window vertically centered inside the row
+                if (rows.length === 1)
+                    cloneY = rowY + (rowHeight - cloneHeight) / 2;
+                // If this is the top row, align window to the bottom edge of the row
+                else if (i === 0)
+                    cloneY = rowY + rowHeight - cellHeight
+                // If this is the bottom row, align window to the top edge of the row
+                else if (i === rows.length - 1)
+                    cloneY = rowY;
+                // For any in-between row, also align the window vertically centered inside the row
+                else
+                    cloneY = rowY + (rowHeight - cloneHeight) / 2;
 
                 // Align with the pixel grid to prevent blurry windows at scale = 1
                 cloneX = Math.floor(cloneX);
