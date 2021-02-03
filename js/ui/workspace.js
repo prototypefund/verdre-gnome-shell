@@ -934,17 +934,15 @@ var WorkspaceLayout = GObject.registerClass({
         const [rowSpacing, columnSpacing] =
             this._adjustSpacingAndPadding(this._spacing, this._spacing, null);
 
-        // We look for the largest scale that allows us to fit the
-        // largest row/tallest column on the workspace.
-        this._layoutStrategy = new UnalignedHorizontalLayoutStrategy({
+        const horizontalLayoutStrategy = new UnalignedHorizontalLayoutStrategy({
             monitor: Main.layoutManager.monitors[this._monitorIndex],
             rowSpacing,
             columnSpacing,
         });
 
-        let lastLayout = null;
-        let lastNumColumns = -1;
-        let lastSpace = 0;
+        let lastHorizontalLayout = null;
+        let lastHorizontalNumColumns = -1;
+        let lastHorizontalSpace = 0;
 
         for (let numRows = 1; ; numRows++) {
             const numColumns = Math.ceil(this._sortedWindows.length / numRows);
@@ -952,26 +950,64 @@ var WorkspaceLayout = GObject.registerClass({
             // If adding a new row does not change column count just stop
             // (for instance: 9 windows, with 3 rows -> 3 columns, 4 rows ->
             // 3 columns as well => just use 3 rows then)
-            if (numColumns === lastNumColumns)
+            if (numColumns === lastHorizontalNumColumns)
                 break;
 
-            const layout = this._layoutStrategy.computeLayout(this._sortedWindows, {
+            const layout = horizontalLayoutStrategy.computeLayout(this._sortedWindows, {
                 numRows,
             });
-            const space = this._layoutStrategy.computeOccupiedSpace(layout, area);
+            const space = horizontalLayoutStrategy.computeOccupiedSpace(layout, area);
 
-            if (!space > lastSpace) {
-                if (!lastLayout)
-                    lastLayout = layout;
+            if (space < lastHorizontalSpace) {
+                if (!lastHorizontalLayout)
+                    lastHorizontalLayout = layout;
                 break;
             }
 
-            lastLayout = layout;
-            lastNumColumns = numColumns;
-            lastSpace = space;
+            lastHorizontalLayout = layout;
+            lastHorizontalNumColumns = numColumns;
+            lastHorizontalSpace = space;
         }
 
-        return lastLayout;
+        const verticalLayoutStrategy = new UnalignedVerticalLayoutStrategy({
+            monitor: Main.layoutManager.monitors[this._monitorIndex],
+            rowSpacing,
+            columnSpacing,
+        });
+
+        let lastVerticalLayout = null;
+        let lastVerticalNumRows = -1;
+        let lastVerticalSpace = 0;
+
+        for (let numCols = 1; ; numCols++) {
+            const numRows = Math.ceil(this._sortedWindows.length / numCols);
+
+            if (numRows === lastVerticalNumRows)
+                break;
+
+            const layout = verticalLayoutStrategy.computeLayout(this._sortedWindows, {
+                numCols,
+            });
+            const space = verticalLayoutStrategy.computeOccupiedSpace(layout, area);
+
+            if (space < lastVerticalSpace) {
+                if (!lastVerticalLayout)
+                    lastVerticalLayout = layout;
+                break;
+            }
+
+            lastVerticalLayout = layout;
+            lastVerticalNumRows = numRows;
+            lastVerticalSpace = space;
+        }
+
+        if (lastVerticalSpace > lastHorizontalSpace) {
+            this._layoutStrategy = verticalLayoutStrategy;
+            return lastVerticalLayout;
+        }
+
+        this._layoutStrategy = horizontalLayoutStrategy;
+        return lastHorizontalLayout;
     }
 
     _getWindowSlots(containerBox) {
