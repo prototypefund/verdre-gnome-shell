@@ -456,29 +456,31 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
             heightWithoutSpacing += row.height;
         }
 
-        let verticalSpacing = (rows.length - 1) * this._rowSpacing;
-        let additionalVerticalScale = Math.min(1, (area.height - verticalSpacing) / heightWithoutSpacing);
+        const verticalSpacing = (rows.length - 1) * this._rowSpacing;
+        const additionalVerticalScale =
+            Math.min(1, (area.height - verticalSpacing) / heightWithoutSpacing);
 
         // keep track how much smaller the grid becomes due to scaling
         // so it can be centered again
         let compensation = 0;
         let y = 0;
 
-        for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
-
+        for (const row of rows) {
             // If this window layout row doesn't fit in the actual
             // geometry, then apply an additional scale to it.
-            let horizontalSpacing = (row.windows.length - 1) * this._columnSpacing;
-            let widthWithoutSpacing = row.width - horizontalSpacing;
-            let additionalHorizontalScale = Math.min(1, (area.width - horizontalSpacing) / widthWithoutSpacing);
+            const horizontalSpacing = (row.windows.length - 1) * this._columnSpacing;
+            const widthWithoutSpacing = row.width - horizontalSpacing;
+            const additionalHorizontalScale =
+                Math.min(1, (area.width - horizontalSpacing) / widthWithoutSpacing);
 
             if (additionalHorizontalScale < additionalVerticalScale) {
                 row.additionalScale = additionalHorizontalScale;
+
                 // Only consider the scaling in addition to the vertical scaling for centering.
                 compensation += (additionalVerticalScale - additionalHorizontalScale) * row.height;
             } else {
                 row.additionalScale = additionalVerticalScale;
+
                 // No compensation when scaling vertically since centering based on a too large
                 // height would undo what vertical scaling is trying to achieve.
             }
@@ -491,17 +493,16 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
         compensation /= 2;
 
         for (let i = 0; i < rows.length; i++) {
-            let row = rows[i];
+            const row = rows[i];
             let x = row.x;
-            for (let j = 0; j < row.windows.length; j++) {
-                let window = row.windows[j];
 
+            for (const window of row.windows) {
                 let s = scale * this._computeWindowScale(window) * row.additionalScale;
-                let cellWidth = window.boundingBox.width * s;
-                let cellHeight = window.boundingBox.height * s;
+                const cellWidth = window.boundingBox.width * s;
+                const cellHeight = window.boundingBox.height * s;
 
                 s = Math.min(s, WINDOW_PREVIEW_MAXIMUM_SCALE);
-                let cloneWidth = window.boundingBox.width * s;
+                const cloneWidth = window.boundingBox.width * s;
                 const cloneHeight = window.boundingBox.height * s;
 
                 let cloneX = x + (cellWidth - cloneWidth) / 2;
@@ -515,6 +516,7 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                 x += cellWidth + this._columnSpacing;
             }
         }
+
         return slots;
     }
 };
