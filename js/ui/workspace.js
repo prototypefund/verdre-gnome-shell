@@ -428,6 +428,8 @@ var WorkspaceLayout = GObject.registerClass({
 
         this._stateAdjustment.connect('notify::value', () => {
             this.syncOverlays();
+            this._container?.set_clip_to_allocation(
+                this._stateAdjustment.value === 0);
             this.layout_changed();
         });
     }
