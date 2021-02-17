@@ -966,7 +966,6 @@ class Workspace extends St.Widget {
             style_class: 'window-picker',
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
             layout_manager: new WorkspaceLayout(metaWorkspace, monitorIndex),
-            reactive: true,
         });
 
         this.metaWorkspace = metaWorkspace;
@@ -999,7 +998,8 @@ class Workspace extends St.Widget {
             }
         });
         this.bind_property('mapped', clickAction, 'enabled', GObject.BindingFlags.SYNC_CREATE);
-        this.add_action(clickAction);
+        this._background.reactive = true;
+        this._background.add_action(clickAction);
 
         this.connect('style-changed', this._onStyleChanged.bind(this));
         this.connect('destroy', this._onDestroy.bind(this));
