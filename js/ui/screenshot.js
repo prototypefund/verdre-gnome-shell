@@ -159,27 +159,8 @@ var ScreenshotService = class {
         invocation.return_value(retval);
     }
 
-    _scaleArea(x, y, width, height) {
-        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        x *= scaleFactor;
-        y *= scaleFactor;
-        width *= scaleFactor;
-        height *= scaleFactor;
-        return [x, y, width, height];
-    }
-
-    _unscaleArea(x, y, width, height) {
-        let scaleFactor = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        x /= scaleFactor;
-        y /= scaleFactor;
-        width /= scaleFactor;
-        height /= scaleFactor;
-        return [x, y, width, height];
-    }
-
     async ScreenshotAreaAsync(params, invocation) {
-        let [x, y, width, height, flash, filename] = params;
-        [x, y, width, height] = this._scaleArea(x, y, width, height);
+        const [x, y, width, height, flash, filename] = params;
         if (!this._checkArea(x, y, width, height)) {
             invocation.return_error_literal(Gio.IOErrorEnum,
                                             Gio.IOErrorEnum.CANCELLED,
@@ -256,11 +237,14 @@ var ScreenshotService = class {
     async SelectAreaAsync(params, invocation) {
         let selectArea = new SelectArea();
         try {
-            let areaRectangle = await selectArea.selectAsync();
-            let retRectangle = this._unscaleArea(
-                areaRectangle.x, areaRectangle.y,
-                areaRectangle.width, areaRectangle.height);
-            invocation.return_value(GLib.Variant.new('(iiii)', retRectangle));
+            const areaRectangle = await selectArea.selectAsync();
+            const rect = [
+                areaRectangle.x,
+                areaRectangle.y,
+                areaRectangle.width,
+                areaRectangle.height,
+            ];
+            invocation.return_value(GLib.Variant.new('(iiii)', rect));
         } catch (e) {
             invocation.return_error_literal(
                 Gio.IOErrorEnum, Gio.IOErrorEnum.CANCELLED,
@@ -269,8 +253,7 @@ var ScreenshotService = class {
     }
 
     FlashAreaAsync(params, invocation) {
-        let [x, y, width, height] = params;
-        [x, y, width, height] = this._scaleArea(x, y, width, height);
+        const [x, y, width, height] = params;
         if (!this._checkArea(x, y, width, height)) {
             invocation.return_error_literal(Gio.IOErrorEnum,
                                             Gio.IOErrorEnum.CANCELLED,
