@@ -78,8 +78,6 @@ var Recorder = class {
         for (const option in options)
             options[option] = options[option].deep_unpack();
 
-        if (options['pipeline'] !== undefined)
-            this._pipelineString = options['pipeline'];
         if (options['framerate'] !== undefined)
             this._framerate = options['framerate'];
         if ('draw-cursor' in options)

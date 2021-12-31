@@ -31,9 +31,6 @@
                               recording (true)
             'framerate'(i): the number of frames per second that should be
                             recorded if possible (30)
-            'pipeline'(s): the GStreamer pipeline used to encode recordings
-                           in gst-launch format; if not specified, the
-                           recorder will produce vp8 (webm) video (unset)
     -->
     <method name="Screencast">
       <arg type="s" direction="in" name="file_template"/>
@@ -66,9 +63,6 @@
                               recording (true)
             'framerate'(i): the number of frames per second that should be
                             recorded if possible (30)
-            'pipeline'(s): the GStreamer pipeline used to encode recordings
-                           in gst-launch format; if not specified, the
-                           recorder will produce vp8 (webm) video (unset)
     -->
     <method name="ScreencastArea">
       <arg type="i" direction="in" name="x"/>
