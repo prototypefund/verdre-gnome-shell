@@ -66,7 +66,7 @@
 //     MetaBackgroundImage         MetaBackgroundImage
 //     MetaBackgroundImage         MetaBackgroundImage
 
-const { Clutter, GDesktopEnums, Gio, GLib, GObject, Meta } = imports.gi;
+const { Clutter, Gio, GLib, GObject, Meta } = imports.gi;
 const Signals = imports.signals;
 
 const Main = imports.ui.main;
@@ -75,7 +75,6 @@ const Params = imports.misc.params;
 var DEFAULT_BACKGROUND_COLOR = Clutter.Color.from_pixel(0x2e3436ff);
 
 const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
-const BACKGROUND_STYLE_KEY = 'picture-options';
 const PICTURE_URI_KEY = 'picture-uri';
 
 var FADE_ANIMATION_TIME = 1000;
@@ -143,17 +142,17 @@ var Background = GObject.registerClass({
     Signals: { 'loaded': {}, 'bg-changed': {} },
 }, class Background extends Meta.Background {
     _init(params) {
-        params = Params.parse(params, { monitorIndex: 0,
-                                        layoutManager: Main.layoutManager,
-                                        settings: null,
-                                        file: null,
-                                        style: null });
+        params = Params.parse(params, {
+            monitorIndex: 0,
+            layoutManager: Main.layoutManager,
+            settings: null,
+            file: null,
+        });
 
         super._init({ meta_display: global.display });
 
         this._settings = params.settings;
         this._file = params.file;
-        this._style = params.style;
         this._fileWatches = {};
         this.isLoaded = false;
 
@@ -225,7 +224,7 @@ var Background = GObject.registerClass({
     }
 
     _loadImage(file) {
-        this.set_file(file, this._style);
+        this.set_file(file);
         this._watchFile(file);
 
         let cache = Meta.BackgroundImageCache.get_default();
@@ -305,7 +304,6 @@ var BackgroundSource = class BackgroundSource {
 
     getBackground(monitorIndex) {
         let file = null;
-        let style;
 
         // We don't watch changes to settings here,
         // instead we rely on Background to watch those
@@ -313,13 +311,9 @@ var BackgroundSource = class BackgroundSource {
 
         if (this._overrideImage != null) {
             file = Gio.File.new_for_path(this._overrideImage);
-            style = GDesktopEnums.BackgroundStyle.ZOOM; // Hardcode
         } else {
-            style = this._settings.get_enum(BACKGROUND_STYLE_KEY);
-            if (style != GDesktopEnums.BackgroundStyle.NONE) {
-                let uri = this._settings.get_string(PICTURE_URI_KEY);
-                file = Gio.File.new_for_commandline_arg(uri);
-            }
+            let uri = this._settings.get_string(PICTURE_URI_KEY);
+            file = Gio.File.new_for_commandline_arg(uri);
         }
 
         if (file === null)
@@ -331,7 +325,6 @@ var BackgroundSource = class BackgroundSource {
                 layoutManager: this._layoutManager,
                 settings: this._settings,
                 file,
-                style,
             });
 
             background._changedId = background.connect('bg-changed', () => {
