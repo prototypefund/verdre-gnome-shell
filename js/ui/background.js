@@ -106,9 +106,6 @@ Gio._promisify(Gio._LocalFilePrototype, 'query_info_async', 'query_info_finish')
 var DEFAULT_BACKGROUND_COLOR = Clutter.Color.from_pixel(0x2e3436ff);
 
 const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
-const PRIMARY_COLOR_KEY = 'primary-color';
-const SECONDARY_COLOR_KEY = 'secondary-color';
-const COLOR_SHADING_TYPE_KEY = 'color-shading-type';
 const BACKGROUND_STYLE_KEY = 'picture-options';
 const PICTURE_URI_KEY = 'picture-uri';
 
@@ -335,24 +332,6 @@ var Background = GObject.registerClass({
         GLib.Source.set_name_by_id(id, '[gnome-shell] Background._setLoaded Idle');
     }
 
-    _loadPattern() {
-        let colorString, res_, color, secondColor;
-
-        colorString = this._settings.get_string(PRIMARY_COLOR_KEY);
-        [res_, color] = Clutter.Color.from_string(colorString);
-        colorString = this._settings.get_string(SECONDARY_COLOR_KEY);
-        [res_, secondColor] = Clutter.Color.from_string(colorString);
-
-        let shadingType = this._settings.get_enum(COLOR_SHADING_TYPE_KEY);
-
-        if (shadingType == GDesktopEnums.BackgroundShading.SOLID)
-            this.set_color(color);
-        else
-            this.set_gradient(shadingType, color, secondColor);
-
-        this._setLoaded();
-    }
-
     _watchFile(file) {
         let key = file.hash();
         if (this._fileWatches[key])
@@ -497,8 +476,6 @@ var Background = GObject.registerClass({
 
     _load() {
         this._cache = getBackgroundCache();
-
-        this._loadPattern();
 
         if (!this._file) {
             this._setLoaded();
