@@ -10,8 +10,6 @@
 //   BackgroundManager creates background actors and adds them to
 //   the specified container. When the background is changed by the
 //   user it will fade out the old actor and fade in the new actor.
-//   (This is separate from the fading for an animated background,
-//   since using two actors is quite inefficient.)
 //
 // MetaBackgroundImage
 //   An object represented an image file that will be used for drawing
@@ -35,15 +33,11 @@
 //   JS delegate object that Connects a MetaBackground to the GSettings
 //   schema for the background.
 //
-// Animation
-//   A helper object that handles loading a XML-based animation; it is a
-//   wrapper for GnomeDesktop.BGSlideShow
-//
 // MetaBackgroundActor
 //   An actor that draws the background for a single monitor
 //
 // BackgroundCache
-//   A cache of Settings schema => BackgroundSource and of a single Animation.
+//   A cache of Settings schema => BackgroundSource.
 //   Also used to share file monitors.
 //
 // A static image, background color or gradient is relatively straightforward. The
@@ -64,28 +58,6 @@
 //                         |
 //                MetaBackgroundImage            looked up in MetaBackgroundImageCache
 //
-// The animated case is tricker because the animation XML file can specify different
-// files for different monitor resolutions and aspect ratios. For this reason,
-// the BackgroundSource provides different Background share a single Animation object,
-// which tracks the animation, but use different MetaBackground objects. In the
-// common case, the different MetaBackground objects will be created for the
-// same filename and look up the *same* MetaBackgroundImage object, so there is
-// little wasted memory:
-//
-// BackgroundManager               BackgroundManager
-//        |        \               /        |
-//        |         BackgroundSource        |        looked up in BackgroundCache
-//        |             /      \            |
-//        |     Background   Background     |
-//        |       |     \      /   |        |
-//        |       |    Animation   |        |        looked up in BackgroundCache
-// MetaBackgroundA|tor           Me|aBackgroundActor
-//         \      |                |       /
-//      MetaBackground           MetaBackground
-//                 \                 /
-//                MetaBackgroundImage            looked up in MetaBackgroundImageCache
-//                MetaBackgroundImage
-//
 // But the case of different filenames and different background images
 // is possible as well:
 //                        ....
@@ -94,14 +66,11 @@
 //     MetaBackgroundImage         MetaBackgroundImage
 //     MetaBackgroundImage         MetaBackgroundImage
 
-const { Clutter, GDesktopEnums, Gio, GLib, GObject, GnomeDesktop, Meta } = imports.gi;
+const { Clutter, GDesktopEnums, Gio, GLib, GObject, Meta } = imports.gi;
 const Signals = imports.signals;
 
-const LoginManager = imports.misc.loginManager;
 const Main = imports.ui.main;
 const Params = imports.misc.params;
-
-Gio._promisify(Gio._LocalFilePrototype, 'query_info_async', 'query_info_finish');
 
 var DEFAULT_BACKGROUND_COLOR = Clutter.Color.from_pixel(0x2e3436ff);
 
@@ -111,30 +80,12 @@ const PICTURE_URI_KEY = 'picture-uri';
 
 var FADE_ANIMATION_TIME = 1000;
 
-// These parameters affect how often we redraw.
-// The first is how different (percent crossfaded) the slide show
-// has to look before redrawing and the second is the minimum
-// frequency (in seconds) we're willing to wake up
-var ANIMATION_OPACITY_STEP_INCREMENT = 4.0;
-var ANIMATION_MIN_WAKEUP_INTERVAL = 1.0;
-
 let _backgroundCache = null;
-
-function _fileEqual0(file1, file2) {
-    if (file1 == file2)
-        return true;
-
-    if (!file1 || !file2)
-        return false;
-
-    return file1.equal(file2);
-}
 
 var BackgroundCache = class BackgroundCache {
     constructor() {
         this._fileMonitors = {};
         this._backgroundSources = {};
-        this._animations = {};
     }
 
     monitorFile(file) {
@@ -153,38 +104,6 @@ var BackgroundCache = class BackgroundCache {
                         });
 
         this._fileMonitors[key] = monitor;
-    }
-
-    getAnimation(params) {
-        params = Params.parse(params, { file: null,
-                                        settingsSchema: null,
-                                        onLoaded: null });
-
-        let animation = this._animations[params.settingsSchema];
-        if (animation && _fileEqual0(animation.file, params.file)) {
-            if (params.onLoaded) {
-                let id = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    params.onLoaded(this._animations[params.settingsSchema]);
-                    return GLib.SOURCE_REMOVE;
-                });
-                GLib.Source.set_name_by_id(id, '[gnome-shell] params.onLoaded');
-            }
-            return;
-        }
-
-        animation = new Animation({ file: params.file });
-
-        animation.load_async(null, () => {
-            this._animations[params.settingsSchema] = animation;
-
-            if (params.onLoaded) {
-                let id = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    params.onLoaded(this._animations[params.settingsSchema]);
-                    return GLib.SOURCE_REMOVE;
-                });
-                GLib.Source.set_name_by_id(id, '[gnome-shell] params.onLoaded');
-            }
-        });
     }
 
     getBackgroundSource(layoutManager, settingsSchema) {
@@ -235,26 +154,8 @@ var Background = GObject.registerClass({
         this._settings = params.settings;
         this._file = params.file;
         this._style = params.style;
-        this._monitorIndex = params.monitorIndex;
-        this._layoutManager = params.layoutManager;
         this._fileWatches = {};
-        this._cancellable = new Gio.Cancellable();
         this.isLoaded = false;
-
-        this._clock = new GnomeDesktop.WallClock();
-        this._timezoneChangedId = this._clock.connect('notify::timezone',
-            () => {
-                if (this._animation)
-                    this._loadAnimation(this._animation.file);
-            });
-
-        let loginManager = LoginManager.getLoginManager();
-        this._prepareForSleepId = loginManager.connect('prepare-for-sleep',
-            (lm, aboutToSuspend) => {
-                if (aboutToSuspend)
-                    return;
-                this._refreshAnimation();
-            });
 
         this._settingsChangedSignalId =
             this._settings.connect('changed', this._emitChangedSignal.bind(this));
@@ -263,25 +164,12 @@ var Background = GObject.registerClass({
     }
 
     destroy() {
-        this._cancellable.cancel();
-        this._removeAnimationTimeout();
-
         let i;
         let keys = Object.keys(this._fileWatches);
         for (i = 0; i < keys.length; i++)
             this._cache.disconnect(this._fileWatches[keys[i]]);
 
         this._fileWatches = null;
-
-        if (this._timezoneChangedId != 0)
-            this._clock.disconnect(this._timezoneChangedId);
-        this._timezoneChangedId = 0;
-
-        this._clock = null;
-
-        if (this._prepareForSleepId != 0)
-            LoginManager.getLoginManager().disconnect(this._prepareForSleepId);
-        this._prepareForSleepId = 0;
 
         if (this._settingsChangedSignalId != 0)
             this._settings.disconnect(this._settingsChangedSignalId);
@@ -304,19 +192,6 @@ var Background = GObject.registerClass({
         });
         GLib.Source.set_name_by_id(this._changedIdleId,
             '[gnome-shell] Background._emitChangedSignal');
-    }
-
-    updateResolution() {
-        if (this._animation)
-            this._refreshAnimation();
-    }
-
-    _refreshAnimation() {
-        if (!this._animation)
-            return;
-
-        this._removeAnimationTimeout();
-        this._updateAnimation();
     }
 
     _setLoaded() {
@@ -349,101 +224,6 @@ var Background = GObject.registerClass({
         this._fileWatches[key] = signalId;
     }
 
-    _removeAnimationTimeout() {
-        if (this._updateAnimationTimeoutId) {
-            GLib.source_remove(this._updateAnimationTimeoutId);
-            this._updateAnimationTimeoutId = 0;
-        }
-    }
-
-    _updateAnimation() {
-        this._updateAnimationTimeoutId = 0;
-
-        this._animation.update(this._layoutManager.monitors[this._monitorIndex]);
-        let files = this._animation.keyFrameFiles;
-
-        let finish = () => {
-            this._setLoaded();
-            if (files.length > 1) {
-                this.set_blend(files[0], files[1],
-                               this._animation.transitionProgress,
-                               this._style);
-            } else if (files.length > 0) {
-                this.set_file(files[0], this._style);
-            } else {
-                this.set_file(null, this._style);
-            }
-            this._queueUpdateAnimation();
-        };
-
-        let cache = Meta.BackgroundImageCache.get_default();
-        let numPendingImages = files.length;
-        for (let i = 0; i < files.length; i++) {
-            this._watchFile(files[i]);
-            let image = cache.load(files[i]);
-            if (image.is_loaded()) {
-                numPendingImages--;
-                if (numPendingImages == 0)
-                    finish();
-            } else {
-                // eslint-disable-next-line no-loop-func
-                let id = image.connect('loaded', () => {
-                    image.disconnect(id);
-                    numPendingImages--;
-                    if (numPendingImages == 0)
-                        finish();
-                });
-            }
-        }
-    }
-
-    _queueUpdateAnimation() {
-        if (this._updateAnimationTimeoutId != 0)
-            return;
-
-        if (!this._cancellable || this._cancellable.is_cancelled())
-            return;
-
-        if (!this._animation.transitionDuration)
-            return;
-
-        let nSteps = 255 / ANIMATION_OPACITY_STEP_INCREMENT;
-        let timePerStep = (this._animation.transitionDuration * 1000) / nSteps;
-
-        let interval = Math.max(ANIMATION_MIN_WAKEUP_INTERVAL * 1000,
-                                timePerStep);
-
-        if (interval > GLib.MAXUINT32)
-            return;
-
-        this._updateAnimationTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
-                                                          interval,
-                                                          () => {
-                                                              this._updateAnimationTimeoutId = 0;
-                                                              this._updateAnimation();
-                                                              return GLib.SOURCE_REMOVE;
-                                                          });
-        GLib.Source.set_name_by_id(this._updateAnimationTimeoutId, '[gnome-shell] this._updateAnimation');
-    }
-
-    _loadAnimation(file) {
-        this._cache.getAnimation({
-            file,
-            settingsSchema: this._settings.schema_id,
-            onLoaded: animation => {
-                this._animation = animation;
-
-                if (!this._animation || this._cancellable.is_cancelled()) {
-                    this._setLoaded();
-                    return;
-                }
-
-                this._updateAnimation();
-                this._watchFile(file);
-            },
-        });
-    }
-
     _loadImage(file) {
         this.set_file(file, this._style);
         this._watchFile(file);
@@ -460,20 +240,6 @@ var Background = GObject.registerClass({
         }
     }
 
-    async _loadFile(file) {
-        const info = await file.query_info_async(
-            Gio.FILE_ATTRIBUTE_STANDARD_CONTENT_TYPE,
-            Gio.FileQueryInfoFlags.NONE,
-            0,
-            null);
-
-        const contentType = info.get_content_type();
-        if (contentType === 'application/xml')
-            this._loadAnimation(file);
-        else
-            this._loadImage(file);
-    }
-
     _load() {
         this._cache = getBackgroundCache();
 
@@ -482,7 +248,7 @@ var Background = GObject.registerClass({
             return;
         }
 
-        this._loadFile(this._file);
+        this._loadImage(this._file);
     }
 });
 
@@ -529,9 +295,7 @@ var BackgroundSource = class BackgroundSource {
         for (let monitorIndex in this._backgrounds) {
             let background = this._backgrounds[monitorIndex];
 
-            if (monitorIndex < this._layoutManager.monitors.length) {
-                background.updateResolution();
-            } else {
+            if (monitorIndex >= this._layoutManager.monitors.length) {
                 background.disconnect(background._changedId);
                 background.destroy();
                 delete this._backgrounds[monitorIndex];
@@ -558,11 +322,7 @@ var BackgroundSource = class BackgroundSource {
             }
         }
 
-        // Animated backgrounds are (potentially) per-monitor, since
-        // they can have variants that depend on the aspect ratio and
-        // size of the monitor; for other backgrounds we can use the
-        // same background object for all monitors.
-        if (file == null || !file.get_basename().endsWith('.xml'))
+        if (file === null)
             monitorIndex = 0;
 
         if (!(monitorIndex in this._backgrounds)) {
@@ -599,46 +359,6 @@ var BackgroundSource = class BackgroundSource {
         this._backgrounds = null;
     }
 };
-
-var Animation = GObject.registerClass(
-class Animation extends GnomeDesktop.BGSlideShow {
-    _init(params) {
-        super._init(params);
-
-        this.keyFrameFiles = [];
-        this.transitionProgress = 0.0;
-        this.transitionDuration = 0.0;
-        this.loaded = false;
-    }
-
-    // eslint-disable-next-line camelcase
-    load_async(cancellable, callback) {
-        super.load_async(cancellable, () => {
-            this.loaded = true;
-
-            callback?.();
-        });
-    }
-
-    update(monitor) {
-        this.keyFrameFiles = [];
-
-        if (this.get_num_slides() < 1)
-            return;
-
-        let [progress, duration, isFixed_, filename1, filename2] =
-            this.get_current_slide(monitor.width, monitor.height);
-
-        this.transitionDuration = duration;
-        this.transitionProgress = progress;
-
-        if (filename1)
-            this.keyFrameFiles.push(Gio.File.new_for_path(filename1));
-
-        if (filename2)
-            this.keyFrameFiles.push(Gio.File.new_for_path(filename2));
-    }
-});
 
 var BackgroundManager = class BackgroundManager {
     constructor(params) {
