@@ -208,7 +208,6 @@ var LayoutManager = GObject.registerClass({
         this._topActors = [];
         this._isPopupWindowVisible = false;
         this._startingUp = true;
-        this._pendingLoadBackground = false;
 
         // Set up stage hierarchy to group all UI actors under one container.
         this.uiGroup = new UiActor({ name: 'uiGroup' });
@@ -298,7 +297,21 @@ var LayoutManager = GObject.registerClass({
     init() {
         Main.sessionMode.connect('updated', this._sessionUpdated.bind(this));
 
-        this._loadBackground();
+
+        global.stage.background_color = Clutter.Color.from_pixel(0x2e3436ff);
+
+        // We're mostly prepared for the startup animation
+        // now, but since a lot is going on asynchronously
+        // during startup, let's defer the startup animation
+        // until the event loop is uncontended and idle.
+        // This helps to prevent us from running the animation
+        // when the system is bogged down
+        const id = GLib.idle_add(GLib.PRIORITY_LOW, () => {
+            global.stage.show();
+            this._prepareStartupAnimation();
+            return GLib.SOURCE_REMOVE;
+        });
+        GLib.Source.set_name_by_id(id, '[gnome-shell] Startup Animation');
     }
 
     showOverview() {
@@ -350,11 +363,6 @@ var LayoutManager = GObject.registerClass({
         if (this.primaryIndex != -1) {
             this.primaryMonitor = this.monitors[this.primaryIndex];
             this.bottomMonitor = this.monitors[this.bottomIndex];
-
-            if (this._pendingLoadBackground) {
-                this._loadBackground();
-                this._pendingLoadBackground = false;
-            }
         } else {
             this.primaryMonitor = null;
             this.bottomMonitor = null;
@@ -592,39 +600,6 @@ var LayoutManager = GObject.registerClass({
         return this._keyboardIndex;
     }
 
-    _loadBackground() {
-        if (!this.primaryMonitor) {
-            this._pendingLoadBackground = true;
-            return;
-        }
-        this._systemBackground = new Background.SystemBackground();
-        this._systemBackground.hide();
-
-        global.stage.insert_child_below(this._systemBackground, null);
-
-        let constraint = new Clutter.BindConstraint({ source: global.stage,
-                                                      coordinate: Clutter.BindCoordinate.ALL });
-        this._systemBackground.add_constraint(constraint);
-
-        let signalId = this._systemBackground.connect('loaded', () => {
-            this._systemBackground.disconnect(signalId);
-
-            // We're mostly prepared for the startup animation
-            // now, but since a lot is going on asynchronously
-            // during startup, let's defer the startup animation
-            // until the event loop is uncontended and idle.
-            // This helps to prevent us from running the animation
-            // when the system is bogged down
-            const id = GLib.idle_add(GLib.PRIORITY_LOW, () => {
-                this._systemBackground.show();
-                global.stage.show();
-                this._prepareStartupAnimation();
-                return GLib.SOURCE_REMOVE;
-            });
-            GLib.Source.set_name_by_id(id, '[gnome-shell] Startup Animation');
-        });
-    }
-
     // Startup Animations
     //
     // We have two different animations, depending on whether we're a greeter
@@ -723,9 +698,6 @@ var LayoutManager = GObject.registerClass({
     _startupAnimationComplete() {
         this._coverPane.destroy();
         this._coverPane = null;
-
-        this._systemBackground.destroy();
-        this._systemBackground = null;
 
         this._startingUp = false;
 

@@ -4,7 +4,6 @@ const { Atspi, Clutter, GDesktopEnums,
         Gio, GLib, GObject, Meta, Shell, St } = imports.gi;
 const Signals = imports.signals;
 
-const Background = imports.ui.background;
 const FocusCaretTracker = imports.ui.focusCaretTracker;
 const Main = imports.ui.main;
 const Params = imports.misc.params;
@@ -728,7 +727,6 @@ var ZoomRegion = class ZoomRegion {
         this._contrast = { r: NO_CHANGE, g: NO_CHANGE, b: NO_CHANGE };
 
         this._magView = null;
-        this._background = null;
         this._uiGroupClone = null;
         this._mouseSourceActor = mouseSourceActor;
         this._mouseActor  = null;
@@ -1334,10 +1332,7 @@ var ZoomRegion = class ZoomRegion {
         let mainGroup = new Clutter.Actor({ clip_to_allocation: true });
         this._magView.set_child(mainGroup);
 
-        // Add a background for when the magnified uiGroup is scrolled
-        // out of view (don't want to see desktop showing through).
-        this._background = new Background.SystemBackground();
-        mainGroup.add_actor(this._background);
+        mainGroup.background_color = Clutter.Color.from_pixel(0x2e3436ff);
 
         // Clone the group that contains all of UI on the screen.  This is the
         // chrome, the windows, etc.
@@ -1376,7 +1371,6 @@ var ZoomRegion = class ZoomRegion {
         this._magShaderEffects = null;
         this._magView.destroy();
         this._magView = null;
-        this._background = null;
         this._uiGroupClone = null;
         this._mouseActor = null;
         this._crossHairsActor = null;
@@ -1656,7 +1650,6 @@ var ZoomRegion = class ZoomRegion {
     }
 
     _monitorsChanged() {
-        this._background.set_size(global.screen_width, global.screen_height);
         this._updateScreenPosition();
     }
 };
