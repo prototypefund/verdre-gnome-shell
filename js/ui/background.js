@@ -27,7 +27,7 @@
 //
 // MetaBackground
 //   Holds the specification of a background - a background color
-//   or gradient and one or two images blended together.
+//   and one or two images blended together.
 //
 // Background
 //   JS delegate object that Connects a MetaBackground to the GSettings
@@ -40,7 +40,7 @@
 //   A cache of Settings schema => BackgroundSource.
 //   Also used to share file monitors.
 //
-// A static image, background color or gradient is relatively straightforward. The
+// A static image or background color is relatively straightforward. The
 // calling code creates a separate BackgroundManager for each monitor. Since they
 // are created for the same GSettings schema, they will use the same BackgroundSource
 // object, which provides a single Background and correspondingly a single
