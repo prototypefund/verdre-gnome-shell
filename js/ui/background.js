@@ -1,5 +1,4 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
-/* exported SystemBackground */
 
 // READ THIS FIRST
 // Background handling is a maze of objects, both objects in this file, and
@@ -71,8 +70,6 @@ const Signals = imports.signals;
 
 const Main = imports.ui.main;
 const Params = imports.misc.params;
-
-var DEFAULT_BACKGROUND_COLOR = Clutter.Color.from_pixel(0x2e3436ff);
 
 const BACKGROUND_SCHEMA = 'org.gnome.desktop.background';
 const PICTURE_URI_KEY = 'picture-uri';
@@ -248,31 +245,6 @@ var Background = GObject.registerClass({
         }
 
         this._loadImage(this._file);
-    }
-});
-
-let _systemBackground;
-
-var SystemBackground = GObject.registerClass({
-    Signals: { 'loaded': {} },
-}, class SystemBackground extends Meta.BackgroundActor {
-    _init() {
-        if (_systemBackground == null) {
-            _systemBackground = new Meta.Background({ meta_display: global.display });
-            _systemBackground.set_color(DEFAULT_BACKGROUND_COLOR);
-        }
-
-        super._init({
-            meta_display: global.display,
-            monitor: 0,
-        });
-        this.content.background = _systemBackground;
-
-        let id = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-            this.emit('loaded');
-            return GLib.SOURCE_REMOVE;
-        });
-        GLib.Source.set_name_by_id(id, '[gnome-shell] SystemBackground.loaded');
     }
 });
 
