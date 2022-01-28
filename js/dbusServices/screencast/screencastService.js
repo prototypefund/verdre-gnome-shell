@@ -238,6 +238,17 @@ var Recorder = class {
                 break;
 
             switch (this._pipelineState) {
+            case PipelineState.STOPPED:
+            case PipelineState.ERROR:
+                // In these cases there should be no pipeline, so should never happen
+                break;
+
+            case PipelineState.INIT:
+            case PipelineState.PLAYING:
+                // No clue where this is coming from, so error out
+                this._handleFatalPipelineError(`Unexpected EOS message while in state ${this._pipelineState}`);
+                break;
+
             case PipelineState.FLUSHING:
                 this._addRecentItem();
                 this._pipelineState = PipelineState.STOPPED;
@@ -251,6 +262,30 @@ var Recorder = class {
 
                 this._requestStopPromise.resolve();
                 delete this._requestStopPromise;
+                break;
+
+            default:
+                break;
+            }
+
+            break;
+
+        case Gst.MessageType.ERROR:
+            if (!this._teardownPipeline())
+                break;
+
+            switch (this._pipelineState) {
+            case PipelineState.STOPPED:
+            case PipelineState.ERROR:
+                // In these cases there should be no pipeline, so should never happen
+                break;
+
+            case PipelineState.INIT:
+            case PipelineState.PLAYING:
+            case PipelineState.FLUSHING:
+                // Everything else we can't handle, so error out
+                this._handleFatalPipelineError(
+                    `GStreamer error while in state ${this._pipelineState}: ${message.parse_error()[0].message}`);
                 break;
 
             default:
