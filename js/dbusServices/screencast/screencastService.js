@@ -23,12 +23,68 @@ const ScreenCastProxy = Gio.DBusProxy.makeProxyWrapper(ScreenCastIface);
 const ScreenCastSessionProxy = Gio.DBusProxy.makeProxyWrapper(ScreenCastSessionIface);
 const ScreenCastStreamProxy = Gio.DBusProxy.makeProxyWrapper(ScreenCastStreamIface);
 
-const DEFAULT_PIPELINE = 'videoconvert chroma-mode=GST_VIDEO_CHROMA_MODE_NONE dither=GST_VIDEO_DITHER_NONE matrix-mode=GST_VIDEO_MATRIX_MODE_OUTPUT_ONLY n-threads=%T ! queue ! vp8enc cpu-used=16 max-quantizer=17 deadline=1 keyframe-mode=disabled threads=%T static-threshold=1000 buffer-size=20000 ! queue ! webmmux';
 const DEFAULT_FRAMERATE = 30;
 const DEFAULT_DRAW_CURSOR = true;
 
+const PIPELINES = [
+    {
+        // First choice, running completely on hardware when dmabufs are used
+        fileExtension: 'mp4',
+        pipelineString:
+            'vaapipostproc ! \
+             vaapih264enc ! \
+             queue ! \
+             h264parse ! \
+             mp4mux',
+    },
+    {
+        // nvenc for nvidia cards, videoconvert will run on cpu, so not as fast
+        fileExtension: 'mp4',
+        pipelineString:
+            'videoconvert chroma-mode=none dither=none matrix-mode=output-only n-threads=%T ! \
+             queue ! \
+             nvh264enc ! \
+             queue ! \
+             h264parse ! \
+             mp4mux',
+    },
+    {
+        // Third choice, x264, pretty much the widest used sw encoder out there
+        fileExtension: 'mp4',
+        pipelineString:
+            'videoconvert chroma-mode=none dither=none matrix-mode=output-only n-threads=%T ! \
+             queue ! \
+             x264enc quantizer=20 speed-preset=ultrafast pass=quant ! \
+             queue ! \
+             h264parse ! \
+             mp4mux',
+    },
+    {
+        // openh264, not as fast as x264, but less patent issues
+        fileExtension: 'mp4',
+        pipelineString:
+            'videoconvert chroma-mode=none dither=none matrix-mode=output-only n-threads=%T ! \
+             queue ! \
+             openh264enc deblocking=off background-detection=false complexity=low adaptive-quantization=false qp-max=26 qp-min=26 multi-thread=%T slice-mode=auto ! \
+             queue ! \
+             h264parse ! \
+             mp4mux',
+    },
+    {
+        // Finally try vp8, slowest encoder but without any patent issues
+        fileExtension: 'webm',
+        pipelineString:
+            'videoconvert chroma-mode=none dither=none matrix-mode=output-only n-threads=%T ! \
+             queue ! \
+             vp8enc cpu-used=16 max-quantizer=17 deadline=1 keyframe-mode=disabled threads=%T static-threshold=1000 buffer-size=20000 ! \
+             queue ! \
+             webmmux',
+    },
+];
+
 const PipelineState = {
     INIT: "INIT",
+    STARTING: "STARTING",
     PLAYING: "PLAYING",
     FLUSHING: "FLUSHING",
     STOPPED: "STOPPED",
@@ -54,7 +110,7 @@ var Recorder = class {
         this._y = y;
         this._width = width;
         this._height = height;
-        this._filePath = filePath;
+        this._origFilePath = filePath;
 
         try {
             const dir = Gio.File.new_for_path(filePath).get_parent();
@@ -64,7 +120,6 @@ var Recorder = class {
                 throw e;
         }
 
-        this._pipelineString = DEFAULT_PIPELINE;
         this._framerate = DEFAULT_FRAMERATE;
         this._drawCursor = DEFAULT_DRAW_CURSOR;
 
@@ -180,9 +235,27 @@ var Recorder = class {
         this._sessionProxy.connectSignal('Closed', this._onSessionClosed.bind(this));
     }
 
-    _startPipeline(nodeId) {
-        if (!this._ensurePipeline(nodeId))
+    _tryStartPipeline() {
+        if (this._currentPipelineIndex === PIPELINES.length) {
+            this._requestStartPromise.reject(new Error("All pipelines failed to start"));
+            delete this._requestStartPromise;
             return;
+        }
+
+        try {
+            this._pipeline = this._createPipeline(this._nodeId,
+                PIPELINES[this._currentPipelineIndex], this._framerate);
+        } catch (error) {
+            this._currentPipelineIndex++;
+            this._tryStartPipeline();
+            return;
+        }
+
+        if (!this._pipeline) {
+            this._currentPipelineIndex++;
+            this._tryStartPipeline();
+            return;
+        }
 
         const bus = this._pipeline.get_bus();
         bus.add_watch(bus, this._onBusMessage.bind(this));
@@ -193,8 +266,11 @@ var Recorder = class {
             stateChangeReturn === Gst.StateChangeReturn.ASYNC) {
             // We'll wait for the state change message to PLAYING on the bus
         } else {
-            this._teardownPipeline();
-            this._handleFatalPipelineError("Failed to start pipeline");
+            if (!this._teardownPipeline())
+                return;
+
+            this._currentPipelineIndex++;
+            this._tryStartPipeline();
         }
     }
 
@@ -217,7 +293,11 @@ var Recorder = class {
             this._streamProxy.connectSignal('PipeWireStreamAdded',
                 (proxy, sender, params) => {
                     const [nodeId] = params;
-                    this._startPipeline(nodeId);
+                    this._nodeId = nodeId;
+
+                    this._pipelineState = PipelineState.STARTING;
+                    this._currentPipelineIndex = 0;
+                    this._tryStartPipeline();
                 });
             this._sessionProxy.StartSync();
             this._sessionState = SessionState.ACTIVE;
@@ -239,7 +319,7 @@ var Recorder = class {
         case Gst.MessageType.STATE_CHANGED:
             const [oldState, newState, pendingState] = message.parse_state_changed();
 
-            if (this._pipelineState === PipelineState.INIT &&
+            if (this._pipelineState === PipelineState.STARTING &&
                 message.src === this._pipeline &&
                 oldState === Gst.State.PAUSED && newState === Gst.State.PLAYING) {
                 this._pipelineState = PipelineState.PLAYING;
@@ -255,12 +335,18 @@ var Recorder = class {
                 break;
 
             switch (this._pipelineState) {
+            case PipelineState.INIT:
             case PipelineState.STOPPED:
             case PipelineState.ERROR:
                 // In these cases there should be no pipeline, so should never happen
                 break;
 
-            case PipelineState.INIT:
+            case PipelineState.STARTING:
+                // This is something we can handle, try to switch to the next pipeline
+                this._currentPipelineIndex++;
+                this._tryStartPipeline();
+                break;
+
             case PipelineState.PLAYING:
                 // No clue where this is coming from, so error out
                 this._handleFatalPipelineError(`Unexpected EOS message while in state ${this._pipelineState}`);
@@ -294,12 +380,18 @@ var Recorder = class {
             const [error, debug] = message.parse_error();
 
             switch (this._pipelineState) {
+            case PipelineState.INIT:
             case PipelineState.STOPPED:
             case PipelineState.ERROR:
                 // In these cases there should be no pipeline, so should never happen
                 break;
 
-            case PipelineState.INIT:
+            case PipelineState.STARTING:
+                // This is something we can handle, try to switch to the next pipeline
+                this._currentPipelineIndex++;
+                this._tryStartPipeline();
+                break;
+
             case PipelineState.PLAYING:
             case PipelineState.FLUSHING:
                 // Everything else we can't handle, so error out
@@ -325,28 +417,23 @@ var Recorder = class {
         return pipelineDescr.replaceAll('%T', numThreads);
     }
 
-    _ensurePipeline(nodeId) {
-        const framerate = this._framerate;
+    _createPipeline(nodeId, pipeline, framerate) {
+        const { isHwEncoder, fileExtension, pipelineString } = pipeline;
+        const finalPipelineString =
+            this._substituteThreadCount(pipelineString);
+        this._filePath = this._origFilePath.replace('webm', fileExtension);
 
-        let fullPipeline = `
+        const fullPipeline = `
             pipewiresrc path=${nodeId}
                         do-timestamp=true
                         keepalive-time=1000
                         resend-last=true !
             video/x-raw,max-framerate=${framerate}/1 !
-            ${this._pipelineString} !
+            ${finalPipelineString} !
             filesink location="${this._filePath}"`;
-        fullPipeline = this._substituteThreadCount(fullPipeline);
 
-        try {
-            this._pipeline = Gst.parse_launch_full(fullPipeline,
-                null,
-                Gst.ParseFlags.FATAL_ERRORS);
-        }  catch (e) {
-            this._teardownPipeline();
-            this._handleFatalPipelineError(`Failed to create pipeline: ${e.message}`);
-        }
-        return !!this._pipeline;
+        return Gst.parse_launch_full(fullPipeline, null,
+            Gst.ParseFlags.FATAL_ERRORS);
     }
 };
 
