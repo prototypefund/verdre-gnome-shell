@@ -68,9 +68,13 @@ var Recorder = class {
         this._framerate = DEFAULT_FRAMERATE;
         this._drawCursor = DEFAULT_DRAW_CURSOR;
 
+        this._pipelineState = PipelineState.INIT;
+        this._pipeline = null;
+
         this._applyOptions(options);
         this._watchSender(invocation.get_sender());
 
+        this._sessionState = SessionState.INIT;
         this._initSession(sessionPath);
     }
 
@@ -104,32 +108,69 @@ var Recorder = class {
         }
     }
 
-    _senderVanished() {
+    _bailOutOnError(error) {
         this._unwatchSender();
 
-        this.stopRecording(null);
+        if (this._onErrorCallback) {
+            this._onErrorCallback(error);
+            delete this._onErrorCallback;
+        }
+
+        if (this._requestStartPromise) {
+            this._requestStartPromise.reject(error);
+            delete this._requestStartPromise;
+        }
+
+        if (this._requestStopPromise) {
+            this._requestStopPromise.reject(error);
+            delete this._requestStopPromise;
+        }
     }
 
-    _notifyStopped() {
-        this._unwatchSender();
-        if (this._requestStartPromise)
-            this._requestStartPromise.reject(new Error());
-        else if (this._requestStopPromise)
-            this._requestStopPromise.resolve();
-        else
-            this._onErrorCallback(new Error());
+    _handleFatalPipelineError(message) {
+        this._pipelineState = PipelineState.ERROR;
+
+        if (this._sessionState === SessionState.ACTIVE) {
+            this._sessionProxy.StopSync();
+            this._sessionState = SessionState.STOPPED;
+        }
+
+        this._bailOutOnError(new Error(`Fatal pipeline error: ${message}`));
+    }
+
+    _teardownPipeline() {
+        if (!this._pipeline)
+            return true;
+
+        if (this._pipeline.set_state(Gst.State.NULL) !== Gst.StateChangeReturn.SUCCESS) {
+            this._handleFatalPipelineError("Failed to tear down pipeline");
+            this._pipeline = null;
+            return false;
+        }
+
+        this._pipeline = null;
+        return true;
+    }
+
+    _senderVanished() {
+        // Throw away the pipeline if it's still running
+        this._teardownPipeline();
+
+        this._bailOutOnError(new Error(`Sender has vanished`));
     }
 
     _onSessionClosed() {
-        switch (this._pipelineState) {
-        case PipelineState.STOPPED:
-            break;
-        default:
-            this._pipeline.set_state(Gst.State.NULL);
-            log(`Unexpected pipeline state: ${this._pipelineState}`);
-            break;
+        this._sessionState = SessionState.STOPPED;
+
+        if (this._pipelineState === PipelineState.STOPPED) {
+            // All good, session got closed after we flushed the pipeline
+        } else {
+            // Throw away the pipeline if it's still running
+            this._teardownPipeline();
+
+            this._bailOutOnError(new Error(`Session closed unexpectedly with \
+                pipeline still in state ${this._pipelineState}`));
         }
-        this._notifyStopped();
     }
 
     _initSession(sessionPath) {
@@ -189,40 +230,38 @@ var Recorder = class {
         });
     }
 
-    _stopSession() {
-        this._sessionProxy.StopSync();
-        this._sessionState = SessionState.STOPPED;
-    }
-
     _onBusMessage(bus, message, _) {
         switch (message.type) {
         case Gst.MessageType.EOS:
-            this._pipeline.set_state(Gst.State.NULL);
-            this._addRecentItem();
+            if (!this._teardownPipeline())
+                break;
 
             switch (this._pipelineState) {
             case PipelineState.FLUSHING:
+                this._addRecentItem();
                 this._pipelineState = PipelineState.STOPPED;
-                break;
-            default:
-                break;
-            }
 
-            switch (this._sessionState) {
-            case SessionState.ACTIVE:
-                this._stopSession();
+                if (this._sessionState === SessionState.ACTIVE) {
+                    this._sessionProxy.StopSync();
+                    this._sessionState = SessionState.STOPPED;
+                }
+
+                this._unwatchSender();
+
+                this._requestStopPromise.resolve();
+                delete this._requestStopPromise;
                 break;
-            case SessionState.STOPPED:
-                this._notifyStopped();
-                break;
+
             default:
                 break;
             }
 
             break;
+
         default:
             break;
         }
+
         return true;
     }
 
@@ -250,8 +289,8 @@ var Recorder = class {
                 null,
                 Gst.ParseFlags.FATAL_ERRORS);
         }  catch (e) {
-            log(`Failed to create pipeline: ${e}`);
-            this._notifyStopped();
+            this._teardownPipeline();
+            this._handleFatalPipelineError(`Failed to create pipeline: ${e.message}`);
         }
         return !!this._pipeline;
     }
@@ -281,6 +320,9 @@ var ScreencastService = class extends ServiceImplementation {
     }
 
     _removeRecorder(sender) {
+        if (!this._recorders.has(sender))
+            return;
+
         this._recorders.delete(sender);
         if (this._recorders.size === 0)
             this.release();
