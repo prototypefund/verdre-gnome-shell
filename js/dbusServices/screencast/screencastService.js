@@ -32,6 +32,7 @@ const PipelineState = {
     PLAYING: "PLAYING",
     FLUSHING: "FLUSHING",
     STOPPED: "STOPPED",
+    ERROR: "ERROR",
 };
 
 const SessionState = {
