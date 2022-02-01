@@ -1057,6 +1057,13 @@ class WorkspaceBackground extends St.Widget {
     }
 });
 
+var WorkspaceLayoutContainer = GObject.registerClass(
+class WorkspaceLayoutContainer extends St.Widget {
+    vfunc_get_focus_chain() {
+        return this.layout_manager.getFocusChain();
+    }
+});
+
 /**
  * @metaWorkspace: a #Meta.Workspace, or null
  */
@@ -1078,7 +1085,7 @@ class Workspace extends St.Widget {
         this.add_child(this._background);
 
         // Window previews
-        this._container = new Clutter.Actor({
+        this._container = new WorkspaceLayoutContainer({
             reactive: true,
             x_expand: true,
             y_expand: true,
@@ -1153,10 +1160,6 @@ class Workspace extends St.Widget {
 
         const overviewState = this._overviewAdjustment.value;
         return overviewState > OverviewControls.ControlsState.WINDOW_PICKER;
-    }
-
-    vfunc_get_focus_chain() {
-        return this._container.layout_manager.getFocusChain();
     }
 
     _lookupIndex(metaWindow) {
