@@ -584,7 +584,25 @@ function pushModal(actor, params) {
     });
 
     actionMode = params.actionMode;
-    global.stage.set_key_focus(actor);
+
+    const traverseFindStWidget = (a) => {
+        for (const c of a) {
+            if (c instanceof St.Widget)
+                return c;
+
+            const subchild = traverseFindStWidget(c);
+            if (subchild)
+                return subchild;
+        }
+
+        return null;
+    };
+
+    if (actor instanceof St.Widget)
+        actor.navigate_focus(null, St.DirectionType.TAB_FORWARD, true);
+    else
+        traverseFindStWidget(actor)?.navigate_focus(null, St.DirectionType.TAB_FORWARD, true);
+
     return grab;
 }
 
