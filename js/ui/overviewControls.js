@@ -440,10 +440,6 @@ class ControlsManager extends St.Widget {
             if (this._searchController.searchActive)
                 return Clutter.EVENT_PROPAGATE;
 
-            if (global.stage.key_focus &&
-                !this.contains(global.stage.key_focus))
-                return Clutter.EVENT_PROPAGATE;
-
             const { finalState } =
                 this._stateAdjustment.getStateTransitionParams();
             let keynavDisplay;
@@ -454,6 +450,11 @@ class ControlsManager extends St.Widget {
                 keynavDisplay = this._appDisplay;
 
             if (!keynavDisplay)
+                return Clutter.EVENT_PROPAGATE;
+
+            if (global.stage.key_focus &&
+                (!this.contains(global.stage.key_focus) ||
+                 keynavDisplay.contains(global.stage.key_focus)))
                 return Clutter.EVENT_PROPAGATE;
 
             const symbol = event.get_key_symbol();
