@@ -111,12 +111,12 @@ var Recorder = class {
 
     _notifyStopped() {
         this._unwatchSender();
-        if (this._onStartedCallback)
-            this._onStartedCallback(this, false);
-        else if (this._onStoppedCallback)
-            this._onStoppedCallback(this);
+        if (this._requestStartPromise)
+            this._requestStartPromise.reject(new Error());
+        else if (this._requestStopPromise)
+            this._requestStopPromise.resolve();
         else
-            this._onErrorCallback(this);
+            this._onErrorCallback(new Error());
     }
 
     _onSessionClosed() {
@@ -148,38 +148,44 @@ var Recorder = class {
         this._pipeline.set_state(Gst.State.PLAYING);
         this._pipelineState = PipelineState.PLAYING;
 
-        this._onStartedCallback(this, true);
-        this._onStartedCallback = null;
+        this._requestStartPromise.resolve();
+        delete this._requestStartPromise;
     }
 
-    startRecording(onStartedCallback) {
-        this._onStartedCallback = onStartedCallback;
+    startRecording() {
+        return new Promise((resolve, reject) => {
+            this._requestStartPromise = { resolve, reject };
 
-        const [streamPath] = this._sessionProxy.RecordAreaSync(
-            this._x, this._y,
-            this._width, this._height,
-            {
-                'is-recording': GLib.Variant.new('b', true),
-                'cursor-mode': GLib.Variant.new('u', this._drawCursor ? 1 : 0),
-            });
+            const [streamPath] = this._sessionProxy.RecordAreaSync(
+                this._x, this._y,
+                this._width, this._height,
+                {
+                    'is-recording': GLib.Variant.new('b', true),
+                    'cursor-mode': GLib.Variant.new('u', this._drawCursor ? 1 : 0),
+                });
 
-        this._streamProxy = new ScreenCastStreamProxy(Gio.DBus.session,
-            'org.gnome.ScreenCast.Stream',
-            streamPath);
+            this._streamProxy = new ScreenCastStreamProxy(Gio.DBus.session,
+                'org.gnome.ScreenCast.Stream',
+                streamPath);
 
-        this._streamProxy.connectSignal('PipeWireStreamAdded',
-            (proxy, sender, params) => {
-                const [nodeId] = params;
-                this._startPipeline(nodeId);
-            });
-        this._sessionProxy.StartSync();
-        this._sessionState = SessionState.ACTIVE;
+            this._streamProxy.connectSignal('PipeWireStreamAdded',
+                (proxy, sender, params) => {
+                    const [nodeId] = params;
+                    this._startPipeline(nodeId);
+                });
+            this._sessionProxy.StartSync();
+            this._sessionState = SessionState.ACTIVE;
+        });
     }
 
-    stopRecording(onStoppedCallback) {
-        this._pipelineState = PipelineState.FLUSHING;
-        this._onStoppedCallback = onStoppedCallback;
-        this._pipeline.send_event(Gst.Event.new_eos());
+
+    stopRecording() {
+        return new Promise((resolve, reject) => {
+            this._requestStopPromise = { resolve, reject };
+
+            this._pipelineState = PipelineState.FLUSHING;
+            this._pipeline.send_event(Gst.Event.new_eos());
+        });
     }
 
     _stopSession() {
@@ -339,7 +345,7 @@ var ScreencastService = class extends ServiceImplementation {
         return this._getAbsolutePath(filename);
     }
 
-    ScreencastAsync(params, invocation) {
+    async ScreencastAsync(params, invocation) {
         let returnValue = [false, ''];
 
         if (this._lockdownSettings.get_boolean('disable-save-to-disk')) {
@@ -370,7 +376,7 @@ var ScreencastService = class extends ServiceImplementation {
                 filePath,
                 options,
                 invocation,
-                _recorder => this._removeRecorder(sender));
+                error => this._removeRecorder(sender));
         } catch (error) {
             log(`Failed to create recorder: ${error.message}`);
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
@@ -380,24 +386,17 @@ var ScreencastService = class extends ServiceImplementation {
         this._addRecorder(sender, recorder);
 
         try {
-            recorder.startRecording(
-                (_, result) => {
-                    if (result) {
-                        returnValue = [true, filePath];
-                        invocation.return_value(GLib.Variant.new('(bs)', returnValue));
-                    } else {
-                        this._removeRecorder(sender);
-                        invocation.return_value(GLib.Variant.new('(bs)', returnValue));
-                    }
-                });
+            await recorder.startRecording();
+            returnValue = [true, filePath];
         } catch (error) {
             log(`Failed to start recorder: ${error.message}`);
             this._removeRecorder(sender);
+        } finally {
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
         }
     }
 
-    ScreencastAreaAsync(params, invocation) {
+    async ScreencastAreaAsync(params, invocation) {
         let returnValue = [false, ''];
 
         if (this._lockdownSettings.get_boolean('disable-save-to-disk')) {
@@ -427,7 +426,7 @@ var ScreencastService = class extends ServiceImplementation {
                 filePath,
                 options,
                 invocation,
-                _recorder => this._removeRecorder(sender));
+                error => this._removeRecorder(sender));
         } catch (error) {
             log(`Failed to create recorder: ${error.message}`);
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
@@ -437,24 +436,17 @@ var ScreencastService = class extends ServiceImplementation {
         this._addRecorder(sender, recorder);
 
         try {
-            recorder.startRecording(
-                (_, result) => {
-                    if (result) {
-                        returnValue = [true, filePath];
-                        invocation.return_value(GLib.Variant.new('(bs)', returnValue));
-                    } else {
-                        this._removeRecorder(sender);
-                        invocation.return_value(GLib.Variant.new('(bs)', returnValue));
-                    }
-                });
+            await recorder.startRecording();
+            returnValue = [true, filePath];
         } catch (error) {
             log(`Failed to start recorder: ${error.message}`);
             this._removeRecorder(sender);
+        } finally {
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
         }
     }
 
-    StopScreencastAsync(params, invocation) {
+    async StopScreencastAsync(params, invocation) {
         const sender = invocation.get_sender();
 
         const recorder = this._recorders.get(sender);
@@ -463,9 +455,13 @@ var ScreencastService = class extends ServiceImplementation {
             return;
         }
 
-        recorder.stopRecording(() => {
+        try {
+            await recorder.stopRecording();
+        } catch (error) {
+            log(`${sender}: Error while stopping recorder: ${error.message}`);
+        } finally {
             this._removeRecorder(sender);
             invocation.return_value(GLib.Variant.new('(b)', [true]));
-        });
+        }
     }
 };
