@@ -377,9 +377,12 @@ var ScreencastService = class extends ServiceImplementation {
                 filePath,
                 options,
                 invocation,
-                error => this._removeRecorder(sender));
+                error => {
+                    logError(error, 'Recorder error');
+                    this._removeRecorder(sender);
+                });
         } catch (error) {
-            log(`Failed to create recorder: ${error.message}`);
+            logError(error, 'Failed to create recorder');
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
             return;
         }
@@ -390,7 +393,7 @@ var ScreencastService = class extends ServiceImplementation {
             await recorder.startRecording();
             returnValue = [true, filePath];
         } catch (error) {
-            log(`Failed to start recorder: ${error.message}`);
+            logError(error, 'Failed to start recorder');
             this._removeRecorder(sender);
         } finally {
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
@@ -427,9 +430,12 @@ var ScreencastService = class extends ServiceImplementation {
                 filePath,
                 options,
                 invocation,
-                error => this._removeRecorder(sender));
+                error => {
+                    logError(error, 'Recorder error');
+                    this._removeRecorder(sender);
+                });
         } catch (error) {
-            log(`Failed to create recorder: ${error.message}`);
+            logError(error, 'Failed to create recorder');
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
             return;
         }
@@ -440,7 +446,7 @@ var ScreencastService = class extends ServiceImplementation {
             await recorder.startRecording();
             returnValue = [true, filePath];
         } catch (error) {
-            log(`Failed to start recorder: ${error.message}`);
+            logError(error, 'Failed to start area recorder');
             this._removeRecorder(sender);
         } finally {
             invocation.return_value(GLib.Variant.new('(bs)', returnValue));
@@ -459,7 +465,7 @@ var ScreencastService = class extends ServiceImplementation {
         try {
             await recorder.stopRecording();
         } catch (error) {
-            log(`${sender}: Error while stopping recorder: ${error.message}`);
+            logError(error, 'Error while stopping recorder');
         } finally {
             this._removeRecorder(sender);
             invocation.return_value(GLib.Variant.new('(b)', [true]));
