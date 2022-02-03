@@ -188,11 +188,15 @@ var Recorder = class {
         const bus = this._pipeline.get_bus();
         bus.add_watch(bus, this._onBusMessage.bind(this));
 
-        this._pipeline.set_state(Gst.State.PLAYING);
-        this._pipelineState = PipelineState.PLAYING;
+        const stateChangeReturn = this._pipeline.set_state(Gst.State.PLAYING);
 
-        this._requestStartPromise.resolve();
-        delete this._requestStartPromise;
+        if (stateChangeReturn === Gst.StateChangeReturn.SUCCESS ||
+            stateChangeReturn === Gst.StateChangeReturn.ASYNC) {
+            // We'll wait for the state change message to PLAYING on the bus
+        } else {
+            this._teardownPipeline();
+            this._handleFatalPipelineError('Failed to start pipeline');
+        }
     }
 
     startRecording() {
@@ -233,6 +237,18 @@ var Recorder = class {
 
     _onBusMessage(bus, message, _) {
         switch (message.type) {
+        case Gst.MessageType.STATE_CHANGED:
+            if (this._pipelineState === PipelineState.INIT &&
+                message.src === this._pipeline &&
+                message.parse_state_changed()[1] === Gst.State.PLAYING) {
+                this._pipelineState = PipelineState.PLAYING;
+
+                this._requestStartPromise.resolve();
+                delete this._requestStartPromise;
+            }
+
+            break;
+
         case Gst.MessageType.EOS:
             if (!this._teardownPipeline())
                 break;
