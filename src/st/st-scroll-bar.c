@@ -108,11 +108,17 @@ st_scroll_bar_set_vertical (StScrollBar *bar,
   priv->vertical = vertical;
 
   if (priv->vertical)
-    clutter_actor_set_name (CLUTTER_ACTOR (priv->handle),
-                        "vhandle");
+    {
+      st_widget_remove_style_class_name (ST_WIDGET (bar), "horizontal");
+      st_widget_add_style_class_name (ST_WIDGET (bar), "vertical");
+      clutter_actor_set_name (CLUTTER_ACTOR (priv->handle), "vhandle");
+    }
   else
-    clutter_actor_set_name (CLUTTER_ACTOR (priv->handle),
-                        "hhandle");
+    {
+      st_widget_remove_style_class_name (ST_WIDGET (bar), "vertical");
+      st_widget_add_style_class_name (ST_WIDGET (bar), "horizontal");
+      clutter_actor_set_name (CLUTTER_ACTOR (priv->handle), "hhandle");
+    }
   clutter_actor_queue_relayout (CLUTTER_ACTOR (bar));
   g_object_notify_by_pspec (G_OBJECT (bar), props[PROP_VERTICAL]);
 }
