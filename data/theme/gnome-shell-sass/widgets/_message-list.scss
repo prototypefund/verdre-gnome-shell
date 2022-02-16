@@ -6,9 +6,19 @@
   width: 29em;
   border: solid $borders_color;
 
-  // padding and margins to account for scrollbar
-  &:ltr {margin-left: 0; margin-right: $base_margin; padding-right: $base_padding; border-right-width: 1px; }
-  &:rtl {margin-right: 0; margin-left: $base_margin; padding-left: $base_padding; border-left-width: 1px; }
+  &:ltr {
+    StScrollBar { margin-right: 0; }
+    margin-right: $base_margin;
+    padding-right: $base_padding;
+    border-right-width: 1px;
+  }
+
+  &:rtl {
+    StScrollBar { margin-left: 0; }
+    margin-left: $base_margin;
+    padding-left: $base_padding;
+    border-left-width: 1px;
+  }
 
   .message-list-placeholder { 
     @extend %title_2;
@@ -27,10 +37,6 @@
   spacing: $base_padding;
   margin: 0; 
   padding-bottom: $base_padding;
-
-  // to account for scrollbar
-  &:ltr {margin-right: $base_margin * 3; }
-  &:rtl {margin-left: $base_margin * 3;}
 }
 
 .message-list-section,
