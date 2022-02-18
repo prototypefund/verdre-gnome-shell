@@ -15,8 +15,6 @@ const OBJECT_PATH = '/org/gnome/SettingsDaemon/Rfkill';
 const RfkillManagerInterface = loadInterfaceXML('org.gnome.SettingsDaemon.Rfkill');
 const RfkillManagerProxy = Gio.DBusProxy.makeProxyWrapper(RfkillManagerInterface);
 
-const HAD_BLUETOOTH_DEVICES_SETUP = 'had-bluetooth-devices-setup';
-
 var Indicator = GObject.registerClass(
 class Indicator extends PanelMenu.SystemIndicator {
     _init() {
@@ -24,7 +22,6 @@ class Indicator extends PanelMenu.SystemIndicator {
 
         this._indicator = this._addIndicator();
         this._indicator.icon_name = 'bluetooth-active-symbolic';
-        this._hadSetupDevices = global.settings.get_boolean(HAD_BLUETOOTH_DEVICES_SETUP);
 
         this._client = new GnomeBluetooth.Client();
         this._client.connect('notify::default-adapter-powered', this._sync.bind(this));
@@ -78,15 +75,6 @@ class Indicator extends PanelMenu.SystemIndicator {
         this._sync();
     }
 
-    _setHadSetupDevices(value) {
-        if (this._hadSetupDevices === value)
-            return;
-
-        this._hadSetupDevices = value;
-        global.settings.set_boolean(
-            HAD_BLUETOOTH_DEVICES_SETUP, this._hadSetupDevices);
-    }
-
     _connectDeviceNotify(device) {
         const path = device.get_object_path();
 
@@ -130,7 +118,6 @@ class Indicator extends PanelMenu.SystemIndicator {
     }
 
     _sync() {
-        const adapterJustAppeared = !this._adapter && this._client.default_adapter;
         this._adapter = this._client.default_adapter ?? null;
         if (!this._adapter) {
             this._item.visible = false;
@@ -142,9 +129,6 @@ class Indicator extends PanelMenu.SystemIndicator {
         const connectedDevices = devices.filter(dev => dev.connected);
         const nConnectedDevices = connectedDevices.length;
 
-        if (!adapterJustAppeared)
-            this._setHadSetupDevices(devices.length > 0);
-
         let sensitive = !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter;
 
         this.menu.setSensitive(sensitive);
@@ -152,12 +136,8 @@ class Indicator extends PanelMenu.SystemIndicator {
 
         const adapterPowered = this._client.default_adapter_powered;
 
-        // Remember if there were setup devices and show the menu
-        // if we've seen setup devices and we're not hard blocked
-        if (this._hadSetupDevices)
-            this._item.visible = !this._proxy.BluetoothHardwareAirplaneMode;
-        else
-            this._item.visible = adapterPowered;
+        this._item.visible = this._proxy.BluetoothHasAirplaneMode &&
+            !this._proxy.BluetoothHardwareAirplaneMode;
 
         if (nConnectedDevices > 1)
             /* Translators: this is the number of connected bluetooth devices */
