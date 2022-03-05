@@ -1,5 +1,5 @@
 /* exported TransientSignalHolder, addObjectSignalMethods */
-const { GObject } = imports.gi;
+const { Clutter, GObject } = imports.gi;
 
 /**
  * @private
@@ -7,8 +7,12 @@ const { GObject } = imports.gi;
  * @returns {bool} - true if obj has a 'destroy' GObject signal
  */
 function _hasDestroySignal(obj) {
+    return obj instanceof Clutter.Actor || obj instanceof TransientSignalHolder;
+    // Disabled temporarily because of conflict with ShellWM::destroy
+    /*
     return obj instanceof GObject.Object &&
         GObject.signal_lookup('destroy', obj);
+    */
 }
 
 var TransientSignalHolder = GObject.registerClass(

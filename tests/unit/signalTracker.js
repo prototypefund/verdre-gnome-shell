@@ -2,7 +2,7 @@
 
 // Test cases for version comparison
 
-const { GObject } = imports.gi;
+const { Clutter, GObject } = imports.gi;
 
 const JsUnit = imports.jsUnit;
 const Signals = imports.signals;
@@ -12,9 +12,14 @@ const { TransientSignalHolder } = imports.misc.signalTracker;
 
 Environment.init();
 
+// See comment in signalTracker.js
+const Destroyable = GObject.registerClass({
+}, class Destroyable extends Clutter.Actor {});
+/*
 const Destroyable = GObject.registerClass({
     Signals: { 'destroy': {} },
 }, class Destroyable extends GObject.Object {});
+*/
 
 class PlainEmitter {}
 Signals.addSignalMethods(PlainEmitter.prototype);
