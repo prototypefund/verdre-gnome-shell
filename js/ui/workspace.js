@@ -1104,8 +1104,8 @@ class Workspace extends St.Widget {
         if (monitorIndex != Main.layoutManager.primaryIndex)
             this.add_style_class_name('external-monitor');
 
-        const clickAction = new Clutter.ClickAction();
-        clickAction.connect('clicked', action => {
+        const clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('clicked', action => {
             // Switch to the workspace when not the active one, leave the
             // overview otherwise.
             if (action.get_button() === 1 || action.get_button() === 0) {
@@ -1116,8 +1116,8 @@ class Workspace extends St.Widget {
                     Main.overview.hide();
             }
         });
-        this.bind_property('mapped', clickAction, 'enabled', GObject.BindingFlags.SYNC_CREATE);
-        this._container.add_action(clickAction);
+        this.bind_property('mapped', clickGesture, 'enabled', GObject.BindingFlags.SYNC_CREATE);
+        this._container.add_action(clickGesture);
 
         this.connect('style-changed', this._onStyleChanged.bind(this));
         this.connect('destroy', this._onDestroy.bind(this));

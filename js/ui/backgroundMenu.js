@@ -46,17 +46,14 @@ function addBackgroundMenu(actor, layoutManager) {
     });
     actor.add_action(longPressGesture);
 
-    let clickAction = new Clutter.ClickAction();
-    clickAction.connect('clicked', action => {
-        if (action.get_button() == 3) {
-            let [x, y] = action.get_coords();
-            openMenu(x, y);
+    const clickGesture = new Clutter.ClickGesture();
+    clickGesture.connect('clicked', () => {
+        if (clickGesture.get_button() === Clutter.BUTTON_SECONDARY) {
+            const coords = clickGesture.get_coords();
+            openMenu(coords.x, coords.y);
         }
     });
-    actor.add_action(clickAction);
-
-    global.display.connectObject('grab-op-begin',
-        () => clickAction.release(), actor);
+    actor.add_action(clickGesture);
 
     actor.connect('destroy', () => {
         actor._backgroundMenu.destroy();
