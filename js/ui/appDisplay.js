@@ -2474,20 +2474,18 @@ var AppFolderDialog = GObject.registerClass({
 
         this.add_constraint(new Layout.MonitorConstraint({ primary: true }));
 
-        this.connect('event', (_actor, event) => {
-            if (event.type() !== Clutter.EventType.TOUCH_END &&
-                event.type() !== Clutter.EventType.BUTTON_RELEASE)
-                return Clutter.EVENT_PROPAGATE;
-
-            const [x, y] = event.get_coords();
+        const clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('clicked', () => {
+            const coords = clickGesture.get_coords();
             const actor =
-                global.stage.get_actor_at_pos(Clutter.PickMode.ALL, x, y);
+                global.stage.get_actor_at_pos(Clutter.PickMode.ALL, coords.x, coords.y);
 
             if (actor === this)
                 this.popdown();
 
             return Clutter.EVENT_PROPAGATE;
         });
+        this.add_action(clickGesture);
 
         this._source = source;
         this._folder = folder;
