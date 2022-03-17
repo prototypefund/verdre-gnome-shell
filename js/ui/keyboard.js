@@ -336,7 +336,7 @@ var Key = GObject.registerClass({
                         this._touchPressSlot = null;
                         this._ensureExtendedKeysPopup();
                         this.keyButton.set_hover(false);
-                        this.keyButton.fake_release();
+                        this.keyButton.get_click_gesture().set_state(Clutter.GestureState.CANCELLED);
                         this._showSubkeys();
                     }
 
@@ -376,7 +376,7 @@ var Key = GObject.registerClass({
         }
         this._touchPressSlot = null;
         this.keyButton.set_hover(false);
-        this.keyButton.fake_release();
+        this.keyButton.get_click_gesture().set_state(Clutter.GestureState.CANCELLED);
     }
 
     _onCapturedEvent(actor, event) {

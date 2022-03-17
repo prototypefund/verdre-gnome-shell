@@ -58,8 +58,6 @@ void         st_button_set_checked     (StButton     *button,
                                         gboolean      checked);
 gboolean     st_button_get_checked     (StButton     *button);
 
-void         st_button_fake_release    (StButton     *button);
-
 /**
  * StButtonMask:
  * @ST_BUTTON_ONE: button 1 (left)
@@ -79,6 +77,8 @@ typedef enum {
 void         st_button_set_button_mask (StButton     *button,
                                         StButtonMask  mask);
 StButtonMask st_button_get_button_mask (StButton     *button);
+
+ClutterClickGesture * st_button_get_click_gesture (StButton *self);
 
 G_END_DECLS
 
