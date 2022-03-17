@@ -34,20 +34,19 @@ function addBackgroundMenu(actor, layoutManager) {
         actor._backgroundMenu.open(BoxPointer.PopupAnimation.FULL);
     }
 
-    let clickAction = new Clutter.ClickAction();
-    clickAction.connect('long-press', (action, theActor, state) => {
-        if (state == Clutter.LongPressState.QUERY) {
-            return (action.get_button() == 0 ||
-                     action.get_button() == 1) &&
-                    !actor._backgroundMenu.isOpen;
-        }
-        if (state == Clutter.LongPressState.ACTIVATE) {
-            let [x, y] = action.get_coords();
-            openMenu(x, y);
-            actor._backgroundManager.ignoreRelease();
-        }
-        return true;
+    const longPressGesture = new Clutter.LongPressGesture();
+    longPressGesture.connect('long-press-begin', () => {
+        if (actor._backgroundMenu.isOpen ||
+            (longPressGesture.get_button() != 0 &&
+             longPressGesture.get_button() != Clutter.BUTTON_PRIMARY))
+            return;
+
+        const coords = longPressGesture.get_coords();
+        openMenu(coords.x, coords.y);
     });
+    actor.add_action(longPressGesture);
+
+    let clickAction = new Clutter.ClickAction();
     clickAction.connect('clicked', action => {
         if (action.get_button() == 3) {
             let [x, y] = action.get_coords();
