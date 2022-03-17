@@ -2999,10 +2999,15 @@ var AppIcon = GObject.registerClass({
         this._menu = null;
         this._menuManager = new PopupMenu.PopupMenuManager(this);
 
-        this._menuTimeoutId = 0;
         this.app.connectObject('notify::state',
             () => this._updateRunningStyle(), this);
         this._updateRunningStyle();
+
+        const longPressGesture = new Clutter.LongPressGesture({
+            long_press_duration: MENU_POPUP_TIMEOUT,
+        });
+        longPressGesture.connect('long-press-begin', () => this.popupMenu());
+        this.add_action(longPressGesture);
     }
 
     _onDestroy() {
@@ -3013,25 +3018,16 @@ var AppIcon = GObject.registerClass({
             this._folderPreviewId = 0;
         }
 
-        this._removeMenuTimeout();
     }
 
     _onDragBegin() {
         if (this._menu)
             this._menu.close(true);
-        this._removeMenuTimeout();
         super._onDragBegin();
     }
 
     _createIcon(iconSize) {
         return this.app.create_icon_texture(iconSize);
-    }
-
-    _removeMenuTimeout() {
-        if (this._menuTimeoutId > 0) {
-            GLib.source_remove(this._menuTimeoutId);
-            this._menuTimeoutId = 0;
-        }
     }
 
     _updateRunningStyle() {
@@ -3041,45 +3037,23 @@ var AppIcon = GObject.registerClass({
             this._dot.hide();
     }
 
-    _setPopupTimeout() {
-        this._removeMenuTimeout();
-        this._menuTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, MENU_POPUP_TIMEOUT, () => {
-            this._menuTimeoutId = 0;
-            this.popupMenu();
-            return GLib.SOURCE_REMOVE;
-        });
-        GLib.Source.set_name_by_id(this._menuTimeoutId, '[gnome-shell] this.popupMenu');
-    }
-
     vfunc_leave_event(crossingEvent) {
         const ret = super.vfunc_leave_event(crossingEvent);
 
         this.fake_release();
-        this._removeMenuTimeout();
         return ret;
     }
 
     vfunc_button_press_event(buttonEvent) {
         const ret = super.vfunc_button_press_event(buttonEvent);
-        if (buttonEvent.button == 1) {
-            this._setPopupTimeout();
-        } else if (buttonEvent.button == 3) {
+        if (buttonEvent.button === Clutter.BUTTON_SECONDARY) {
             this.popupMenu();
             return Clutter.EVENT_STOP;
         }
         return ret;
     }
 
-    vfunc_touch_event(touchEvent) {
-        const ret = super.vfunc_touch_event(touchEvent);
-        if (touchEvent.type == Clutter.EventType.TOUCH_BEGIN)
-            this._setPopupTimeout();
-
-        return ret;
-    }
-
     vfunc_clicked(button) {
-        this._removeMenuTimeout();
         this.activate(button);
     }
 
@@ -3094,7 +3068,6 @@ var AppIcon = GObject.registerClass({
 
     popupMenu(side = St.Side.LEFT) {
         this.setForcedHighlight(true);
-        this._removeMenuTimeout();
         this.fake_release();
 
         if (!this._menu) {
@@ -3247,7 +3220,6 @@ var AppIcon = GObject.registerClass({
     cancelActions() {
         if (this._menu)
             this._menu.close(true);
-        this._removeMenuTimeout();
         super.cancelActions();
     }
 });
