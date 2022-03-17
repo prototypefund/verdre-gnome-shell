@@ -290,7 +290,7 @@ var _Draggable = class _Draggable extends Signals.EventEmitter {
         // Special-case St.Button: the pointer grab messes with the internal
         // state, so force a reset to a reasonable state here
         if (this.actor instanceof St.Button) {
-            this.actor.fake_release();
+            this.actor.get_click_gesture().set_state(Clutter.GestureState.CANCELLED);
             this.actor.hover = false;
         }
 
