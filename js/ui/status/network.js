@@ -675,9 +675,9 @@ var NMWirelessDialogItem = GObject.registerClass({
             reactive: true,
         });
 
-        let action = new Clutter.ClickAction();
-        action.connect('clicked', () => this.grab_key_focus());
-        this.add_action(action);
+        let clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('clicked', () => this.grab_key_focus());
+        this.add_action(clickGesture);
 
         let title = ssidToLabel(this._ap.get_ssid());
         this._label = new St.Label({
