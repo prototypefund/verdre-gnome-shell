@@ -1195,7 +1195,7 @@ var KeyboardManager = class KeyBoardManager {
             if (this._keyboard)
                 this._keyboard.gestureProgress(progress);
         });
-        bottomDragAction.connect('gesture-cancel', () => {
+        bottomDragAction.connect('cancelled', () => {
             if (this._keyboard)
                 this._keyboard.gestureCancel();
         });

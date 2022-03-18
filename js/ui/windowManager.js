@@ -958,7 +958,7 @@ var WindowManager = class {
         global.display.connect('in-fullscreen-changed', updateUnfullscreenGesture);
         updateUnfullscreenGesture();
 
-        global.stage.add_action_full('unfullscreen', Clutter.EventPhase.CAPTURE, topDragAction);
+        global.stage.add_action(topDragAction);
 
         this._workspaceAnimation =
             new WorkspaceAnimation.WorkspaceAnimationController();
