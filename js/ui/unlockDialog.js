@@ -514,9 +514,9 @@ var UnlockDialog = GObject.registerClass({
 
         this._activePage = null;
 
-        let tapAction = new Clutter.TapAction();
-        tapAction.connect('tap', this._showPrompt.bind(this));
-        this.add_action(tapAction);
+        const clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('clicked', () => this._showPrompt());
+        this.add_action(clickGesture);
 
         // Background
         this._backgroundGroup = new Clutter.Actor();
