@@ -1,89 +1,148 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported EdgeDragAction */
 
-const { Clutter, GObject, Meta, St } = imports.gi;
+const { Clutter, GLib, GObject, Meta, St } = imports.gi;
 
 const Main = imports.ui.main;
 
 var EDGE_THRESHOLD = 20;
 var DRAG_DISTANCE = 80;
+var CANCEL_THRESHOLD = 100;
+var CANCEL_TIMEOUT_MS = 200;
 
 var EdgeDragAction = GObject.registerClass({
     Signals: {
         'activated': {},
         'progress': { param_types: [GObject.TYPE_DOUBLE] },
+        'cancelled': {},
     },
-}, class EdgeDragAction extends Clutter.GestureAction {
+}, class EdgeDragAction extends Clutter.Gesture {
     _init(side, allowedModes) {
         super._init();
         this._side = side;
         this._allowedModes = allowedModes;
-        this.set_n_touch_points(1);
-        this.set_threshold_trigger_edge(Clutter.GestureTriggerEdge.AFTER);
-
-        global.display.connect('grab-op-begin', () => this.cancel());
     }
 
-    _getMonitorRect(x, y) {
-        let rect = new Meta.Rectangle({ x: x - 1, y: y - 1, width: 1, height: 1 });
-        let monitorIndex = global.display.get_monitor_index_for_rect(rect);
+    _getMonitorForCoords(coords) {
+        const rect = new Meta.Rectangle({ x: coords.x - 1, y: coords.y - 1, width: 1, height: 1 });
+        const monitorIndex = global.display.get_monitor_index_for_rect(rect);
 
-        return global.display.get_monitor_geometry(monitorIndex);
+        return Main.layoutManager.monitors[monitorIndex];
     }
 
-    vfunc_gesture_prepare(_actor) {
-        if (this.get_n_current_points() == 0)
-            return false;
+    _isNearMonitorEdge(point) {
+        const monitor = this._getMonitorForCoords(point.latest_coords);
 
-        if (!(this._allowedModes & Main.actionMode))
-            return false;
-
-        let [x, y] = this.get_press_coords(0);
-        let monitorRect = this._getMonitorRect(x, y);
-
-        return (this._side == St.Side.LEFT && x < monitorRect.x + EDGE_THRESHOLD) ||
-                (this._side == St.Side.RIGHT && x > monitorRect.x + monitorRect.width - EDGE_THRESHOLD) ||
-                (this._side == St.Side.TOP && y < monitorRect.y + EDGE_THRESHOLD) ||
-                (this._side == St.Side.BOTTOM && y > monitorRect.y + monitorRect.height - EDGE_THRESHOLD);
+        switch (this._side) {
+        case St.Side.LEFT:
+            return point.latest_coords.x < monitor.x + EDGE_THRESHOLD;
+        case St.Side.RIGHT:
+            return point.latest_coords.x > monitor.x + monitor.width - EDGE_THRESHOLD;
+        case St.Side.TOP:
+            return point.latest_coords.y < monitor.y + EDGE_THRESHOLD;
+        case St.Side.BOTTOM:
+            return point.latest_coords.y > monitor.y + monitor.height - EDGE_THRESHOLD;
+        }
     }
 
-    vfunc_gesture_progress(_actor) {
-        let [startX, startY] = this.get_press_coords(0);
-        let [x, y] = this.get_motion_coords(0);
-        let offsetX = Math.abs(x - startX);
-        let offsetY = Math.abs(y - startY);
+    _exceedsCancelThreshold(point) {
+        const [_distance, offsetX, offsetY] = point.begin_coords.distance(point.latest_coords);
 
-        if (offsetX < EDGE_THRESHOLD && offsetY < EDGE_THRESHOLD)
-            return true;
+        switch (this._side) {
+        case St.Side.LEFT:
+        case St.Side.RIGHT:
+            return offsetY > CANCEL_THRESHOLD;
+        case St.Side.TOP:
+        case St.Side.BOTTOM:
+            return offsetX > CANCEL_THRESHOLD;
+        }
+    }
 
-        if ((offsetX > offsetY &&
-             (this._side == St.Side.TOP || this._side == St.Side.BOTTOM)) ||
-            (offsetY > offsetX &&
-             (this._side == St.Side.LEFT || this._side == St.Side.RIGHT))) {
-            this.cancel();
-            return false;
+    _passesDistanceNeeded(point) {
+        const monitor = this._getMonitorForCoords(point.begin_coords);
+
+        switch (this._side) {
+        case St.Side.LEFT:
+            return point.latest_coords.x > monitor.x + DRAG_DISTANCE;
+        case St.Side.RIGHT:
+            return point.latest_coords.x < monitor.x + monitor.width - DRAG_DISTANCE;
+        case St.Side.TOP:
+            return point.latest_coords.y > monitor.y + DRAG_DISTANCE;
+        case St.Side.BOTTOM:
+            return point.latest_coords.y < monitor.y + monitor.height - DRAG_DISTANCE;
+        }
+    }
+
+    vfunc_points_began(points) {
+        const point = points[0];
+        const nPoints = this.get_points().length;
+
+        if (nPoints > 1 ||
+            !(this._allowedModes & Main.actionMode) ||
+            !this._isNearMonitorEdge(point)) {
+            this.set_state(Clutter.GestureState.CANCELLED);
+            return;
         }
 
-        if (this._side === St.Side.TOP ||
-            this._side === St.Side.BOTTOM)
-            this.emit('progress', offsetY);
-        else
-            this.emit('progress', offsetX);
+        this._cancelTimeoutId =
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, CANCEL_TIMEOUT_MS, () => {
+                if (this._isNearMonitorEdge(point))
+                    this.set_state(Clutter.GestureState.CANCELLED);
 
-        return true;
+                delete this._cancelTimeoutId;
+                return GLib.SOURCE_REMOVE;
+            });
     }
 
-    vfunc_gesture_end(_actor) {
-        let [startX, startY] = this.get_press_coords(0);
-        let [x, y] = this.get_motion_coords(0);
-        let monitorRect = this._getMonitorRect(startX, startY);
+    vfunc_points_moved(points) {
+        const point = points[0];
 
-        if ((this._side == St.Side.TOP && y > monitorRect.y + DRAG_DISTANCE) ||
-            (this._side == St.Side.BOTTOM && y < monitorRect.y + monitorRect.height - DRAG_DISTANCE) ||
-            (this._side == St.Side.LEFT && x > monitorRect.x + DRAG_DISTANCE) ||
-            (this._side == St.Side.RIGHT && x < monitorRect.x + monitorRect.width - DRAG_DISTANCE))
+        if (this._exceedsCancelThreshold(point)) {
+            this.set_state(Clutter.GestureState.CANCELLED);
+            return;
+        }
+
+        if (this.state === Clutter.GestureState.POSSIBLE &&
+            !this._isNearMonitorEdge(point))
+            this.set_state(Clutter.GestureState.RECOGNIZING);
+    
+        if (this.state === Clutter.GestureState.RECOGNIZING) {
+            const [_distance, offsetX, offsetY] =
+                point.begin_coords.distance(point.move_coords);
+
+            if (this._side === St.Side.TOP ||
+                this._side === St.Side.BOTTOM)
+                this.emit('progress', offsetY);
+            else
+                this.emit('progress', offsetX);
+
+            if (this._passesDistanceNeeded(point))
+                this.set_state(Clutter.GestureState.COMPLETED);
+        }
+    }
+
+    vfunc_points_ended(points) {
+        this.set_state(Clutter.GestureState.CANCELLED);
+    }
+
+    vfunc_points_cancelled(points) {
+        this.set_state(Clutter.GestureState.CANCELLED);
+    }
+
+    vfunc_state_changed(oldState, newState) {
+        if (newState === Clutter.GestureState.COMPLETED)
             this.emit('activated');
-        else
-            this.cancel();
+
+        if (oldState === Clutter.GestureState.RECOGNIZING &&
+            newState === Clutter.GestureState.CANCELLED)
+            this.emit('cancelled');
+
+        if (newState === Clutter.GestureState.CANCELLED ||
+            newState === Clutter.GestureState.COMPLETED) {
+            if (this._cancelTimeoutId) {
+                GLib.source_remove(this._cancelTimeoutId);
+                this._cancelTimeoutId = 0;
+            }
+        }
     }
 });
