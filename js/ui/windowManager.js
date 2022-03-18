@@ -471,64 +471,76 @@ class TilePreview extends St.Widget {
     }
 });
 
-var AppSwitchAction = GObject.registerClass({
+var AppSwitchGesture = GObject.registerClass({
     Signals: { 'activated': {} },
-}, class AppSwitchAction extends Clutter.GestureAction {
-    _init() {
-        super._init();
-        this.set_n_touch_points(3);
-
-        global.display.connect('grab-op-begin', () => {
-            this.cancel();
-        });
+}, class AppSwitchGesture extends Clutter.Gesture {
+    _exceedsCancelThreshold(point) {
+        const [distance] = point.begin_coords.distance(point.latest_coords);
+        return distance > APP_MOTION_THRESHOLD;
     }
 
-    vfunc_gesture_prepare(_actor) {
-        if (Main.actionMode != Shell.ActionMode.NORMAL) {
-            this.cancel();
-            return false;
+    vfunc_may_recognize() {
+        return Main.actionMode === Shell.ActionMode.NORMAL;
+    }
+
+    vfunc_points_began(points) {
+        const nPoints = this.get_points().length;
+
+        if (nPoints > 4) {
+            this.set_state(Clutter.GestureState.CANCELLED);
+            return;
         }
 
-        return this.get_n_current_points() <= 4;
-    }
+        if (nPoints === 3) {
+            this._startTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                delete this._startTimeoutId;
+                return GLib.SOURCE_REMOVE;
+            });
+        } else if (nPoints === 4) {
+            if (this._startTimeoutId) {
+                this.set_state(Clutter.GestureState.CANCELLED);
+                return;
+            }
 
-    vfunc_gesture_begin(_actor) {
-        // in milliseconds
-        const LONG_PRESS_TIMEOUT = 250;
+            this.set_state(Clutter.GestureState.RECOGNIZING);
 
-        let nPoints = this.get_n_current_points();
-        let event = this.get_last_event(nPoints - 1);
-
-        if (nPoints == 3) {
-            this._longPressStartTime = event.get_time();
-        } else if (nPoints == 4) {
-            // Check whether the 4th finger press happens after a 3-finger long press,
-            // this only needs to be checked on the first 4th finger press
-            if (this._longPressStartTime != null &&
-                event.get_time() < this._longPressStartTime + LONG_PRESS_TIMEOUT) {
-                this.cancel();
-            } else {
-                this._longPressStartTime = null;
+            if (this.state === Clutter.GestureState.RECOGNIZING)
                 this.emit('activated');
-            }
         }
-
-        return this.get_n_current_points() <= 4;
     }
 
-    vfunc_gesture_progress(_actor) {
-        if (this.get_n_current_points() == 3) {
-            for (let i = 0; i < this.get_n_current_points(); i++) {
-                let [startX, startY] = this.get_press_coords(i);
-                let [x, y] = this.get_motion_coords(i);
+    vfunc_points_moved(points) {
+        const point = points[0];
 
-                if (Math.abs(x - startX) > APP_MOTION_THRESHOLD ||
-                    Math.abs(y - startY) > APP_MOTION_THRESHOLD)
-                    return false;
+        if (this._exceedsCancelThreshold(point)) {
+            this.set_state(Clutter.GestureState.CANCELLED);
+            return;
+        }
+    }
+
+    vfunc_points_ended(points) {
+        const nPoints = this.get_points().length;
+
+        if (nPoints < 3) {
+            if (this.state === Clutter.GestureState.POSSIBLE)
+                this.set_state(Clutter.GestureState.CANCELLED);
+            else if (this.state === Clutter.GestureState.RECOGNIZING)
+                this.set_state(Clutter.GestureState.RECOGNIZED);
+        }
+    }
+
+    vfunc_points_cancelled(points) {
+        this.set_state(Clutter.GestureState.CANCELLED);
+    }
+
+    vfunc_state_changed(oldState, newState) {
+        if (newState === Clutter.GestureState.CANCELLED ||
+            newState === Clutter.GestureState.RECOGNIZED) {
+            if (this._startTimeoutId) {
+                GLib.source_remove(this._startTimeoutId);
+                delete this._startTimeoutId;
             }
         }
-
-        return true;
     }
 });
 
@@ -937,9 +949,9 @@ var WindowManager = class {
         if (Main.sessionMode.hasWorkspaces)
             this._workspaceTracker = new WorkspaceTracker(this);
 
-        let appSwitchAction = new AppSwitchAction();
-        appSwitchAction.connect('activated', this._switchApp.bind(this));
-        global.stage.add_action_full('app-switch', Clutter.EventPhase.CAPTURE, appSwitchAction);
+        const appSwitchGesture = new AppSwitchGesture();
+        appSwitchGesture.connect('activated', this._switchApp.bind(this));
+        global.stage.add_action_full('app-switch', Clutter.EventPhase.CAPTURE, appSwitchGesture);
 
         let mode = Shell.ActionMode.NORMAL;
         let topDragAction = new EdgeDragAction.EdgeDragAction(St.Side.TOP, mode);
