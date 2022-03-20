@@ -130,6 +130,9 @@ var DndGesture = GObject.registerClass({
 
         if (this._actor._delegate && this._actor._delegate.getDragActor) {
             this._dragActor = this._actor._delegate.getDragActor();
+
+            this._usingClone = false;
+
             Main.uiGroup.add_child(this._dragActor);
             Main.uiGroup.set_child_above_sibling(this._dragActor, null);
             Shell.util_set_hidden_from_pick(this._dragActor, true);
@@ -169,14 +172,12 @@ var DndGesture = GObject.registerClass({
         } else {
             this._dragActor = this._actor;
 
+            this._usingClone = true;
+
+log("DRAG: recognizing, reparenting now");
             this._dragActorSource = undefined;
             this._dragOrigParent = this._actor.get_parent();
 
-            this._dragActorHadFixedPos = this._dragActor.fixed_position_set;
-            this._dragOrigX = this._dragActor.allocation.x1;
-            this._dragOrigY = this._dragActor.allocation.y1;
-            this._dragActorHadNatWidth = this._dragActor.natural_width_set;
-            this._dragActorHadNatHeight = this._dragActor.natural_height_set;
             this._dragOrigWidth = this._dragActor.allocation.get_width();
             this._dragOrigHeight = this._dragActor.allocation.get_height();
             this._dragOrigScale = this._dragActor.scale_x;
@@ -192,13 +193,11 @@ var DndGesture = GObject.registerClass({
 
             scaledWidth = transformedExtents.size.width;
             scaledHeight = transformedExtents.size.height;
-            this._dragActor.scale_x = scaledWidth / this._dragOrigWidth;
-            this._dragActor.scale_y = scaledHeight / this._dragOrigHeight;
 
-            this._dragOrigParent.remove_actor(this._dragActor);
-            Main.uiGroup.add_child(this._dragActor);
-            Main.uiGroup.set_child_above_sibling(this._dragActor, null);
-            Shell.util_set_hidden_from_pick(this._dragActor, true);
+            this._clone = new Clutter.Clone({ source: this._dragActor });
+            Main.uiGroup.add_child(this._clone);
+            Main.uiGroup.set_child_above_sibling(this._clone, null);
+            Shell.util_set_hidden_from_pick(this._clone, true);
 
             this._dragOrigParentDestroyId = this._dragOrigParent.connect('destroy', () => {
                 this._dragOrigParent = null;
@@ -239,15 +238,20 @@ var DndGesture = GObject.registerClass({
         this._dragOffsetX -= transX;
         this._dragOffsetY -= transY;
 
-        this._dragActor.set_position(
-            this._dragX + this._dragOffsetX,
-            this._dragY + this._dragOffsetY);
+        if (this._usingClone)
+            this._clone.set_position(
+                this._dragX + this._dragOffsetX,
+                this._dragY + this._dragOffsetY);
+        else
+            this._dragActor.set_position(
+                this._dragX + this._dragOffsetX,
+                this._dragY + this._dragOffsetY);
 
         if (this._dragActorMaxSize != undefined) {
             let currentSize = Math.max(scaledWidth, scaledHeight);
             if (currentSize > this._dragActorMaxSize) {
                 let scale = this._dragActorMaxSize / currentSize;
-                let origScale =  this._dragActor.scale_x;
+                let origScale =  this._usingClone ? this._clone.scale_x : this._dragActor.scale_x;
 
                 // The position of the actor changes as we scale
                 // around the drag position, but we can't just tween
@@ -255,21 +259,39 @@ var DndGesture = GObject.registerClass({
                 // fight with updates as the user continues dragging
                 // the mouse; instead we do the position computations in
                 // a ::new-frame handler.
-                this._dragActor.ease({
-                    scale_x: scale * origScale,
-                    scale_y: scale * origScale,
-                    duration: SCALE_ANIMATION_TIME,
-                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                    onComplete: () => {
+                if (this._usingClone) {
+                    this._clone.ease({
+                        scale_x: scale * origScale,
+                        scale_y: scale * origScale,
+                        duration: SCALE_ANIMATION_TIME,
+                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                        onComplete: () => {
+                            this._updateActorPosition(origScale,
+                                origDragOffsetX, origDragOffsetY, transX, transY);
+                        },
+                    });
+
+                    this._clone.get_transition('scale-x').connect('new-frame', () => {
                         this._updateActorPosition(origScale,
                             origDragOffsetX, origDragOffsetY, transX, transY);
-                    },
-                });
+                    });
+                } else {
+                    this._dragActor.ease({
+                        scale_x: scale * origScale,
+                        scale_y: scale * origScale,
+                        duration: SCALE_ANIMATION_TIME,
+                        mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                        onComplete: () => {
+                            this._updateActorPosition(origScale,
+                                origDragOffsetX, origDragOffsetY, transX, transY);
+                        },
+                    });
 
-                this._dragActor.get_transition('scale-x').connect('new-frame', () => {
-                    this._updateActorPosition(origScale,
-                        origDragOffsetX, origDragOffsetY, transX, transY);
-                });
+                    this._dragActor.get_transition('scale-x').connect('new-frame', () => {
+                        this._updateActorPosition(origScale,
+                            origDragOffsetX, origDragOffsetY, transX, transY);
+                    });
+                }
             }
         }
     }
@@ -290,12 +312,21 @@ var DndGesture = GObject.registerClass({
     }
 
     _updateActorPosition(origScale, origDragOffsetX, origDragOffsetY, transX, transY) {
-        const currentScale = this._dragActor.scale_x / origScale;
-        this._dragOffsetX = currentScale * origDragOffsetX - transX;
-        this._dragOffsetY = currentScale * origDragOffsetY - transY;
-        this._dragActor.set_position(
-            this._dragX + this._dragOffsetX,
-            this._dragY + this._dragOffsetY);
+        if (this._usingClone) {
+            const currentScale = this._clone.scale_x / origScale;
+            this._dragOffsetX = currentScale * origDragOffsetX - transX;
+            this._dragOffsetY = currentScale * origDragOffsetY - transY;
+            this._clone.set_position(
+                this._dragX + this._dragOffsetX,
+                this._dragY + this._dragOffsetY);
+        } else {
+            const currentScale = this._dragActor.scale_x / origScale;
+            this._dragOffsetX = currentScale * origDragOffsetX - transX;
+            this._dragOffsetY = currentScale * origDragOffsetY - transY;
+            this._dragActor.set_position(
+                this._dragX + this._dragOffsetX,
+                this._dragY + this._dragOffsetY);
+        }
     }
 
     _maybeStartDrag(point) {
@@ -326,8 +357,12 @@ var DndGesture = GObject.registerClass({
     }
 
     _pickTargetActor() {
-        return this._dragActor.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
-                                                            this._dragX, this._dragY);
+        if (this._usingClone)
+            return this._clone.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
+                                                                this._dragX, this._dragY);
+        else
+            return this._dragActor.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
+                                                                this._dragX, this._dragY);
     }
 
     _updateDragHover() {
@@ -400,8 +435,13 @@ var DndGesture = GObject.registerClass({
         const coords = point.latest_coords;
         this._dragX = coords.x;
         this._dragY = coords.y;
-        this._dragActor.set_position(coords.x + this._dragOffsetX,
+        if (this._usingClone)
+            this._clone.set_position(coords.x + this._dragOffsetX,
                                      coords.y + this._dragOffsetY);
+        else
+            this._dragActor.set_position(coords.x + this._dragOffsetX,
+                                     coords.y + this._dragOffsetY);
+
 
         this._queueUpdateDragHover();
         return true;
@@ -410,7 +450,12 @@ var DndGesture = GObject.registerClass({
     _dragActorDropped(point) {
         const [dropX, dropY] = [point.end_coords.x, point.end_coords.y];
 
-        let target = this._dragActor.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
+        let target;
+        if (this._usingClone)
+            target = this._clone.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
+                                                                  dropX, dropY);
+        else
+            target = this._dragActor.get_stage().get_actor_at_pos(Clutter.PickMode.ALL,
                                                                   dropX, dropY);
 
         // We call observers only once per motion with the innermost
@@ -456,12 +501,12 @@ var DndGesture = GObject.registerClass({
                 if (accepted) {
                     // If it accepted the drop without taking the actor,
                     // handle it ourselves.
-                    if (this._dragActor && this._dragActor.get_parent() == Main.uiGroup) {
+                    if (this._usingClone) {
                         if (this._restoreOnSuccess) {
-                            this._restoreDragActor(event.get_time());
+                            this._restoreDragActor(point.event_time);
                             return;
                         } else {
-                            this._dragActor.destroy();
+                            this._clone.destroy();
                         }
                     }
 
@@ -486,16 +531,16 @@ var DndGesture = GObject.registerClass({
             [x, y] = this._dragActorSource.get_transformed_position();
             let [sourceScaledWidth] = this._dragActorSource.get_transformed_size();
             scale = sourceScaledWidth ? sourceScaledWidth / this._dragActor.width : 0;
-        } else if (this._dragOrigParent) {
+        } else if (this._usingClone) {
             // Snap the actor back to its original position within
             // its parent, adjusting for the fact that the parent
             // may have been moved or scaled
-            let [parentX, parentY] = this._dragOrigParent.get_transformed_position();
-            let parentScale = _getRealActorScale(this._dragOrigParent);
+         //   let [parentX, parentY] = this._dragOrigParent.get_transformed_position();
+         //   let parentScale = _getRealActorScale(this._dragOrigParent);
 
-            x = parentX + parentScale * this._dragOrigX;
-            y = parentY + parentScale * this._dragOrigY;
-            scale = this._dragOrigScale * parentScale;
+            x = this._dragActor.get_transformed_extents().origin.x;
+            y = this._dragActor.get_transformed_extents().origin.y;
+            scale = 1;
         } else {
             // Snap back actor to its original stage position
             x = this._snapBackX;
@@ -510,9 +555,15 @@ var DndGesture = GObject.registerClass({
         let [restoreX, restoreY, restoreScale] = this._getRestoreLocation();
 
         // fade the actor back in at its original location
-        this._dragActor.set_position(restoreX, restoreY);
-        this._dragActor.set_scale(restoreScale, restoreScale);
-        this._dragActor.opacity = 0;
+        if (this._usingClone) {
+            this._clone.set_position(restoreX, restoreY);
+            this._clone.set_scale(restoreScale, restoreScale);
+            this._clone.opacity = 0;
+        } else {
+            this._dragActor.set_position(restoreX, restoreY);
+            this._dragActor.set_scale(restoreScale, restoreScale);
+            this._dragActor.opacity = 0;
+        }
 
         this._animateDragEnd(eventTime, {
             duration: REVERT_ANIMATION_TIME,
@@ -523,13 +574,23 @@ var DndGesture = GObject.registerClass({
         this._animationInProgress = true;
 
         // start the animation
-        this._dragActor.ease(Object.assign(params, {
-            opacity: this._dragOrigOpacity,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onStopped: () => {
-                this._onAnimationComplete(this._dragActor, eventTime);
-            },
-        }));
+        if (this._usingClone) {
+            this._clone.ease(Object.assign(params, {
+                opacity: this._dragOrigOpacity,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onStopped: () => {
+                    this._onAnimationComplete(this._clone, eventTime);
+                },
+            }));
+        } else {
+            this._dragActor.ease(Object.assign(params, {
+                opacity: this._dragOrigOpacity,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onStopped: () => {
+                    this._onAnimationComplete(this._dragActor, eventTime);
+                },
+            }));
+        }
     }
 
     _finishAnimation() {
@@ -543,18 +604,13 @@ var DndGesture = GObject.registerClass({
     }
 
     _onAnimationComplete(dragActor, eventTime) {
-        if (this._dragOrigParent) {
-            Main.uiGroup.remove_child(this._dragActor);
-            this._dragOrigParent.add_actor(this._dragActor);
-            dragActor.set_scale(this._dragOrigScale, this._dragOrigScale);
-            if (this._dragActorHadFixedPos)
-                dragActor.set_position(this._dragOrigX, this._dragOrigY);
-            else
-                dragActor.fixed_position_set = false;
-            if (this._dragActorHadNatWidth)
-                this._dragActor.set_width(-1);
-            if (this._dragActorHadNatHeight)
-                this._dragActor.set_height(-1);
+        if (this._usingClone) {
+log("DRAG: animation complete, reparenting to old actor");
+//            Main.uiGroup.remove_child(this._dragActor);
+  //          this._dragOrigParent.add_actor(this._dragActor);
+
+            Main.uiGroup.remove_child(this._clone);
+            this._clone.destroy();
         } else {
             dragActor.destroy();
         }
