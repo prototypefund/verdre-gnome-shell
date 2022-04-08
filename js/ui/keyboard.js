@@ -700,13 +700,13 @@ var EmojiPager = GObject.registerClass({
 
         this._initPagingInfo();
 
-        let panAction = new Clutter.PanAction({ interpolate: false });
-        panAction.connect('pan', this._onPan.bind(this));
-        panAction.connect('gesture-begin', this._onPanBegin.bind(this));
-        panAction.connect('gesture-cancel', this._onPanCancel.bind(this));
-        panAction.connect('gesture-end', this._onPanEnd.bind(this));
-        this._panAction = panAction;
-        this.add_action(panAction);
+        const panGesture = new Clutter.PanGesture();
+        panGesture.connect('pan-update', this._onPanUpdate.bind(this));
+        panGesture.connect('pan-begin', this._onPanBegin.bind(this));
+        panGesture.connect('pan-cancel', this._onPanCancel.bind(this));
+        panGesture.connect('pan-end', this._onPanEnd.bind(this));
+        this._panGesture = panGesture;
+        this.add_action(panGesture);
     }
 
     get delta() {
@@ -776,21 +776,17 @@ var EmojiPager = GObject.registerClass({
             return this._prevPage(this._curPage);
     }
 
-    _onPan(action) {
-        let [dist_, dx, dy_] = action.get_motion_delta(0);
-        this.delta += dx;
+    _onPanUpdate(action, deltaX, deltaY, totalDistance) {
+        this.delta += deltaX;
 
         if (this._currentKey != null) {
             this._currentKey.cancel();
             this._currentKey = null;
         }
-
-        return false;
     }
 
     _onPanBegin() {
         this._width = this.width;
-        return true;
     }
 
     _onPanEnd() {
@@ -890,7 +886,7 @@ var EmojiPager = GObject.registerClass({
                 this._currentKey = key;
             });
             key.connect('long-press', () => {
-                this._panAction.cancel();
+                this._panGesture.set_state(Clutter.GestureState.CANCELLED);
             });
             key.connect('released', (actor, keyval, str) => {
                 if (this._currentKey != key)
