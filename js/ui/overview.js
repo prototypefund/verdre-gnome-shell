@@ -235,6 +235,8 @@ var Overview = class extends Signals.EventEmitter {
         swipeTracker.connect('begin', this._gestureBegin.bind(this));
         swipeTracker.connect('update', this._gestureUpdate.bind(this));
         swipeTracker.connect('end', this._gestureEnd.bind(this));
+        global.stage.add_action_full('Overview swipe tracker',
+            Clutter.EventPhase.CAPTURE, swipeTracker);
         this._swipeTracker = swipeTracker;
     }
 
