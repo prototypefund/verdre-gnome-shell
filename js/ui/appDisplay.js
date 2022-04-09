@@ -320,6 +320,8 @@ var BaseAppView = GObject.registerClass({
         this._swipeTracker.connect('begin', this._swipeBegin.bind(this));
         this._swipeTracker.connect('update', this._swipeUpdate.bind(this));
         this._swipeTracker.connect('end', this._swipeEnd.bind(this));
+        this._swipeTracker.set_name('AppDisplay swipe tracker');
+        this._scrollView.add_action(this._swipeTracker);
 
         this._availWidth = 0;
         this._availHeight = 0;
