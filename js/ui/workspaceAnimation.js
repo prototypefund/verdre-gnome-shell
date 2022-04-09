@@ -289,6 +289,8 @@ var WorkspaceAnimationController = class {
         swipeTracker.connect('begin', this._switchWorkspaceBegin.bind(this));
         swipeTracker.connect('update', this._switchWorkspaceUpdate.bind(this));
         swipeTracker.connect('end', this._switchWorkspaceEnd.bind(this));
+        global.stage.add_action_full('WorkspaceAnimation swipe tracker',
+            Clutter.EventPhase.CAPTURE, swipeTracker);
         this._swipeTracker = swipeTracker;
 
         global.display.bind_property('compositor-modifiers',

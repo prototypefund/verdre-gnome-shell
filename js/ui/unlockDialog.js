@@ -499,6 +499,8 @@ var UnlockDialog = GObject.registerClass({
         this._swipeTracker.connect('begin', this._swipeBegin.bind(this));
         this._swipeTracker.connect('update', this._swipeUpdate.bind(this));
         this._swipeTracker.connect('end', this._swipeEnd.bind(this));
+        this._swipeTracker.set_name('UnlockDialog swipe tracker');
+        this.add_action(this._swipeTracker);
 
         this.connect('scroll-event', (o, event) => {
             if (this._swipeTracker.canHandleScrollEvent(event))
