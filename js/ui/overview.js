@@ -227,7 +227,7 @@ var Overview = class extends Signals.EventEmitter {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             this.toggle.bind(this));
 
-        const swipeTracker = new SwipeTracker.SwipeTracker(global.stage,
+        const swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             { allowDrag: false, allowScroll: false });

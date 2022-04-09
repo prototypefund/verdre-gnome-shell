@@ -212,6 +212,10 @@ const ScrollGesture = GObject.registerClass({
             'enabled', 'enabled', 'enabled',
             GObject.ParamFlags.READWRITE,
             true),
+        'actor': GObject.ParamSpec.object(
+            'actor', 'actor', 'actor',
+            GObject.ParamFlags.READWRITE,
+            Clutter.Actor.$gtype),
         'orientation': GObject.ParamSpec.enum(
             'orientation', 'orientation', 'orientation',
             GObject.ParamFlags.READWRITE,
@@ -227,13 +231,13 @@ const ScrollGesture = GObject.registerClass({
         'end':    { param_types: [GObject.TYPE_UINT] },
     },
 }, class ScrollGesture extends GObject.Object {
-    _init(actor, allowedModes) {
+    _init(allowedModes) {
         super._init();
         this._allowedModes = allowedModes;
         this._began = false;
         this._enabled = true;
 
-        actor.connect('scroll-event', this._handleEvent.bind(this));
+        this._actor = null;
     }
 
     get enabled() {
@@ -248,6 +252,27 @@ const ScrollGesture = GObject.registerClass({
         this._began = false;
 
         this.notify('enabled');
+    }
+
+    get actor() {
+        return this._actor;
+    }
+
+    set actor(actor) {
+        if (this._actor === actor)
+            return;
+
+        if (this._actor) {
+            this._actor.disconnect(this._scrollEventId);
+            delete this._scrollEventId;
+        }
+        this._actor = actor;
+        if (this._actor) {
+            this._scrollEventId =
+                this._actor.connect('scroll-event', this._handleEvent.bind(this));
+        }
+
+        this.notify('actor');
     }
 
     canHandleEvent(event) {
@@ -358,7 +383,7 @@ var SwipeTracker = GObject.registerClass({
         'end':    { param_types: [GObject.TYPE_UINT64, GObject.TYPE_DOUBLE] },
     },
 }, class SwipeTracker extends Clutter.PanGesture {
-    _init(actor, orientation, allowedModes, params) {
+    _init(orientation, allowedModes, params) {
         params = Params.parse(params, { allowDrag: true, allowScroll: true });
 
         super._init({
@@ -389,11 +414,14 @@ var SwipeTracker = GObject.registerClass({
             GObject.BindingFlags.SYNC_CREATE);
 
         if (params.allowScroll) {
-            this._scrollGesture = new ScrollGesture(actor, allowedModes);
+            this._scrollGesture = new ScrollGesture(allowedModes);
             this._scrollGesture.connect('begin', this._beginTouchpadGesture.bind(this));
             this._scrollGesture.connect('update', this._updateTouchpadGesture.bind(this));
             this._scrollGesture.connect('end', this._endTouchpadGesture.bind(this));
-            this.bind_property('enabled', this._scrollGesture, 'enabled', 0);
+            this.bind_property('enabled', this._scrollGesture, 'enabled',
+                GObject.BindingFlags.SYNC_CREATE);
+            this.bind_property('actor', this._scrollGesture, 'actor',
+                GObject.BindingFlags.SYNC_CREATE);
             this.bind_property('orientation', this._scrollGesture, 'orientation',
                 GObject.BindingFlags.SYNC_CREATE);
             this.bind_property('scroll-modifiers',
