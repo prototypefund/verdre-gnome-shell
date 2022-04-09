@@ -833,6 +833,8 @@ class WorkspacesDisplay extends St.Widget {
         this._swipeTracker.connect('begin', this._switchWorkspaceBegin.bind(this));
         this._swipeTracker.connect('update', this._switchWorkspaceUpdate.bind(this));
         this._swipeTracker.connect('end', this._switchWorkspaceEnd.bind(this));
+        this._swipeTracker.set_name('WorkspacesView swipe tracker');
+        Main.layoutManager.overviewGroup.add_action(this._swipeTracker);
         this.connect('notify::mapped', this._updateSwipeTracker.bind(this));
 
         workspaceManager.connectObject(
