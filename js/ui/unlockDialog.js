@@ -493,7 +493,7 @@ var UnlockDialog = GObject.registerClass({
             this._setTransitionProgress(this._adjustment.value);
         });
 
-        this._swipeTracker = new SwipeTracker.SwipeTracker(this,
+        this._swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.UNLOCK_SCREEN);
         this._swipeTracker.connect('begin', this._swipeBegin.bind(this));
