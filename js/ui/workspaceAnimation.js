@@ -282,7 +282,7 @@ var WorkspaceAnimationController = class {
             this._swipeTracker.enabled = true;
         });
 
-        const swipeTracker = new SwipeTracker.SwipeTracker(global.stage,
+        const swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.NORMAL,
             { allowDrag: false });
