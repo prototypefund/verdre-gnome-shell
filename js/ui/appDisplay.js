@@ -1922,9 +1922,12 @@ class AppViewItem extends St.Button {
         if (isDraggable) {
             this._draggable = DND.makeDraggable(this, { timeoutThreshold: 200 });
 
-            this._draggable.connect('drag-begin', this._onDragBegin.bind(this));
-            this._draggable.connect('drag-cancelled', this._onDragCancelled.bind(this));
-            this._draggable.connect('drag-end', this._onDragEnd.bind(this));
+            this._dragBeginId = this._draggable.connect('drag-begin',
+                this._onDragBegin.bind(this));
+            this._dragCancelledId = this._draggable.connect('drag-cancelled',
+                this._onDragCancelled.bind(this));
+            this._dragEndId = this._draggable.connect('drag-end',
+                this._onDragEnd.bind(this));
         }
 
         this._otherIconIsHovering = false;
@@ -1944,6 +1947,11 @@ class AppViewItem extends St.Button {
         if (this._draggable) {
             if (this._dragging)
                 Main.overview.endItemDrag(this);
+
+            this._draggable.disconnect(this._dragBeginId);
+            this._draggable.disconnect(this._dragCancelledId);
+            this._draggable.disconnect(this._dragEndId);
+
             this._draggable = null;
         }
     }
