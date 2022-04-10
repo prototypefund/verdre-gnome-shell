@@ -117,18 +117,6 @@ var DndGesture = GObject.registerClass({
         this._actor = actor;
     }
 
-    /**
-     * fakeRelease:
-     *
-     * Fake a release event.
-     * Must be called if you want to intercept release events on draggable
-     * actors for other purposes (for example if you're using
-     * PopupMenu.ignoreRelease())
-     */
-    fakeRelease() {
-        this.set_state(Clutter.GestureState.CANCELLED);
-    }
-
     _gestureRecognizing() {
         const pressCoords = this.get_points()[0].begin_coords;
 
