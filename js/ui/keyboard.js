@@ -1551,8 +1551,6 @@ var Keyboard = GObject.registerClass({
         let extraButton;
         for (let i = 0; i < keys.length; i++) {
             let key = keys[i];
-            let keyval = key.keyval;
-            let switchToLevel = key.level;
             let action = key.action;
             let icon = key.icon;
 
@@ -1563,36 +1561,36 @@ var Keyboard = GObject.registerClass({
             extraButton = new Key(key.label || '', [], icon);
 
             extraButton.keyButton.add_style_class_name('default-key');
-            if (key.extraClassName != null)
+            if ('extraClassName' in key)
                 extraButton.keyButton.add_style_class_name(key.extraClassName);
-            if (key.width != null)
+            if ('width' in key)
                 extraButton.setWidth(key.width);
 
             let actor = extraButton.keyButton;
 
             extraButton.connect('pressed', () => {
-                if (switchToLevel != null) {
-                    this._setActiveLayer(switchToLevel);
+                if ('level' in key) {
+                    this._setActiveLayer(key.level);
                     // Shift only gets latched on long press
-                    this._latched = switchToLevel != 1;
-                } else if (keyval != null) {
-                    this._keyboardController.keyvalPress(keyval);
+                    this._latched = key.level !== 1;
+                } else if ('keyval' in key) {
+                    this._keyboardController.keyvalPress(key.keyval);
                 }
             });
             extraButton.connect('released', () => {
-                if (keyval != null)
-                    this._keyboardController.keyvalRelease(keyval);
-                else if (action == 'hide')
+                if ('keyval' in key)
+                    this._keyboardController.keyvalRelease(key.keyval);
+                else if (action === 'hide')
                     this.close();
-                else if (action == 'languageMenu')
+                else if (action === 'languageMenu')
                     this._popupLanguageMenu(actor);
-                else if (action == 'emoji')
+                else if (action === 'emoji')
                     this._toggleEmoji();
             });
 
-            if (switchToLevel == 0) {
+            if (key.level === 0) {
                 layout.shiftKeys.push(extraButton);
-            } else if (switchToLevel == 1) {
+            } else if (key.level === 1) {
                 extraButton.connect('long-press', () => {
                     this._latched = true;
                     this._setCurrentLevelLatched(this._currentPage, this._latched);
@@ -1600,7 +1598,7 @@ var Keyboard = GObject.registerClass({
             }
 
             /* Fixup default keys based on the number of levels/keys */
-            if (switchToLevel == 1 && numLevels == 3) {
+            if (key.level === 1 && numLevels === 3) {
                 // Hide shift key if the keymap has no uppercase level
                 if (key.right) {
                     /* Only hide the key actor, so the container still takes space */
@@ -1611,7 +1609,7 @@ var Keyboard = GObject.registerClass({
                 extraButton.setWidth(1.5);
             } else if (key.right && numKeys > 8) {
                 extraButton.setWidth(2);
-            } else if (keyval == Clutter.KEY_Return && numKeys > 9) {
+            } else if (key.keyval === Clutter.KEY_Return && numKeys > 9) {
                 extraButton.setWidth(1.5);
             } else if (!this._emojiKeyVisible && (action == 'hide' || action == 'languageMenu')) {
                 extraButton.setWidth(1.5);
