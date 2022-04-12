@@ -28,47 +28,47 @@ const defaultKeysPre = [
     [
         [],
         [],
-        [{ width: 1.5, level: 1, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic' }],
-        [{ label: '?123', width: 1.5, level: 2 }],
+        [{ width: 1.5, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 1 }}],
+        [{ label: '?123', width: 1.5, action: { switchToLevel: 2 }}],
     ], [
         [],
         [],
-        [{ width: 1.5, level: 0, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic' }],
-        [{ label: '?123', width: 1.5, level: 2 }],
+        [{ width: 1.5, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 0 }}],
+        [{ label: '?123', width: 1.5, action: { switchToLevel: 0 }}],
     ], [
         [],
         [],
-        [{ label: '=/<', width: 1.5, level: 3 }],
-        [{ label: 'ABC', width: 1.5, level: 0 }],
+        [{ label: '=/<', width: 1.5, action: { switchToLevel: 3 }}],
+        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}],
     ], [
         [],
         [],
-        [{ label: '?123', width: 1.5, level: 2 }],
-        [{ label: 'ABC', width: 1.5, level: 0 }],
+        [{ label: '?123', width: 1.5, action: { switchToLevel: 2 }}],
+        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}],
     ],
 ];
 
 const defaultKeysPost = [
     [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic' }],
-        [{ width: 2, keyval: Clutter.KEY_Return, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic' }],
-        [{ width: 3, level: 1, right: true, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic' }],
-        [{ action: 'emoji', icon: 'face-smile-symbolic' }, { action: 'languageMenu', extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: 'hide', extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
+        [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
+        [{ width: 3, right: true, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 1 }}],
+        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic' }],
-        [{ width: 2, keyval: Clutter.KEY_Return, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic' }],
-        [{ width: 3, level: 0, right: true, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic' }],
-        [{ action: 'emoji', icon: 'face-smile-symbolic' }, { action: 'languageMenu', extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: 'hide', extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
+        [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
+        [{ width: 3, right: true, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 0 }}],
+        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic' }],
-        [{ width: 2, keyval: Clutter.KEY_Return, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic' }],
-        [{ label: '=/<', width: 3, level: 3, right: true }],
-        [{ action: 'emoji', icon: 'face-smile-symbolic' }, { action: 'languageMenu', extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: 'hide', extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
+        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
+        [{ label: '=/<', width: 3, right: true,  action: { switchToLevel: 3 }}],
+        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic' }],
-        [{ width: 2, keyval: Clutter.KEY_Return, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic' }],
-        [{ label: '?123', width: 3, level: 2, right: true }],
-        [{ action: 'emoji', icon: 'face-smile-symbolic' }, { action: 'languageMenu', extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: 'hide', extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
+        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
+        [{ label: '?123', width: 3, right: true,  action: { switchToLevel: 2 }}],
+        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ],
 ];
 
@@ -1550,6 +1550,48 @@ var Keyboard = GObject.registerClass({
         this._languagePopup.open(true);
     }
 
+    _connectExtraButtonAction(extraButton, action) {
+        if ('keyval' in action) {
+            if (action.keyval === Clutter.KEY_BackSpace) {
+                extraButton.connect('press', () =>
+                    this._keyboardController.keyvalPress(action.keyval));
+                extraButton.connect('release', () =>
+                    this._keyboardController.keyvalRelease(action.keyval));
+                extraButton.connect('cancel', () =>
+                    this._keyboardController.keyvalRelease(action.keyval));
+            } else {
+                extraButton.connect('release', () => {
+                    this._keyboardController.keyvalPress(action.keyval);
+                    this._keyboardController.keyvalRelease(action.keyval);
+                });
+            }
+        } else if ('switchToLevel' in action) {
+            if (action.switchToLevel === 1) {
+                const longPressGesture = new Clutter.LongPressGesture({
+                    long_press_duration: KEY_LONG_PRESS_TIME,
+                });
+                longPressGesture.connect('long-press-begin', () => {
+                    this._latched = true;
+                    this._setCurrentLevelLatched(this._currentPage, this._latched);
+                });
+                extraButton.keyButton.add_action(longPressGesture);
+            }
+
+            extraButton.connect('press', () => {
+                this._setActiveLayer(action.switchToLevel);
+                // Shift only gets latched on long press
+                this._latched = action.switchToLevel !== 1;
+            });
+        } else if ('switchToPage' in action) {
+            if (action.switchToPage === 'languageMenu')
+                extraButton.connect('release', () => this._popupLanguageMenu(extraButton));
+            else if (action.switchToPage === 'emoji')
+                extraButton.connect('release', () => this._toggleEmoji());
+            else if (action.switchToPage === 'none')
+                extraButton.connect('release', () => this.close());
+        }
+    }
+
     _loadDefaultKeys(keys, layout, numLevels, numKeys) {
         let extraButton;
         for (let i = 0; i < keys.length; i++) {
@@ -1569,47 +1611,13 @@ var Keyboard = GObject.registerClass({
             if ('width' in key)
                 extraButton.setWidth(key.width);
 
-            let actor = extraButton.keyButton;
+            this._connectExtraButtonAction(extraButton, key.action);
 
-            extraButton.connect('press', () => {
-                if ('level' in key) {
-                    this._setActiveLayer(key.level);
-                    // Shift only gets latched on long press
-                    this._latched = key.level !== 1;
-                } else if ('keyval' in key) {
-                    this._keyboardController.keyvalPress(key.keyval);
-                }
-            });
-            extraButton.connect('release', () => {
-                if ('keyval' in key)
-                    this._keyboardController.keyvalRelease(key.keyval);
-                else if (action === 'hide')
-                    this.close();
-                else if (action === 'languageMenu')
-                    this._popupLanguageMenu(actor);
-                else if (action === 'emoji')
-                    this._toggleEmoji();
-            });
-            extraButton.connect('cancel', () => {
-                if (keyval != null)
-                    this._keyboardController.keyvalRelease(keyval);
-            });
-
-            if (key.level === 0) {
+            if ('switchToLevel' in action && action.switchTolevel === 0)
                 layout.shiftKeys.push(extraButton);
-            } else if (key.level === 1) {
-                const longPressGesture = new Clutter.LongPressGesture({
-                    long_press_duration: KEY_LONG_PRESS_TIME,
-                });
-                longPressGesture.connect('long-press-begin', () => {
-                    this._latched = true;
-                    this._setCurrentLevelLatched(this._currentPage, this._latched);
-                });
-                extraButton.keyButton.add_action(longPressGesture);
-            }
 
             /* Fixup default keys based on the number of levels/keys */
-            if (key.level === 1 && numLevels == 3) {
+            if ('switchToLevel' in action && action.switchTolevel === 1 && numLevels == 3) {
                 // Hide shift key if the keymap has no uppercase level
                 if (key.right) {
                     /* Only hide the key actor, so the container still takes space */
@@ -1622,7 +1630,8 @@ var Keyboard = GObject.registerClass({
                 extraButton.setWidth(2);
             } else if (key.keyval === Clutter.KEY_Return && numKeys > 9) {
                 extraButton.setWidth(1.5);
-            } else if (!this._emojiKeyVisible && (action == 'hide' || action == 'languageMenu')) {
+            } else if (!this._emojiKeyVisible && 'switchToPage' in action &&
+                       (action.switchToPage === 'none' || action.switchToPage === 'languageMenu')) {
                 extraButton.setWidth(1.5);
             }
 
