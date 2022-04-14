@@ -330,6 +330,16 @@ var KeyClickGesture = GObject.registerClass({
 
         return [cancel, inhibit];
     }
+
+    vfunc_other_gesture_may_start(otherGesture, shouldStart) {
+        if (otherGesture instanceof KeyClickGesture) {
+            log("found another key click gest should " + shouldStart);
+            this.set_state(Clutter.GestureState.RECOGNIZED);
+            return true;
+        }
+
+        return shouldStart;
+    }
 });
 
 var Key = GObject.registerClass({
