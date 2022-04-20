@@ -1416,11 +1416,13 @@ class LookingGlass extends St.BoxLayout {
         this._resize();
     }
 
-    vfunc_captured_event(event) {
-        if (Main.keyboard.maybeHandleEvent(event))
-            return Clutter.EVENT_STOP;
-
-        return Clutter.EVENT_PROPAGATE;
+    vfunc_collect_event_actors(target, forEvent) {
+        if (Main.layoutManager.keyboardBox.contains(target) ||
+            !!target._extendedKeys || !!target.extendedKey) {
+            return Main.uiGroup.get_event_actors(target, forEvent);
+        } else {
+            return this.get_event_actors(target, forEvent);
+        }
     }
 
     _updateFont() {
