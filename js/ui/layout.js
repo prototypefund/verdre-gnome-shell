@@ -302,13 +302,12 @@ var LayoutManager = GObject.registerClass({
         });
         this.uiGroup.add_actor(this.modalDialogGroup);
 
-        this.keyboardBox = new St.BoxLayout({
+        this.keyboardBox = new St.Widget({
+            layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.FILL }),
             name: 'keyboardBox',
-            reactive: true,
-            track_hover: true,
+            visible: false,
         });
         this.addTopChrome(this.keyboardBox);
-        this._keyboardHeightNotifyId = 0;
 
         this.screenshotUIGroup = new St.Widget({
             name: 'screenshotUIGroup',
@@ -376,6 +375,7 @@ var LayoutManager = GObject.registerClass({
     init() {
         Main.sessionMode.connect('updated', this._sessionUpdated.bind(this));
 
+        this.keyboardBox.add_constraint(new MonitorConstraint({ primary: true }));
         this._loadBackground();
 
         Main.overview.connect('showing', () => {
@@ -578,12 +578,6 @@ var LayoutManager = GObject.registerClass({
         return Promise.all(this._bgManagers.map(this._waitLoaded));
     }
 
-    _updateKeyboardBox() {
-        this.keyboardBox.set_position(this.keyboardMonitor.x,
-                                      this.keyboardMonitor.y + this.keyboardMonitor.height);
-        this.keyboardBox.set_size(this.keyboardMonitor.width, -1);
-    }
-
     _updateBoxes() {
         if (!this.primaryMonitor)
             return;
@@ -682,7 +676,6 @@ var LayoutManager = GObject.registerClass({
 
     set keyboardIndex(v) {
         this._keyboardIndex = v;
-        this._updateKeyboardBox();
     }
 
     get keyboardIndex() {
@@ -766,8 +759,6 @@ var LayoutManager = GObject.registerClass({
             // the UI group to get the correct allocation for the struts.
             this._updateRegions();
 
-            this.keyboardBox.hide();
-
             let monitor = this.primaryMonitor;
 
             if (!Main.sessionMode.hasOverview) {
@@ -833,8 +824,6 @@ var LayoutManager = GObject.registerClass({
         this._systemBackground = null;
 
         this._startingUp = false;
-
-        this.keyboardBox.show();
 
         if (!Main.sessionMode.isGreeter) {
             this._showSecondaryBackgrounds();
