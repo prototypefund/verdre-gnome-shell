@@ -95,6 +95,15 @@ var ModalDialog = GObject.registerClass({
         this._savedKeyFocus = null;
     }
 
+    vfunc_collect_event_actions(target, forEvent) {
+        if (Main.layoutManager.keyboardBox.contains(target) ||
+            !!target._extendedKeys || !!target.extendedKey) {
+            return Main.uiGroup.get_event_actions(target, forEvent);
+        } else {
+            return this.get_event_actions(target, forEvent);
+        }
+    }
+
     get state() {
         return this._state;
     }

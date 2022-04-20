@@ -865,6 +865,15 @@ var UnlockDialog = GObject.registerClass({
         this._authPrompt.finish(onComplete);
     }
 
+    vfunc_collect_event_actions(target, forEvent) {
+        if (Main.layoutManager.keyboardBox.contains(target) ||
+            !!target._extendedKeys || !!target.extendedKey) {
+            return Main.uiGroup.get_event_actions(target, forEvent);
+        } else {
+            return this.get_event_actions(target, forEvent);
+        }
+    }
+
     open(timestamp) {
         this.show();
 
