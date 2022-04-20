@@ -350,19 +350,20 @@ var Key = GObject.registerClass({
         'cancelled': {},
         'commit': {param_types: [GObject.TYPE_UINT, GObject.TYPE_STRING]},
     },
-}, class Key extends St.BoxLayout {
+}, class Key extends St.Button {
     _init(params, extendedKeys = []) {
         const {label, iconName, commitString, keyval} = {keyval: 0, ...params};
+
         super._init({ style_class: 'key-container' });
+        this.get_click_gesture().enabled = false;
 
         this._keyval = parseInt(keyval, 16);
-        this.keyButton = this._makeKey(commitString, label, iconName);
-        this.keyButton.get_click_gesture().enabled = false;
+        this._keyBin = this._makeKey(commitString, label, iconName);
 
         /* Add the key in a container, so keys can be padded without losing
          * logical proportions between those.
          */
-        this.add_child(this.keyButton);
+        this.set_child(this._keyBin);
         this.connect('destroy', this._onDestroy.bind(this));
 
         this._extendedKeys = extendedKeys;
@@ -370,19 +371,19 @@ var Key = GObject.registerClass({
 
         const keyClickGesture = new KeyClickGesture();
         keyClickGesture.connect('press', () => {
-            this.keyButton.add_style_pseudo_class('active');
+            this.add_style_pseudo_class('active');
             this.emit('pressed');
         });
         keyClickGesture.connect('release', () => {
-            this.keyButton.remove_style_pseudo_class('active');
+            this.remove_style_pseudo_class('active');
             this.emit('commit', this._getKeyvalFromString(commitString), commitString || '');
             this.emit('released');
         });
         keyClickGesture.connect('cancel', () => {
-            this.keyButton.remove_style_pseudo_class('active');
+            this.remove_style_pseudo_class('active');
             this.emit('cancelled');
         });
-        this.keyButton.add_action(keyClickGesture);
+        this.add_action(keyClickGesture);
 
         const longPressAndDragGesture = new LongPressAndDragGesture({
             long_press_duration: KEY_LONG_PRESS_TIME,
@@ -415,7 +416,7 @@ var Key = GObject.registerClass({
             this._hideSubkeys();
         });
 
-        this.keyButton.add_action(longPressAndDragGesture);
+        this.add_action(longPressAndDragGesture);
     }
 
     get iconName() {
@@ -443,12 +444,12 @@ var Key = GObject.registerClass({
         this._boxPointer = new BoxPointer.BoxPointer(St.Side.BOTTOM);
         this._boxPointer.hide();
         Main.layoutManager.addTopChrome(this._boxPointer);
-        this._boxPointer.setPosition(this.keyButton, 0.5);
+        this._boxPointer.setPosition(this._keyBin, 0.5);
 
         // Adds style to existing keyboard style to avoid repetition
         this._boxPointer.add_style_class_name('keyboard-subkeys');
         this._getExtendedKeys();
-        this.keyButton._extendedKeys = this._extendedKeyboard;
+        this._extendedKeys = this._extendedKeyboard;
     }
 
     _getKeyvalFromString(string) {
@@ -458,12 +459,12 @@ var Key = GObject.registerClass({
 
     _showSubkeys() {
         this._boxPointer.open(BoxPointer.PopupAnimation.FULL);
-        this.keyButton.connectObject('notify::mapped', () => {
-            if (!this.keyButton.is_mapped())
+        this.connectObject('notify::mapped', () => {
+            if (!this.is_mapped())
                 this._hideSubkeys();
         }, this);
 
-        this.keyButton.checked = true;
+        this.checked = true;
 
         this._coverActor = new Clutter.Actor({ reactive: true });
         this._coverActor.add_constraint(new Clutter.BindConstraint({
@@ -484,16 +485,16 @@ var Key = GObject.registerClass({
     _hideSubkeys() {
         if (this._boxPointer)
             this._boxPointer.close(BoxPointer.PopupAnimation.FULL);
-        this.keyButton.disconnectObject(this);
+        this.disconnectObject(this);
 
-        this.keyButton.checked = false;
+        this.checked = false;
 
         this._coverActor.destroy();
     }
 
     _makeKey(commitString, label, icon) {
-        let button = new St.Button({
-            style_class: 'keyboard-key',
+        const button = new St.Button({
+            style_class: 'visible-key',
             x_expand: true,
         });
 
@@ -502,37 +503,44 @@ var Key = GObject.registerClass({
             button.set_child(child);
             this._icon = child;
         } else if (label) {
-            button.set_label(label);
+            const labelActor = new St.Label({
+                text: GLib.markup_escape_text(label, -1) || '',
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            labelActor.clutter_text.use_markup = true;
+            button.set_child(labelActor);
         } else if (commitString) {
             const str = GLib.markup_escape_text(commitString, -1);
             button.set_label(str);
         }
-
-        button.keyWidth = 1;
 
         return button;
     }
 
     _getExtendedKeys() {
         this._extendedKeyboard = new St.BoxLayout({
-            style_class: 'key-container',
+            style_class: 'extended-keys',
             vertical: false,
         });
         for (let i = 0; i < this._extendedKeys.length; ++i) {
             let extendedKey = this._extendedKeys[i];
-            const keyButton = this._makeKey(extendedKey);
+            const button = new St.Button({ style_class: 'key-container' });
+            button._keyBin = this._makeKey(extendedKey);
+            button.set_child(button._keyBin);
 
-            keyButton.connect('clicked', () => {
+            button.connect('clicked', () => {
                 this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey);
+
                 this._hideSubkeys();
             });
 
-            keyButton.extendedKey = extendedKey;
-            this._extendedKeyboard.add(keyButton);
+            button.extendedKey = extendedKey;
+            this._extendedKeyboard.add(button);
 
-            keyButton.set_size(...this.keyButton.allocation.get_size());
-            this.keyButton.connect('notify::allocation',
-                () => keyButton.set_size(...this.keyButton.allocation.get_size()));
+            button._keyBin.set_size(...this._keyBin.allocation.get_size());
+            this._keyBin.connect('notify::allocation',
+                () => button._keyBin.set_size(...this._keyBin.allocation.get_size()));
         }
         this._boxPointer.bin.add_actor(this._extendedKeyboard);
     }
@@ -541,15 +549,11 @@ var Key = GObject.registerClass({
         return this._boxPointer;
     }
 
-    setWidth(width) {
-        this.keyButton.keyWidth = width;
-    }
-
     setLatched(latched) {
         if (latched)
-            this.keyButton.add_style_pseudo_class('latched');
+            this.add_style_pseudo_class('latched');
         else
-            this.keyButton.remove_style_pseudo_class('latched');
+            this.remove_style_pseudo_class('latched');
     }
 });
 
@@ -1078,7 +1082,7 @@ var EmojiSelection = GObject.registerClass({
         row.appendRow();
 
         key = new Key({label: 'ABC'}, []);
-        key.keyButton.add_style_class_name('default-key');
+        key.add_style_class_name('default-key');
         key.connect('released', () => this.emit('toggle'));
         row.appendKey(key, 1.5);
 
@@ -1093,8 +1097,8 @@ var EmojiSelection = GObject.registerClass({
         }
 
         key = new Key({iconName: 'go-down-symbolic'});
-        key.keyButton.add_style_class_name('default-key');
-        key.keyButton.add_style_class_name('hide-key');
+        key.add_style_class_name('default-key');
+        key.add_style_class_name('hide-key');
         key.connect('released', () => {
             this.emit('close-request');
         });
@@ -1170,7 +1174,7 @@ var Keypad = GObject.registerClass({
             });
 
             if (keys[i].extraClassName)
-                key.keyButton.add_style_class_name(cur.extraClassName);
+                key.add_style_class_name(cur.extraClassName);
 
             let w, h;
             w = cur.width || 1;
@@ -1525,6 +1529,7 @@ var Keyboard = GObject.registerClass({
             const key = keys[i];
             const {strings} = key;
             const commitString = strings?.shift();
+            let width = 1;
 
             let button = new Key({
                 commitString,
@@ -1534,7 +1539,7 @@ var Keyboard = GObject.registerClass({
             }, strings);
 
             if (key.width !== null)
-                button.setWidth(key.width);
+                width = key.width;
 
             if (key.action !== 'modifier') {
                 button.connect('commit', (actor, keyval, str) => {
@@ -1613,9 +1618,9 @@ var Keyboard = GObject.registerClass({
             }
 
             if (key.action || key.keyval)
-                button.keyButton.add_style_class_name('default-key');
+                button.add_style_class_name('default-key');
 
-            layout.appendKey(button, button.keyButton.keyWidth);
+            layout.appendKey(button, width);
         }
     }
 
