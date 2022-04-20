@@ -379,18 +379,18 @@ var Key = GObject.registerClass({
         'release': { param_types: [GObject.TYPE_UINT, GObject.TYPE_STRING] },
         'cancel': {},
     },
-}, class Key extends St.BoxLayout {
+}, class Key extends St.Button {
     _init(key, extendedKeys, icon = null) {
         super._init({ style_class: 'key-container' });
+        this.get_click_gesture().enabled = false;
 
         this.key = key || "";
-        this.keyButton = this._makeKey(this.key, icon);
-        this.keyButton.get_click_gesture().enabled = false;
+        this._keyBin = this._makeKey(this.key, icon);
 
         /* Add the key in a container, so keys can be padded without losing
          * logical proportions between those.
          */
-        this.add_child(this.keyButton);
+        this.set_child(this._keyBin);
         this.connect('destroy', this._onDestroy.bind(this));
 
         this._extendedKeys = extendedKeys;
@@ -398,18 +398,18 @@ var Key = GObject.registerClass({
 
         const keyClickGesture = new KeyClickGesture();
         keyClickGesture.connect('press', () => {
-            this.keyButton.add_style_pseudo_class('active');
+            this.add_style_pseudo_class('active');
             this.emit('press', this._getKeyval(key), key);
         });
         keyClickGesture.connect('release', () => {
-            this.keyButton.remove_style_pseudo_class('active');
+            this.remove_style_pseudo_class('active');
             this.emit('release', this._getKeyval(key), key);
         });
         keyClickGesture.connect('cancel', () => {
-            this.keyButton.remove_style_pseudo_class('active');
+            this.remove_style_pseudo_class('active');
             this.emit('cancel');
         });
-        this.keyButton.add_action(keyClickGesture);
+        this.add_action(keyClickGesture);
 
         if (this._extendedKeys.length > 0) {
             const longPressAndDragGesture = new LongPressAndDragGesture({
@@ -439,7 +439,7 @@ var Key = GObject.registerClass({
                 delete this._currentExtendedKeyButton;
                 this._hideSubkeys();
             });
-            this.keyButton.add_action(longPressAndDragGesture);
+            this.add_action(longPressAndDragGesture);
         }
     }
 
@@ -460,12 +460,12 @@ var Key = GObject.registerClass({
         this._boxPointer = new BoxPointer.BoxPointer(St.Side.BOTTOM);
         this._boxPointer.hide();
         Main.layoutManager.addTopChrome(this._boxPointer);
-        this._boxPointer.setPosition(this.keyButton, 0.5);
+        this._boxPointer.setPosition(this._keyBin, 0.5);
 
         // Adds style to existing keyboard style to avoid repetition
         this._boxPointer.add_style_class_name('keyboard-subkeys');
         this._getExtendedKeys();
-        this.keyButton._extendedKeys = this._extendedKeyboard;
+        this._extendedKeys = this._extendedKeyboard;
     }
 
     _getKeyval(key) {
@@ -475,11 +475,11 @@ var Key = GObject.registerClass({
 
     _showSubkeys() {
         this._boxPointer.open(BoxPointer.PopupAnimation.FULL);
-        this.keyButton.connectObject('notify::mapped', () => {
-            if (!this.keyButton.is_mapped())
+        this.connectObject('notify::mapped', () => {
+            if (!this.is_mapped())
                 this._hideSubkeys();
         }, this);
-        this.keyButton.checked = true;
+        this.checked = true;
 
         this._coverActor = new Clutter.Actor({ reactive: true });
         this._coverActor.add_constraint(new Clutter.BindConstraint({
@@ -500,15 +500,15 @@ var Key = GObject.registerClass({
     _hideSubkeys() {
         if (this._boxPointer)
             this._boxPointer.close(BoxPointer.PopupAnimation.FULL);
-        this.keyButton.disconnectObject(this);
-        this.keyButton.checked = false;
+        this.disconnectObject(this);
+        this.checked = false;
 
         this._coverActor.destroy();
     }
 
     _makeKey(key, icon) {
-        let button = new St.Button({
-            style_class: 'keyboard-key',
+        const button = new St.Bin({
+            style_class: 'visible-key',
             x_expand: true,
         });
 
@@ -517,37 +517,42 @@ var Key = GObject.registerClass({
             button.set_child(child);
             this._icon = child;
         } else {
-            let label = GLib.markup_escape_text(key, -1);
-            button.set_label(label);
+            const label = new St.Label({
+                text: GLib.markup_escape_text(key, -1),
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            label.clutter_text.use_markup = true;
+            button.set_child(label);
         }
-
-        button.keyWidth = 1;
 
         return button;
     }
 
     _getExtendedKeys() {
         this._extendedKeyboard = new St.BoxLayout({
-            style_class: 'key-container',
+            style_class: 'extended-keys',
             vertical: false,
         });
         for (let i = 0; i < this._extendedKeys.length; ++i) {
             let extendedKey = this._extendedKeys[i];
-            const keyButton = this._makeKey(extendedKey);
+            const button = new St.Button({ style_class: 'key-container' });
+            button._keyBin = this._makeKey(extendedKey);
+            button.set_child(button._keyBin);
 
-            keyButton.connect('clicked', () => {
+            button.connect('clicked', () => {
                 this.emit('press', this._getKeyval(extendedKey), extendedKey);
                 this.emit('release', this._getKeyval(extendedKey), extendedKey);
 
                 this._hideSubkeys();
             });
 
-            keyButton.extendedKey = extendedKey;
-            this._extendedKeyboard.add(keyButton);
+            button.extendedKey = extendedKey;
+            this._extendedKeyboard.add(button);
 
-            keyButton.set_size(...this.keyButton.allocation.get_size());
-            this.keyButton.connect('notify::allocation',
-                () => keyButton.set_size(...this.keyButton.allocation.get_size()));
+            button._keyBin.set_size(...this._keyBin.allocation.get_size());
+            this._keyBin.connect('notify::allocation',
+                () => button._keyBin.set_size(...this._keyBin.allocation.get_size()));
         }
         this._boxPointer.bin.add_actor(this._extendedKeyboard);
     }
@@ -556,19 +561,15 @@ var Key = GObject.registerClass({
         return this._boxPointer;
     }
 
-    setWidth(width) {
-        this.keyButton.keyWidth = width;
-    }
-
     setLatched(latched) {
         if (!this._icon)
             return;
 
         if (latched) {
-            this.keyButton.add_style_pseudo_class('latched');
+            this.add_style_pseudo_class('latched');
             this._icon.icon_name = 'keyboard-caps-lock-symbolic';
         } else {
-            this.keyButton.remove_style_pseudo_class('latched');
+            this.remove_style_pseudo_class('latched');
             this._icon.icon_name = 'keyboard-shift-symbolic';
         }
     }
@@ -1101,7 +1102,7 @@ var EmojiSelection = GObject.registerClass({
         row.appendRow();
 
         key = new Key('ABC', []);
-        key.keyButton.add_style_class_name('default-key');
+        key.add_style_class_name('default-key');
         key.connect('release', () => this.emit('toggle'));
         row.appendKey(key, 1.5);
 
@@ -1115,9 +1116,9 @@ var EmojiSelection = GObject.registerClass({
             section.button = key;
         }
 
-        key = new Key(null, [], 'go-down-symbolic');
-        key.keyButton.add_style_class_name('default-key');
-        key.keyButton.add_style_class_name('hide-key');
+        key = new Key('', [], 'go-down-symbolic');
+        key.add_style_class_name('default-key');
+        key.add_style_class_name('hide-key');
         key.connect('release', () => {
             this.emit('close-request');
         });
@@ -1180,7 +1181,7 @@ var Keypad = GObject.registerClass({
             let key = new Key(cur.label || "", [], cur.icon);
 
             if (keys[i].extraClassName)
-                key.keyButton.add_style_class_name(cur.extraClassName);
+                key.add_style_class_name(cur.extraClassName);
 
             let w, h;
             w = cur.width || 1;
@@ -1519,10 +1520,11 @@ var Keyboard = GObject.registerClass({
         for (let i = 0; i < keys.length; ++i) {
             let key = keys[i];
             let button = new Key(key.shift(), key);
+            let width = 1;
 
             /* Space key gets special width, dependent on the number of surrounding keys */
             if (button.key == ' ')
-                button.setWidth(keys.length <= 3 ? 5 : 3);
+                width = keys.length <= 3 ? 5 : 3;
 
             button.connect('release', (actor, keyval, str) => {
                 if (keyval !== 0) {
@@ -1537,7 +1539,7 @@ var Keyboard = GObject.registerClass({
                     this._setActiveLayer(0);
             });
 
-            layout.appendKey(button, button.keyButton.keyWidth);
+            layout.appendKey(button, width);
         }
     }
 
@@ -1574,7 +1576,7 @@ var Keyboard = GObject.registerClass({
                     this._latched = true;
                     this._setCurrentLevelLatched(this._currentPage, this._latched);
                 });
-                extraButton.keyButton.add_action(longPressGesture);
+                extraButton.add_action(longPressGesture);
             }
 
             extraButton.connect('press', () => {
@@ -1598,6 +1600,7 @@ var Keyboard = GObject.registerClass({
             let key = keys[i];
             let action = key.action;
             let icon = key.icon;
+            let width = 1;
 
             /* Skip emoji button if necessary */
             if (!this._emojiKeyVisible && action == 'emoji')
@@ -1605,15 +1608,14 @@ var Keyboard = GObject.registerClass({
 
             extraButton = new Key(key.label || '', [], icon);
 
-            extraButton.keyButton.add_style_class_name('default-key');
+            extraButton.add_style_class_name('default-key');
             if ('extraClassName' in key)
-                extraButton.keyButton.add_style_class_name(key.extraClassName);
+                extraButton.add_style_class_name(key.extraClassName);
             if ('width' in key)
-                extraButton.setWidth(key.width);
+                width = key.width;
 
             this._connectExtraButtonAction(extraButton, key.action);
-
-            if ('switchToLevel' in action && action.switchTolevel === 0)
+            if ('switchToLevel' in key.action && key.action.switchToLevel === 0)
                 layout.shiftKeys.push(extraButton);
 
             /* Fixup default keys based on the number of levels/keys */
@@ -1621,21 +1623,21 @@ var Keyboard = GObject.registerClass({
                 // Hide shift key if the keymap has no uppercase level
                 if (key.right) {
                     /* Only hide the key actor, so the container still takes space */
-                    extraButton.keyButton.hide();
+                    extraButton.hide();
                 } else {
                     extraButton.hide();
                 }
-                extraButton.setWidth(1.5);
+                width = 1.5;
             } else if (key.right && numKeys > 8) {
-                extraButton.setWidth(2);
+                width = 2;
             } else if (key.keyval === Clutter.KEY_Return && numKeys > 9) {
-                extraButton.setWidth(1.5);
+                width = 1.5;
             } else if (!this._emojiKeyVisible && 'switchToPage' in action &&
                        (action.switchToPage === 'none' || action.switchToPage === 'languageMenu')) {
-                extraButton.setWidth(1.5);
+                width = 1.5;
             }
 
-            layout.appendKey(extraButton, extraButton.keyButton.keyWidth);
+            layout.appendKey(extraButton, width);
         }
     }
 
