@@ -932,8 +932,22 @@ class WorkspacesDisplay extends St.Widget {
         if (this._gestureActive)
             adjustment.remove_transition('value');
 
-        const distance = global.workspace_manager.layout_rows === -1
-            ? this.height : this.width;
+
+let distance;
+        const primaryView = this._workspacesViews[this._primaryIndex];
+
+if (primaryView.getActiveWorkspace().allocation.is_initialized()) {
+
+        const workspaceTransformedExtents =
+            primaryView.getActiveWorkspace().get_transformed_extents();
+
+        distance = global.workspace_manager.layout_rows === -1
+            ? workspaceTransformedExtents.size.height
+            : workspaceTransformedExtents.size.width;
+} else {
+log("NOT INI");
+distance = Main.layoutManager.primaryMonitor.width;
+}
 
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].startTouchGesture();
