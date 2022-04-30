@@ -43,7 +43,6 @@ const TouchpadState = {
     NONE: 0,
     PENDING: 1,
     HANDLING: 2,
-    IGNORED: 3,
 };
 
 const EventHistory = class {
@@ -397,9 +396,6 @@ var SwipeTracker = GObject.registerClass({
         if (!this.enabled)
             return Clutter.EVENT_PROPAGATE;
 
-        if (this._touchpadState === TouchpadState.IGNORED)
-            return Clutter.EVENT_PROPAGATE;
-
         let time = event.get_time();
 
         const [x, y] = event.get_coords();
@@ -435,7 +431,6 @@ var SwipeTracker = GObject.registerClass({
                     this._history.append(time, 0);
                     this._beginGesture(this, x, y);
                 } else {
-                    this._touchpadState = TouchpadState.IGNORED;
                     return Clutter.EVENT_PROPAGATE;
                 }
             } else {
@@ -467,9 +462,7 @@ var SwipeTracker = GObject.registerClass({
             break;
         }
 
-        return this._touchpadState === TouchpadState.HANDLING
-            ? Clutter.EVENT_STOP
-            : Clutter.EVENT_PROPAGATE;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _beginGesture(gesture, x, y) {
