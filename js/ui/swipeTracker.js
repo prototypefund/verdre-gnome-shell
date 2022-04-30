@@ -567,6 +567,9 @@ var SwipeTracker = GObject.registerClass({
             ? vertical ? TOUCHPAD_BASE_HEIGHT : TOUCHPAD_BASE_WIDTH
             : this._distance;
 
+        if (distance === 0)
+            throw new Error();
+
         this._progress += delta / distance;
 
 
