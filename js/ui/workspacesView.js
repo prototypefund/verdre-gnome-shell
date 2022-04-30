@@ -933,7 +933,7 @@ class WorkspacesDisplay extends St.Widget {
             adjustment.remove_transition('value');
 
         const distance = global.workspace_manager.layout_rows === -1
-            ? this.height : this.width;
+            ? this.allocation.get_height() : this.allocation.get_width();
 
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].startTouchGesture();
