@@ -453,7 +453,7 @@ var SwipeTracker = GObject.registerClass({
         }
 
         this.connect('notify::enabled', () => {
-            if (!this.enabled && this._state === State.SCROLLING)
+            if (!this.enabled && this.state === Clutter.GestureState.RECOGNIZING)
                 this._interrupt();
         });
 
@@ -492,8 +492,6 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _reset() {
-        this._state = State.NONE;
-
         this._snapPoints = [];
         this._initialProgress = 0;
         this._cancelProgress = 0;
@@ -503,7 +501,7 @@ var SwipeTracker = GObject.registerClass({
 
         this._cancelled = false;
 
-        this._touchpadGesture.reset();
+        this._history.reset();
         this._scrollGesture?.reset();
     }
 
@@ -514,11 +512,20 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _beginGesture(gesture, x, y) {
-        if (this._state === State.SCROLLING)
-            return;
-
         let rect = new Meta.Rectangle({ x, y, width: 1, height: 1 });
         let monitor = global.display.get_monitor_index_for_rect(rect);
+
+        /* If it's not a touch gesture but a touchpad or scroll gesture, move
+         * the ClutterGesture through the state machine manually. In the touch
+         * gesture case, ClutterPanGesture will take care of this for us.
+         */
+        if (this.state === Clutter.GestureState.WAITING) {
+            this.set_state(Clutter.GestureState.POSSIBLE);
+            if (this.state !== Clutter.GestureState.POSSIBLE)
+                return;
+
+            this.set_state(Clutter.GestureState.RECOGNIZING);
+        }
 
         this.emit('begin', monitor);
     }
@@ -570,9 +577,6 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _updateGesture(delta, isTouchpad) {
-        if (this._state !== State.SCROLLING)
-            return;
-
         if (this.orientation === Clutter.Orientation.HORIZONTAL &&
             Clutter.get_default_text_direction() === Clutter.TextDirection.RTL)
             delta = -delta;
@@ -642,9 +646,6 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _endGesture(velocity, isTouchpad) {
-        if (this._state !== State.SCROLLING)
-            return;
-
         if ((this._allowedModes & Main.actionMode) === 0 || !this.enabled) {
             this._interrupt();
             return;
@@ -688,12 +689,10 @@ var SwipeTracker = GObject.registerClass({
         }
 
         this._endGesture(velocity, true);
+        this.set_state(Clutter.GestureState.RECOGNIZED);
     }
 
     _cancelTouchGesture(_gesture) {
-        if (this._state !== State.SCROLLING)
-            return;
-
         this._cancelled = true;
         this._endGesture(0, false);
     }
@@ -719,8 +718,6 @@ var SwipeTracker = GObject.registerClass({
         this._initialProgress = currentProgress;
         this._progress = currentProgress;
         this._cancelProgress = cancelProgress;
-
-        this._state = State.SCROLLING;
     }
 
     destroy() {
