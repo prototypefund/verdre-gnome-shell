@@ -228,14 +228,32 @@ var Overview = class {
         const swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: false, allowScroll: false });
-        swipeTracker.orientation = Clutter.Orientation.VERTICAL;
+            { allowDrag: true, allowScroll: false });
         swipeTracker.connect('begin', this._gestureBegin.bind(this));
         swipeTracker.connect('update', this._gestureUpdate.bind(this));
         swipeTracker.connect('end', this._gestureEnd.bind(this));
+        swipeTracker.begin_threshold = 24;
         global.stage.add_action_full('Overview swipe tracker',
             Clutter.EventPhase.CAPTURE, swipeTracker);
         this._swipeTracker = swipeTracker;
+
+        const secondSwipeTracker = new SwipeTracker.SwipeTracker(
+            Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: true, allowScroll: false });
+        secondSwipeTracker.connect('begin', this._secGestureBegin.bind(this));
+        secondSwipeTracker.connect('update', this._secGestureUpdate.bind(this));
+        secondSwipeTracker.connect('end', this._secGestureEnd.bind(this));
+        secondSwipeTracker.begin_threshold = 24;
+        global.stage.add_action_full('Overview swipe tracker',
+            Clutter.EventPhase.CAPTURE, secondSwipeTracker);
+        this._secSwipeTracker = secondSwipeTracker;
+
+        this._swipeTracker.can_not_cancel(this._secSwipeTracker);
+        this._secSwipeTracker.can_not_cancel(this._swipeTracker);
+
+        this._swipeTracker.recognize_independently_from(this._secSwipeTracker);
+        this._secSwipeTracker.recognize_independently_from(this._swipeTracker);
     }
 
     //
@@ -348,9 +366,7 @@ var Overview = class {
 
     _gestureBegin(tracker) {
         this._overview.controls.gestureBegin(tracker);
-    }
 
-    _gestureUpdate(tracker, progress) {
         if (!this._shown) {
             Meta.disable_unredirect_for_display(global.display);
 
@@ -367,23 +383,158 @@ var Overview = class {
             Main.layoutManager.showOverview();
             this._syncGrab();
         }
+this._isTmpOverview = false;
 
-        this._overview.controls.gestureProgress(progress);
+//this._secSwipeTracker.begin_threshold = 64;
+this._secSwipeTracker._old = true;
+this._secSwipeTracker._thre = 0.05;
     }
 
-    _gestureEnd(tracker, duration, endProgress) {
+    _gestureUpdate(tracker, progress, ease) {
+        this._overview.controls.gestureProgress(progress, ease);
+
+if (this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().allocation.get_width() > 0)
+    this._secSwipeTracker._distance = this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().allocation.get_width();
+    }
+
+    _bothGesturesEnded() {
+        if (Math.abs(this._firstVelo) < Math.abs(this._secondVelo))
+            this._firstVelo = 0;
+        else
+            this._secondVelo = 0;
+
+        const [firstDur, firstEndProg] = this._swipeTracker.getEndProgress(this._firstVelo, 0.5);
+        const [secondDur, secondEndProg] = this._secSwipeTracker.getEndProgress(this._secondVelo, 0.5);
+log("ended vertical end " + firstEndProg + " horiz " + secondEndProg);
+        const dur = firstDur > secondDur ? firstDur : secondDur;
+
         let onComplete;
-        if (endProgress === 0) {
+        if (firstEndProg === 0) {
             this._shown = false;
             this._visibleTarget = false;
             this.emit('hiding');
-            Main.panel.style = `transition-duration: ${duration}ms;`;
-            onComplete = () => this._hideDone();
+            Main.panel.style = `transition-duration: ${dur}ms;`;
+            onComplete = () => { this._hideDone(); };
         } else {
-            onComplete = () => this._showDone();
+            onComplete = () => { this._showDone(); };
         }
 
-        this._overview.controls.gestureEnd(endProgress, duration, onComplete);
+
+        if (secondDur > firstDur) {
+            this._overview.controls._workspacesDisplay._switchWorkspaceEnd(null, secondDur, secondEndProg, onComplete);
+            this._overview.controls.gestureEnd(firstEndProg, firstDur, () => {});
+        } else {
+            this._overview.controls._workspacesDisplay._switchWorkspaceEnd(null, secondDur, secondEndProg, () => {});
+            this._overview.controls.gestureEnd(firstEndProg, firstDur, onComplete);
+        }
+
+        delete this._firstVelo;
+        delete this._secondVelo;
+    }
+
+    _gestureEnd(tracker, velocity) {
+   //     if (this._secSwipeTracker.state === Clutter.GestureState.RECOGNIZING)
+     //       this._secSwipeTracker.set_state(Clutter.GestureState.CANCELLED);
+
+//log("_gestureEnd: " + endProgress);
+
+//this._secSwipeTracker.begin_threshold = 24;
+
+        this._firstVelo = velocity;
+
+        if (this._secSwipeTracker.state === Clutter.GestureState.RECOGNIZING)
+            return;
+
+
+
+        if (this._secondVelo) {
+            this._bothGesturesEnded();
+            return;
+        }
+
+        const [firstDur, firstEndProg] = this._swipeTracker.getEndProgress(this._firstVelo);
+
+        let onComplete = () => {};
+        if (firstEndProg === 0) {
+            this._shown = false;
+            this._visibleTarget = false;
+            this.emit('hiding');
+            Main.panel.style = `transition-duration: ${firstDur}ms;`;
+            onComplete = () => { this._hideDone(); };
+        } else {
+            onComplete = () => { this._showDone(); };
+        }
+
+        this._overview.controls.gestureEnd(firstEndProg, firstDur, onComplete);
+
+        delete this._firstVelo;
+    }
+
+    _secGestureBegin(tracker, monitor) {
+        this._overview.controls._workspacesDisplay.prepareToEnterOverview();
+        this._overview.controls._searchController.prepareToEnterOverview();
+
+        if (!this._shown) {
+this._isTmpOverview = true;
+            Meta.disable_unredirect_for_display(global.display);
+
+            this._shown = true;
+            this._visible = true;
+            this._visibleTarget = true;
+            this._animationInProgress = true;
+
+            Main.layoutManager.overviewGroup.set_child_above_sibling(
+                this._coverPane, null);
+            this._coverPane.show();
+            this.emit('showing');
+
+            Main.layoutManager.showOverview();
+            this._syncGrab();
+        }
+
+        this._overview.controls._workspacesDisplay._switchWorkspaceBegin(tracker, monitor);
+
+//this._swipeTracker.begin_threshold = 64;
+this._swipeTracker._old = true;
+this._swipeTracker._thre = 0.2;
+    }
+
+    _secGestureUpdate(tracker, progress, ease) {
+        this._overview.controls._workspacesDisplay._switchWorkspaceUpdate(tracker, progress, ease);
+    }
+
+    _secGestureEnd(tracker, velocity) {
+     //   if (this._swipeTracker.state === Clutter.GestureState.RECOGNIZING)
+       //     this._swipeTracker.set_state(Clutter.GestureState.CANCELLED);
+//log("_secGestureEnd : " + endProgress);
+
+//this._swipeTracker.begin_threshold = 24;
+
+        this._secondVelo = velocity;
+
+        if (this._swipeTracker.state === Clutter.GestureState.RECOGNIZING)
+            return;
+
+        if (this._firstVelo) {
+            this._bothGesturesEnded();
+            return;
+        }
+
+        const [secondDur, secondEndProg] = this._secSwipeTracker.getEndProgress(this._secondVelo);
+
+        const onComplete = () => {
+if (!this._isTmpOverview)
+    return;
+            this._shown = false;
+            this._visibleTarget = false;
+            this.emit('hiding');
+            Main.panel.style = `transition-duration: 0ms;`;
+            this._hideDone();
+        };
+
+        this._overview.controls._workspacesDisplay._switchWorkspaceEnd(tracker, secondDur, secondEndProg, onComplete);
+
+        delete this._secondVelo;
     }
 
     beginItemDrag(source) {
