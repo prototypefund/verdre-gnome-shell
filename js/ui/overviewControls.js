@@ -14,6 +14,8 @@ const WindowManager = imports.ui.windowManager;
 const WorkspaceThumbnail = imports.ui.workspaceThumbnail;
 const WorkspacesView = imports.ui.workspacesView;
 
+var WORKSPACE_SWITCH_TIME = 250;
+
 const SMALL_WORKSPACE_RATIO = 0.15;
 const DASH_MAX_HEIGHT_RATIO = 0.15;
 
@@ -810,6 +812,25 @@ class ControlsManager extends St.Widget {
 
     workspacesGestureEnd(tracker, duration, endProgress, onComplete) {
         this._workspacesDisplay.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
+    }
+
+    switchToActiveWorkspace(animate, stoppedCb = () => {}) {
+        const { workspaceManager } = global;
+        const active = workspaceManager.get_active_workspace_index();
+
+        this._searchController.prepareToEnterOverview();
+        this._workspacesDisplay.show();
+
+        this._workspaceAdjustment.remove_transition('value');
+        this._workspaceAdjustment.ease(active, {
+            duration: animate ? WORKSPACE_SWITCH_TIME : 0,
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            onStopped: stoppedCb,
+        });
+    }
+
+    cancelSwitchToActiveWorkspace() {
+        this._workspaceAdjustment.remove_transition('value');
     }
 
     async runStartupAnimation(callback) {
