@@ -756,7 +756,7 @@ class ControlsManager extends St.Widget {
         return this.layoutManager.getWorkspacesBoxForState(state);
     }
 
-    gestureBegin(tracker) {
+    overviewGestureBegin(tracker) {
         const baseDistance = global.screen_height;
         const progress = this._stateAdjustment.value;
         const points = [
@@ -777,11 +777,11 @@ class ControlsManager extends St.Widget {
         this._stateAdjustment.gestureInProgress = true;
     }
 
-    gestureProgress(progress) {
+    overviewGestureProgress(progress) {
         this._stateAdjustment.value = progress;
     }
 
-    gestureEnd(target, duration, onComplete) {
+    overviewGestureEnd(target, duration, onComplete) {
         if (target === ControlsState.HIDDEN)
             this._workspacesDisplay.prepareToLeaveOverview();
 
@@ -796,6 +796,18 @@ class ControlsManager extends St.Widget {
         });
 
         this._stateAdjustment.gestureInProgress = false;
+    }
+
+    workspacesGestureBegin(tracker, monitor) {
+        this._workspacesDisplay.workspacesGestureBegin(tracker, monitor);
+    }
+
+    workspacesGestureProgress(tracker, progress) {
+        this._workspacesDisplay.workspacesGestureUpdate(tracker, progress);
+    }
+
+    workspacesGestureEnd(tracker, duration, endProgress, onComplete) {
+        this._workspacesDisplay.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
     }
 
     async runStartupAnimation(callback) {
