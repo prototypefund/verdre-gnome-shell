@@ -907,6 +907,10 @@ distance = Main.layoutManager.primaryMonitor.width;
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
             onComplete: () => {
+                /* Activating the workspace needs to happen before calling
+                 * stoppedCb so that the workspace-changed handling in overview
+                 * still sees animationInProgress = true.
+                 */
                 if (!newWs.active)
                     newWs.activate(global.get_current_time());
                 this._endTouchGesture();

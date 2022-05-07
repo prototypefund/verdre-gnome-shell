@@ -799,6 +799,8 @@ class ControlsManager extends St.Widget {
     }
 
     workspacesGestureBegin(tracker, monitor) {
+        this._searchController.prepareToEnterOverview();
+        this._workspacesDisplay.show();
         this._workspacesDisplay.workspacesGestureBegin(tracker, monitor);
     }
 
