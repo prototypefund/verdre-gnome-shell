@@ -92,12 +92,10 @@ class WorkspacesView extends WorkspacesViewBase {
         this._controls = controls;
         this._fitModeAdjustment = fitModeAdjustment;
         this._fitModeAdjustment.connectObject('notify::value', () => {
-            this._updateVisibility();
             this._updateWorkspacesState();
             this.queue_relayout();
         }, this);
 
-        this._animating = false; // tweening
         this._gestureActive = false; // touch(pad) gestures
 
         this._scrollAdjustment = scrollAdjustment;
@@ -118,7 +116,6 @@ class WorkspacesView extends WorkspacesViewBase {
 
         global.window_manager.connectObject('switch-workspace',
             this._activeWorkspaceChanged.bind(this), this);
-        this._updateVisibility();
     }
 
     _getFirstFitAllWorkspaceBox(box, spacing, vertical) {
@@ -403,35 +400,11 @@ class WorkspacesView extends WorkspacesViewBase {
         const { workspaceManager } = global;
         const active = workspaceManager.get_active_workspace_index();
 
-        this._animating = true;
-        this._updateVisibility();
-
         this._scrollAdjustment.remove_transition('value');
         this._scrollAdjustment.ease(active, {
             duration: WORKSPACE_SWITCH_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
-            onComplete: () => {
-                this._animating = false;
-                this._updateVisibility();
-            },
         });
-    }
-
-    _updateVisibility() {
-        let workspaceManager = global.workspace_manager;
-        let active = workspaceManager.get_active_workspace_index();
-
-        const fitMode = this._fitModeAdjustment.value;
-        const singleFitMode = fitMode === FitMode.SINGLE;
-
-        for (let w = 0; w < this._workspaces.length; w++) {
-            let workspace = this._workspaces[w];
-
-            if (this._animating || this._gestureActive || !singleFitMode)
-                workspace.show();
-            else
-                workspace.visible = Math.abs(w - active) <= 1;
-        }
     }
 
     _updateWorkspaces() {
@@ -479,8 +452,6 @@ class WorkspacesView extends WorkspacesViewBase {
 
     startTouchGesture() {
         this._gestureActive = true;
-
-        this._updateVisibility();
     }
 
     endTouchGesture() {
@@ -488,7 +459,6 @@ class WorkspacesView extends WorkspacesViewBase {
 
         // Make sure title captions etc are shown as necessary
         this._scrollToActive();
-        this._updateVisibility();
     }
 
     // sync the workspaces' positions to the value of the scroll adjustment
