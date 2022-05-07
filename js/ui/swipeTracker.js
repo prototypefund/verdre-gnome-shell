@@ -149,7 +149,7 @@ const ScrollGesture = GObject.registerClass({
         this._actor = actor;
         if (this._actor) {
             this._scrollEventId =
-                this._actor.connect('scroll-event', this._handleEvent.bind(this));
+                this._actor.connect('event::scroll', this._handleEvent.bind(this));
         }
 
         this.notify('actor');
@@ -302,9 +302,6 @@ var SwipeTracker = GObject.registerClass({
         });
         this._history = new EventHistory();
 
-        global.stage.connectObject(
-            'captured-event::touchpad', this._handleEvent.bind(this), this);
-
         if (params.allowScroll) {
             this._scrollGesture = new ScrollGesture(allowedModes);
             this._scrollGesture.connect('begin', this._beginGesture.bind(this));
@@ -328,6 +325,13 @@ var SwipeTracker = GObject.registerClass({
         });
 
         this._reset();
+    }
+
+    vfunc_set_actor(actor) {
+        actor.connectObject(
+            'event::touchpad', this._handleEvent.bind(this), this);
+
+        super.vfunc_set_actor(actor);
     }
 
     vfunc_may_recognize() {
