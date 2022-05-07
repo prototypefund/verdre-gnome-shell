@@ -633,8 +633,7 @@ var Overview = class extends Signals.EventEmitter {
                 return;
             }
 
-            Main.panel.style = null;
-            this.emit('shown');
+            this._showDone();
             callback();
         });
     }
