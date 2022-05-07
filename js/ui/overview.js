@@ -227,17 +227,37 @@ var Overview = class extends Signals.EventEmitter {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             this.toggle.bind(this));
 
-        const swipeTracker = new SwipeTracker.SwipeTracker(
+        const threeFingerOverviewGesture = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             { allowDrag: false, allowScroll: false });
-        swipeTracker.orientation = Clutter.Orientation.VERTICAL;
-        swipeTracker.connect('begin', this._gestureBegin.bind(this));
-        swipeTracker.connect('update', this._gestureUpdate.bind(this));
-        swipeTracker.connect('end', this._gestureEnd.bind(this));
-        global.stage.add_action_full('Overview swipe tracker',
-            Clutter.EventPhase.CAPTURE, swipeTracker);
-        this._swipeTracker = swipeTracker;
+        threeFingerOverviewGesture.connect('begin', this._overviewGestureBegin.bind(this));
+        threeFingerOverviewGesture.connect('update', this._overviewGestureUpdate.bind(this));
+        threeFingerOverviewGesture.connect('end', this._overviewGestureEnd.bind(this));
+        global.stage.add_action_full('Three finger overview gesture',
+            Clutter.EventPhase.CAPTURE, threeFingerOverviewGesture);
+        this._threeFingerOverviewGesture = threeFingerOverviewGesture;
+
+        const threeFingerWorkspacesGesture = new SwipeTracker.SwipeTracker(
+            Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.OVERVIEW);
+        threeFingerWorkspacesGesture.allowLongSwipes = true;
+        threeFingerWorkspacesGesture.connect('begin', this._workspacesGestureBegin.bind(this));
+        threeFingerWorkspacesGesture.connect('update', this._workspacesGestureUpdate.bind(this));
+        threeFingerWorkspacesGesture.connect('end', this._workspacesGestureEnd.bind(this));
+        global.stage.add_action_full('Three finger workspaces gesture',
+            Clutter.EventPhase.CAPTURE, threeFingerWorkspacesGesture);
+        this._threeFingerWorkspacesGesture = threeFingerWorkspacesGesture;
+
+        const workspaceManager = global.workspace_manager;
+
+        workspaceManager.connectObject('notify::layout-rows', () => {
+            this._threeFingerWorkspacesGesture.enabled =
+                workspaceManager.layoutRows !== -1;
+        }, this);
+
+        this._threeFingerWorkspacesGesture.enabled =
+            workspaceManager.layoutRows !== -1;
     }
 
     //
@@ -348,11 +368,11 @@ var Overview = class extends Signals.EventEmitter {
         this.emit('windows-restacked', stackIndices);
     }
 
-    _gestureBegin(tracker) {
-        this._overview.controls.gestureBegin(tracker);
+    _overviewGestureBegin(tracker) {
+        this._overview.controls.overviewGestureBegin(tracker);
     }
 
-    _gestureUpdate(tracker, progress) {
+    _overviewGestureUpdate(tracker, progress) {
         if (!this._shown) {
             Meta.disable_unredirect_for_display(global.display);
 
@@ -367,10 +387,10 @@ var Overview = class extends Signals.EventEmitter {
             this._syncGrab();
         }
 
-        this._overview.controls.gestureProgress(progress);
+        this._overview.controls.overviewGestureProgress(progress);
     }
 
-    _gestureEnd(tracker, duration, endProgress) {
+    _overviewGestureEnd(tracker, duration, endProgress) {
         let onComplete;
         if (endProgress === 0) {
             this._shown = false;
@@ -382,7 +402,20 @@ var Overview = class extends Signals.EventEmitter {
             onComplete = () => this._showDone();
         }
 
-        this._overview.controls.gestureEnd(endProgress, duration, onComplete);
+        this._overview.controls.overviewGestureEnd(endProgress, duration, onComplete);
+    }
+
+    _workspacesGestureBegin(tracker, monitor) {
+        this._overview.controls.workspacesGestureBegin(tracker, monitor);
+    }
+
+    _workspacesGestureUpdate(tracker, progress) {
+        this._overview.controls.workspacesGestureProgress(tracker, progress);
+    }
+
+    _workspacesGestureEnd(tracker, duration, endProgress) {
+        let onComplete = () => {};
+        this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
     }
 
     beginItemDrag(source) {
