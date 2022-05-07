@@ -631,8 +631,7 @@ var Overview = class {
                 return;
             }
 
-            Main.panel.style = null;
-            this.emit('shown');
+            this._showDone();
             callback();
         });
     }
