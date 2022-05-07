@@ -808,8 +808,9 @@ class WorkspacesDisplay extends St.Widget {
 
         workspaceManager.connectObject(
             'workspaces-reordered', this._workspacesReordered.bind(this),
-            'notify::layout-rows', this._updateTrackerOrientation.bind(this), this);
-        this._updateTrackerOrientation();
+            'notify::layout-rows', this._updateSwipeTracker.bind(this), this);
+
+        this._updateSwipeTracker();
 
         Main.overview.connectObject(
             'window-drag-begin', this._windowDragBegin.bind(this),
@@ -847,7 +848,10 @@ class WorkspacesDisplay extends St.Widget {
     }
 
     _updateSwipeTracker() {
+        const { layoutRows } = global.workspace_manager;
+
         this._swipeTracker.enabled =
+            layoutRows !== -1 &&
             this.mapped &&
             !this._inWindowDrag &&
             !this._leavingOverview;
@@ -868,13 +872,6 @@ class WorkspacesDisplay extends St.Widget {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration: WORKSPACE_SWITCH_TIME,
         });
-    }
-
-    _updateTrackerOrientation() {
-        const { layoutRows } = global.workspace_manager;
-        this._swipeTracker.orientation = layoutRows !== -1
-            ? Clutter.Orientation.HORIZONTAL
-            : Clutter.Orientation.VERTICAL;
     }
 
     _directionForProgress(progress) {
