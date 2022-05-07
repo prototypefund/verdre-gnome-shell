@@ -455,9 +455,6 @@ class WorkspacesView extends WorkspacesViewBase {
 
     endTouchGesture() {
         this._gestureActive = false;
-
-        // Make sure title captions etc are shown as necessary
-        this._scrollToActive();
     }
 
     // sync the workspaces' positions to the value of the scroll adjustment
