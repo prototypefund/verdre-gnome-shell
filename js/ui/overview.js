@@ -240,14 +240,18 @@ var Overview = class extends Signals.EventEmitter {
 
         const threeFingerWorkspacesGesture = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.OVERVIEW);
-        threeFingerWorkspacesGesture.allowLongSwipes = true;
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: false });
         threeFingerWorkspacesGesture.connect('begin', this._workspacesGestureBegin.bind(this));
         threeFingerWorkspacesGesture.connect('update', this._workspacesGestureUpdate.bind(this));
         threeFingerWorkspacesGesture.connect('end', this._workspacesGestureEnd.bind(this));
         global.stage.add_action_full('Three finger workspaces gesture',
             Clutter.EventPhase.CAPTURE, threeFingerWorkspacesGesture);
         this._threeFingerWorkspacesGesture = threeFingerWorkspacesGesture;
+
+        global.display.bind_property('compositor-modifiers',
+            this._threeFingerWorkspacesGesture, 'scroll-modifiers',
+            GObject.BindingFlags.SYNC_CREATE);
 
         const workspaceManager = global.workspace_manager;
 
@@ -369,11 +373,8 @@ var Overview = class extends Signals.EventEmitter {
     }
 
     _overviewGestureBegin(tracker) {
-        this._overview.controls.overviewGestureBegin(tracker);
-    }
-
-    _overviewGestureUpdate(tracker, progress) {
-        if (!this._shown) {
+        const hidden = !this._shown;
+        if (hidden) {
             Meta.disable_unredirect_for_display(global.display);
 
             this._shown = true;
@@ -381,18 +382,29 @@ var Overview = class extends Signals.EventEmitter {
             this._visibleTarget = true;
             this._animationInProgress = true;
 
-            this.emit('showing');
-
             Main.layoutManager.showOverview();
-            this._syncGrab();
+            if (!this._syncGrab())
+                return;
         }
 
+        delete this._shownForWorkspacesGesture;
+        this._visible = true; // FIXME: do we really need this
+        this._visibleTarget = true;// FIXME: do we really need this?
+
+        this._overview.controls.overviewGestureBegin(tracker);
+
+        if (hidden)
+            this.emit('showing');
+    }
+
+    _overviewGestureUpdate(tracker, progress) {
         this._overview.controls.overviewGestureProgress(progress);
     }
 
     _overviewGestureEnd(tracker, duration, endProgress) {
         let onComplete;
         if (endProgress === 0) {
+            this._animationInProgress = true;
             this._shown = false;
             this._visibleTarget = false;
             this.emit('hiding');
@@ -406,7 +418,24 @@ var Overview = class extends Signals.EventEmitter {
     }
 
     _workspacesGestureBegin(tracker, monitor) {
+        const hidden = !this._shown;
+        if (hidden) {
+            this._shownForWorkspacesGesture = true;
+
+            Meta.disable_unredirect_for_display(global.display);
+
+            this._shown = true;
+            this._animationInProgress = true;
+
+            Main.layoutManager.showOverview();
+            if (!this._syncGrab())
+                return;
+        }
+
         this._overview.controls.workspacesGestureBegin(tracker, monitor);
+
+        if (hidden)
+            this.emit('showing');
     }
 
     _workspacesGestureUpdate(tracker, progress) {
@@ -415,6 +444,20 @@ var Overview = class extends Signals.EventEmitter {
 
     _workspacesGestureEnd(tracker, duration, endProgress) {
         let onComplete = () => {};
+
+        if (this._shownForWorkspacesGesture) {
+            this._animationInProgress = true;
+            this._shown = false;
+            this.emit('hiding');
+            Main.panel.style = `transition-duration: ${duration}ms;`;
+
+            onComplete = () => {
+                this._hideDone();
+
+                delete this._shownForWorkspacesGesture;
+            };
+        }
+
         this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
     }
 
@@ -559,7 +602,11 @@ var Overview = class extends Signals.EventEmitter {
         if (!this._shown)
             this._animateNotVisible();
 
-        this._syncGrab();
+        if (!this._syncGrab())
+            return;
+
+        this._threeFingerWorkspacesGesture.scroll_modifiers = 0;
+        this._threeFingerWorkspacesGesture.allowLongSwipes = true;
     }
 
     // hide:
@@ -606,6 +653,10 @@ var Overview = class extends Signals.EventEmitter {
     _hideDone() {
         // Re-enable unredirection
         Meta.enable_unredirect_for_display(global.display);
+
+        this._threeFingerWorkspacesGesture.scroll_modifiers =
+            global.display.compositor_modifiers;
+        this._threeFingerWorkspacesGesture.allowLongSwipes = false;
 
         this._coverPane.hide();
 
