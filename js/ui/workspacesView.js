@@ -798,7 +798,6 @@ class WorkspacesDisplay extends St.Widget {
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.OVERVIEW,
             { allowDrag: false });
-        this._swipeTracker.allowLongSwipes = true;
         this._swipeTracker.connect('begin', this._switchWorkspaceBegin.bind(this));
         this._swipeTracker.connect('update', this._switchWorkspaceUpdate.bind(this));
         this._swipeTracker.connect('end', this._switchWorkspaceEnd.bind(this));
