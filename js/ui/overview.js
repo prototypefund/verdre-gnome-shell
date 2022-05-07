@@ -16,6 +16,7 @@ const OverviewControls = imports.ui.overviewControls;
 const Params = imports.misc.params;
 const SwipeTracker = imports.ui.swipeTracker;
 const WindowManager = imports.ui.windowManager;
+const WindowPreview = imports.ui.windowPreview;
 const WorkspaceThumbnail = imports.ui.workspaceThumbnail;
 
 var DND_WINDOW_SWITCH_TIMEOUT = 750;
@@ -437,6 +438,64 @@ var Overview = class {
         }
 
         this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
+    }
+
+    cancelSwitchWorkspace() {
+        this._overview.controls.cancelSwitchToActiveWorkspace()
+    }
+
+    switchToActiveWorkspace(animate, onStopped, onTopWindow = null) {
+        if (this._animationInProgress) {
+            onStopped(true);
+//            this._overview.controls.switchToActiveWorkspace(false, onStopped);
+            return;
+        }
+
+        let clone = null;
+        if (onTopWindow) {
+            onTopWindow._hideFromOverview = true;;
+
+            clone = new WindowPreview.WindowPreview(onTopWindow, null, null);
+            clone.overlay_enabled = false;
+            clone.x = clone.boundingBox.x;
+            clone.y = clone.boundingBox.y;
+
+            Main.uiGroup.add_child(clone);
+        }
+
+        let stoppedCb = (finished) => {
+            if (onTopWindow) {
+                clone.destroy();
+                delete onTopWindow._hideFromOverview;
+            }
+
+            onStopped(finished);
+        };
+
+        if (!this._shown) {
+            Meta.disable_unredirect_for_display(global.display);
+            this._shown = true;
+            this._animationInProgress = true;
+            this.emit('showing');
+            Main.layoutManager.showOverview();
+            this._syncGrab();
+
+            stoppedCb = (finished) => {
+                if (onTopWindow) {
+                    clone.destroy();
+                    delete onTopWindow._hideFromOverview;
+                }
+
+                this._shown = false;
+                this.emit('hiding');
+                Main.panel.style = `transition-duration: 0ms;`;
+                this._hideDone();
+
+                onStopped(finished);
+            }
+        }
+
+        this._overview.controls.switchToActiveWorkspace(true, stoppedCb);
     }
 
     beginItemDrag(source) {

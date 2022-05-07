@@ -10,8 +10,6 @@ const Util = imports.misc.util;
 const Workspace = imports.ui.workspace;
 const { ThumbnailsBox, MAX_THUMBNAIL_SCALE } = imports.ui.workspaceThumbnail;
 
-var WORKSPACE_SWITCH_TIME = 250;
-
 const MUTTER_SCHEMA = 'org.gnome.mutter';
 
 const WORKSPACE_MIN_SPACING = 24;
@@ -112,9 +110,6 @@ class WorkspacesView extends WorkspacesViewBase {
                 this._workspaces.forEach(
                     (ws, i) => this.set_child_at_index(ws, i));
             }, this);
-
-        global.window_manager.connectObject('switch-workspace',
-            this._activeWorkspaceChanged.bind(this), this);
     }
 
     _getFirstFitAllWorkspaceBox(box, spacing, vertical) {
@@ -395,17 +390,6 @@ class WorkspacesView extends WorkspacesViewBase {
             this._workspaces[i].syncStacking(stackIndices);
     }
 
-    _scrollToActive() {
-        const { workspaceManager } = global;
-        const active = workspaceManager.get_active_workspace_index();
-
-        this._scrollAdjustment.remove_transition('value');
-        this._scrollAdjustment.ease(active, {
-            duration: WORKSPACE_SWITCH_TIME,
-            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
-        });
-    }
-
     _updateWorkspaces() {
         let workspaceManager = global.workspace_manager;
         let newNumWorkspaces = workspaceManager.n_workspaces;
@@ -437,10 +421,6 @@ class WorkspacesView extends WorkspacesViewBase {
         }
 
         this._updateWorkspacesState();
-    }
-
-    _activeWorkspaceChanged(_wm, _from, _to, _direction) {
-        this._scrollToActive();
     }
 
     _onDestroy() {
@@ -787,9 +767,6 @@ class WorkspacesDisplay extends St.Widget {
         let workspaceManager = global.workspace_manager;
         this._scrollAdjustment = scrollAdjustment;
 
-        global.window_manager.connectObject('switch-workspace',
-            this._activeWorkspaceChanged.bind(this), this);
-
         workspaceManager.connectObject(
             'workspaces-reordered', this._workspacesReordered.bind(this), this);
 
@@ -816,16 +793,6 @@ class WorkspacesDisplay extends St.Widget {
 
         this._scrollAdjustment.value =
             workspaceManager.get_active_workspace_index();
-    }
-
-    _activeWorkspaceChanged(_wm, _from, to, _direction) {
-        if (this._gestureActive)
-            return;
-
-        this._scrollAdjustment.ease(to, {
-            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
-            duration: WORKSPACE_SWITCH_TIME,
-        });
     }
 
     _directionForProgress(progress) {

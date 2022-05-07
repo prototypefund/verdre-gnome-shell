@@ -1374,7 +1374,7 @@ class Workspace extends St.Widget {
     }
 
     _isOverviewWindow(window) {
-        return !window.skip_taskbar;
+        return !window.skip_taskbar && !window._hideFromOverview;
     }
 
     // Create a clone of a (non-desktop) window and add it to the window list
