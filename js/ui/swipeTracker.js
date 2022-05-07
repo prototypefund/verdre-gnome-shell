@@ -172,15 +172,21 @@ var SwipeTracker = GObject.registerClass({
             schema_id: 'org.gnome.desktop.peripherals.touchpad',
         });
 
-        global.stage.connectObject(
-            'captured-event::touchpad', this._handleTouchpadEvent.bind(this),
-            'event::scroll', this._handleScrollEvent.bind(this),
-            this);
-
         this.connect('notify::enabled', () => {
             if (!this.enabled && this._state === State.SCROLLING)
                 this._interrupt();
         });
+    }
+
+    vfunc_set_actor(actor) {
+        if (actor) {
+            actor.connectObject(
+                'event::touchpad', this._handleTouchpadEvent.bind(this),
+                'event::scroll', this._handleScrollEvent.bind(this),
+                this);
+        }
+
+        super.vfunc_set_actor(actor);
     }
 
     vfunc_may_recognize() {
