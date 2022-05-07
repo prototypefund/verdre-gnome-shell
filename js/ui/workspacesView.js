@@ -6,7 +6,6 @@ const { Clutter, Gio, GObject, Meta, Shell, St } = imports.gi;
 const Layout = imports.ui.layout;
 const Main = imports.ui.main;
 const OverviewControls = imports.ui.overviewControls;
-const SwipeTracker = imports.ui.swipeTracker;
 const Util = imports.misc.util;
 const Workspace = imports.ui.workspace;
 const { ThumbnailsBox, MAX_THUMBNAIL_SCALE } = imports.ui.workspaceThumbnail;
@@ -794,32 +793,14 @@ class WorkspacesDisplay extends St.Widget {
         global.window_manager.connectObject('switch-workspace',
             this._activeWorkspaceChanged.bind(this), this);
 
-        this._swipeTracker = new SwipeTracker.SwipeTracker(
-            Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.OVERVIEW,
-            { allowDrag: false });
-        this._swipeTracker.connect('begin', this._switchWorkspaceBegin.bind(this));
-        this._swipeTracker.connect('update', this._switchWorkspaceUpdate.bind(this));
-        this._swipeTracker.connect('end', this._switchWorkspaceEnd.bind(this));
-        this._swipeTracker.set_name('WorkspacesView swipe tracker');
-        Main.layoutManager.overviewGroup.add_action(this._swipeTracker);
-        this.connect('notify::mapped', this._updateSwipeTracker.bind(this));
-
         workspaceManager.connectObject(
             'workspaces-reordered', this._workspacesReordered.bind(this), this);
-
-        Main.overview.connectObject(
-            'window-drag-begin', this._windowDragBegin.bind(this),
-            'window-drag-end', this._windowDragEnd.bind(this), this);
 
         this._primaryVisible = true;
         this._primaryIndex = Main.layoutManager.primaryIndex;
         this._workspacesViews = [];
 
         this._settings = new Gio.Settings({ schema_id: MUTTER_SCHEMA });
-
-        this._inWindowDrag = false;
-        this._leavingOverview = false;
 
         this._gestureActive = false; // touch(pad) gestures
 
@@ -831,23 +812,6 @@ class WorkspacesDisplay extends St.Widget {
             Meta.later_remove(this._parentSetLater);
             this._parentSetLater = 0;
         }
-    }
-
-    _windowDragBegin() {
-        this._inWindowDrag = true;
-        this._updateSwipeTracker();
-    }
-
-    _windowDragEnd() {
-        this._inWindowDrag = false;
-        this._updateSwipeTracker();
-    }
-
-    _updateSwipeTracker() {
-        this._swipeTracker.enabled =
-            this.mapped &&
-            !this._inWindowDrag &&
-            !this._leavingOverview;
     }
 
     _workspacesReordered() {
@@ -883,7 +847,7 @@ class WorkspacesDisplay extends St.Widget {
         }
     }
 
-    _switchWorkspaceBegin(tracker, monitor) {
+    workspacesGestureBegin(tracker, monitor) {
         if (this._workspacesOnlyOnPrimary && monitor !== this._primaryIndex)
             return;
 
@@ -907,12 +871,12 @@ class WorkspacesDisplay extends St.Widget {
         this._gestureActive = true;
     }
 
-    _switchWorkspaceUpdate(tracker, progress) {
+    workspacesGestureUpdate(tracker, progress) {
         let adjustment = this._scrollAdjustment;
         adjustment.value = progress * adjustment.page_size;
     }
 
-    _switchWorkspaceEnd(tracker, duration, endProgress) {
+    workspacesGestureEnd(tracker, duration, endProgress, completeCb) {
         let workspaceManager = global.workspace_manager;
         let newWs = workspaceManager.get_workspace_by_index(endProgress);
 
@@ -923,6 +887,8 @@ class WorkspacesDisplay extends St.Widget {
                 if (!newWs.active)
                     newWs.activate(global.get_current_time());
                 this._endTouchGesture();
+
+                completeCb();
             },
         });
     }
@@ -965,9 +931,6 @@ class WorkspacesDisplay extends St.Widget {
     prepareToLeaveOverview() {
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].prepareToLeaveOverview();
-
-        this._leavingOverview = true;
-        this._updateSwipeTracker();
     }
 
     vfunc_hide() {
@@ -977,8 +940,6 @@ class WorkspacesDisplay extends St.Widget {
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].destroy();
         this._workspacesViews = [];
-
-        this._leavingOverview = false;
 
         super.vfunc_hide();
     }
@@ -1040,7 +1001,8 @@ class WorkspacesDisplay extends St.Widget {
     }
 
     _onScrollEvent(actor, event) {
-        if (this._swipeTracker.canHandleScrollEvent(event))
+        if (event.get_scroll_source() === Clutter.ScrollSource.FINGER ||
+            event.get_source_device().get_device_type() === Clutter.InputDeviceType.TOUCHPAD_DEVICE)
             return Clutter.EVENT_PROPAGATE;
 
         if (!this.mapped)

@@ -225,17 +225,26 @@ var Overview = class {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             this.toggle.bind(this));
 
-        const swipeTracker = new SwipeTracker.SwipeTracker(
+        const overviewSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             { allowDrag: false, allowScroll: false });
-        swipeTracker.orientation = Clutter.Orientation.VERTICAL;
-        swipeTracker.connect('begin', this._gestureBegin.bind(this));
-        swipeTracker.connect('update', this._gestureUpdate.bind(this));
-        swipeTracker.connect('end', this._gestureEnd.bind(this));
+        overviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
+        overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
+        overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
         global.stage.add_action_full('Overview swipe tracker',
-            Clutter.EventPhase.CAPTURE, swipeTracker);
-        this._swipeTracker = swipeTracker;
+            Clutter.EventPhase.CAPTURE, overviewSwipeTracker);
+        this._overviewSwipeTracker = overviewSwipeTracker;
+
+        const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
+            Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.OVERVIEW);
+        workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
+        workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
+        workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
+        global.stage.add_action_full('Workspaces swipe tracker',
+            Clutter.EventPhase.CAPTURE, workspacesSwipeTracker);
+        this._workspacesSwipeTracker = workspacesSwipeTracker;
     }
 
     //
@@ -346,11 +355,11 @@ var Overview = class {
         this.emit('windows-restacked', stackIndices);
     }
 
-    _gestureBegin(tracker) {
-        this._overview.controls.gestureBegin(tracker);
+    _overviewGestureBegin(tracker) {
+        this._overview.controls.overviewGestureBegin(tracker);
     }
 
-    _gestureUpdate(tracker, progress) {
+    _overviewGestureUpdate(tracker, progress) {
         if (!this._shown) {
             Meta.disable_unredirect_for_display(global.display);
 
@@ -365,10 +374,10 @@ var Overview = class {
             this._syncGrab();
         }
 
-        this._overview.controls.gestureProgress(progress);
+        this._overview.controls.overviewGestureProgress(progress);
     }
 
-    _gestureEnd(tracker, duration, endProgress) {
+    _overviewGestureEnd(tracker, duration, endProgress) {
         let onComplete;
         if (endProgress === 0) {
             this._shown = false;
@@ -380,7 +389,20 @@ var Overview = class {
             onComplete = () => this._showDone();
         }
 
-        this._overview.controls.gestureEnd(endProgress, duration, onComplete);
+        this._overview.controls.overviewGestureEnd(endProgress, duration, onComplete);
+    }
+
+    _workspacesGestureBegin(tracker, monitor) {
+        this._overview.controls.workspacesGestureBegin(tracker, monitor);
+    }
+
+    _workspacesGestureUpdate(tracker, progress) {
+        this._overview.controls.workspacesGestureProgress(tracker, progress);
+    }
+
+    _workspacesGestureEnd(tracker, duration, endProgress) {
+        let onComplete = () => {};
+        this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
     }
 
     beginItemDrag(source) {
