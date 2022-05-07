@@ -359,9 +359,6 @@ var Overview = class {
             this._visibleTarget = true;
             this._animationInProgress = true;
 
-            Main.layoutManager.overviewGroup.set_child_above_sibling(
-                this._coverPane, null);
-            this._coverPane.show();
             this.emit('showing');
 
             Main.layoutManager.showOverview();
