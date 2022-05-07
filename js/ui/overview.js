@@ -238,13 +238,18 @@ var Overview = class {
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.OVERVIEW);
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: false });
         workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
         global.stage.add_action_full('Workspaces swipe tracker',
             Clutter.EventPhase.CAPTURE, workspacesSwipeTracker);
         this._workspacesSwipeTracker = workspacesSwipeTracker;
+
+        global.display.bind_property('compositor-modifiers',
+            this._workspacesSwipeTracker, 'scroll-modifiers',
+            GObject.BindingFlags.SYNC_CREATE);
     }
 
     //
@@ -380,6 +385,7 @@ var Overview = class {
     _overviewGestureEnd(tracker, duration, endProgress) {
         let onComplete;
         if (endProgress === 0) {
+            this._animationInProgress = true;
             this._shown = false;
             this._visibleTarget = false;
             this.emit('hiding');
@@ -393,6 +399,20 @@ var Overview = class {
     }
 
     _workspacesGestureBegin(tracker, monitor) {
+        if (!this._shown) {
+            this._shownForWorkspacesGesture = true;
+
+            Meta.disable_unredirect_for_display(global.display);
+
+            this._shown = true;
+            this._animationInProgress = true;
+
+            this.emit('showing');
+
+            Main.layoutManager.showOverview();
+            this._syncGrab();
+        }
+
         this._overview.controls.workspacesGestureBegin(tracker, monitor);
     }
 
@@ -402,6 +422,20 @@ var Overview = class {
 
     _workspacesGestureEnd(tracker, duration, endProgress) {
         let onComplete = () => {};
+
+        if (this._shownForWorkspacesGesture) {
+            this._animationInProgress = true;
+
+            onComplete = () => {
+                this._shown = false;
+                this.emit('hiding');
+                Main.panel.style = `transition-duration: 0ms;`;
+                this._hideDone();
+
+                delete this._shownForWorkspacesGesture;
+            };
+        }
+
         this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
     }
 
@@ -547,6 +581,8 @@ var Overview = class {
             this._animateNotVisible();
 
         this._syncGrab();
+
+        this._workspacesSwipeTracker.scroll_modifiers = 0;
     }
 
     // hide:
@@ -593,6 +629,9 @@ var Overview = class {
     _hideDone() {
         // Re-enable unredirection
         Meta.enable_unredirect_for_display(global.display);
+
+        this._workspacesSwipeTracker.scroll_modifiers =
+            global.display.compositor_modifiers;
 
         this._coverPane.hide();
 
