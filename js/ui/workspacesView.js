@@ -797,33 +797,22 @@ class WorkspacesDisplay extends St.Widget {
         this._swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.OVERVIEW,
-            { allowDrag: false });
+            { allowTouchpadThreeFinger: false });
         this._swipeTracker.allowLongSwipes = true;
-        this._swipeTracker.connect('begin', this._switchWorkspaceBegin.bind(this));
-        this._swipeTracker.connect('update', this._switchWorkspaceUpdate.bind(this));
-        this._swipeTracker.connect('end', this._switchWorkspaceEnd.bind(this));
+        this._swipeTracker.connect('begin', this.workspacesGestureBegin.bind(this));
+        this._swipeTracker.connect('update', this.workspacesGestureUpdate.bind(this));
+        this._swipeTracker.connect('end', this.workspacesGestureEnd.bind(this));
         this._swipeTracker.set_name('WorkspacesView swipe tracker');
-        Main.layoutManager.overviewGroup.add_action(this._swipeTracker);
-        this.connect('notify::mapped', this._updateSwipeTracker.bind(this));
+        this.add_action(this._swipeTracker);
 
         workspaceManager.connectObject(
-            'workspaces-reordered', this._workspacesReordered.bind(this),
-            'notify::layout-rows', this._updateSwipeTracker.bind(this), this);
-
-        this._updateSwipeTracker();
-
-        Main.overview.connectObject(
-            'window-drag-begin', this._windowDragBegin.bind(this),
-            'window-drag-end', this._windowDragEnd.bind(this), this);
+            'workspaces-reordered', this._workspacesReordered.bind(this), this);
 
         this._primaryVisible = true;
         this._primaryIndex = Main.layoutManager.primaryIndex;
         this._workspacesViews = [];
 
         this._settings = new Gio.Settings({ schema_id: MUTTER_SCHEMA });
-
-        this._inWindowDrag = false;
-        this._leavingOverview = false;
 
         this._gestureActive = false; // touch(pad) gestures
 
@@ -835,26 +824,6 @@ class WorkspacesDisplay extends St.Widget {
             Meta.later_remove(this._parentSetLater);
             this._parentSetLater = 0;
         }
-    }
-
-    _windowDragBegin() {
-        this._inWindowDrag = true;
-        this._updateSwipeTracker();
-    }
-
-    _windowDragEnd() {
-        this._inWindowDrag = false;
-        this._updateSwipeTracker();
-    }
-
-    _updateSwipeTracker() {
-        const { layoutRows } = global.workspace_manager;
-
-        this._swipeTracker.enabled =
-            layoutRows !== -1 &&
-            this.mapped &&
-            !this._inWindowDrag &&
-            !this._leavingOverview;
     }
 
     _workspacesReordered() {
@@ -890,7 +859,7 @@ class WorkspacesDisplay extends St.Widget {
         }
     }
 
-    _switchWorkspaceBegin(tracker, monitor) {
+    workspacesGestureBegin(tracker, monitor) {
         if (this._workspacesOnlyOnPrimary && monitor !== this._primaryIndex)
             return;
 
@@ -928,12 +897,12 @@ distance = Main.layoutManager.primaryMonitor.width;
         this._gestureActive = true;
     }
 
-    _switchWorkspaceUpdate(tracker, progress) {
+    workspacesGestureUpdate(tracker, progress) {
         let adjustment = this._scrollAdjustment;
         adjustment.value = progress * adjustment.page_size;
     }
 
-    _switchWorkspaceEnd(tracker, duration, endProgress) {
+    workspacesGestureEnd(tracker, duration, endProgress, completeCb) {
         let workspaceManager = global.workspace_manager;
         let newWs = workspaceManager.get_workspace_by_index(endProgress);
 
@@ -944,6 +913,8 @@ distance = Main.layoutManager.primaryMonitor.width;
                 if (!newWs.active)
                     newWs.activate(global.get_current_time());
                 this._endTouchGesture();
+
+                completeCb();
             },
         });
     }
@@ -986,9 +957,6 @@ distance = Main.layoutManager.primaryMonitor.width;
     prepareToLeaveOverview() {
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].prepareToLeaveOverview();
-
-        this._leavingOverview = true;
-        this._updateSwipeTracker();
     }
 
     vfunc_hide() {
@@ -998,8 +966,6 @@ distance = Main.layoutManager.primaryMonitor.width;
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].destroy();
         this._workspacesViews = [];
-
-        this._leavingOverview = false;
 
         super.vfunc_hide();
     }
