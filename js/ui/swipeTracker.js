@@ -17,9 +17,9 @@ const EVENT_HISTORY_THRESHOLD_MS = 150;
 
 const SCROLL_MULTIPLIER = 10;
 
-const MIN_ANIMATION_DURATION = 40;
+const MIN_ANIMATION_DURATION = 100;
 const MAX_ANIMATION_DURATION = 400;
-const VELOCITY_THRESHOLD_TOUCH = 0.5;
+const VELOCITY_THRESHOLD_TOUCH = 0.3;
 const VELOCITY_THRESHOLD_TOUCHPAD = 0.6;
 const DECELERATION_TOUCH = 0.998;
 const DECELERATION_TOUCHPAD = 0.997;
@@ -270,8 +270,8 @@ var SwipeTracker = GObject.registerClass({
     },
     Signals: {
         'begin':  { param_types: [GObject.TYPE_UINT] },
-        'update': { param_types: [GObject.TYPE_DOUBLE, GObject.TYPE_BOOLEAN] },
-        'end':    { param_types: [GObject.TYPE_DOUBLE] },
+        'update': { param_types: [GObject.TYPE_DOUBLE] },
+        'end':    { param_types: [GObject.TYPE_UINT64, GObject.TYPE_DOUBLE] },
     },
 }, class SwipeTracker extends Clutter.PanGesture {
     _init(orientation, allowedModes, params) {
@@ -367,11 +367,7 @@ var SwipeTracker = GObject.registerClass({
         this._cancelProgress = 0;
 
         this._prevOffset = 0;
-        this._realProg = 0;
         this._progress = 0;
-this._old = false;
-
-        this._totalDelta = 0;
 
         this._cancelled = false;
 
@@ -380,7 +376,7 @@ this._old = false;
     }
 
     _interrupt() {
-        this.emit('end', 0);
+        this.emit('end', 0, this._cancelProgress);
         this.set_state(Clutter.GestureState.CANCELLED);
         this._reset();
     }
@@ -546,8 +542,6 @@ this._old = false;
             Clutter.get_default_text_direction() === Clutter.TextDirection.RTL)
             delta = -delta;
 
-        this._totalDelta += delta;
-
         const vertical = this.orientation === Clutter.Orientation.VERTICAL;
         const distance = isTouchpad
             ? vertical ? TOUCHPAD_BASE_HEIGHT : TOUCHPAD_BASE_WIDTH
@@ -555,24 +549,12 @@ this._old = false;
 
         if (distance === 0)
             throw new Error();
-const wasOld = this._old;
-let ease = false;
-        if (this._old && Math.abs(this._totalDelta) < (this._thre * distance)) {
-            this._realProg += delta / distance;
-            this._progress += (delta  / 6) / distance;
 
-        } else {
-this._old = false;
-            this._realProg += delta / distance;
-            this._progress = this._realProg;
-if (wasOld)
-    ease = true;
-        }
+        this._progress += delta / distance;
 
-       // this._progress = Math.clamp(this._progress, ...this._getBounds(this._initialProgress));
-        this._progress = Math.clamp(this._progress, this._snapPoints[0], this._snapPoints[this._snapPoints.length - 1]);
+        this._progress = Math.clamp(this._progress, ...this._getBounds(this._initialProgress));
 
-        this.emit('update', this._progress, ease);
+        this.emit('update', this._progress);
     }
 
     _updateTouchGesture(gesture, deltaX, deltaY, pannedDistance) {
@@ -592,11 +574,12 @@ if (wasOld)
         this._updateGesture(delta, true);
     }
 
-    _getEndProgress(velocity, distance, isTouchpad, threshold) {
+    _getEndProgress(velocity, distance, isTouchpad) {
         if (this._cancelled)
             return this._cancelProgress;
 
-log("GESTURE V " + (this.orientation === Clutter.Orientation.VERTICAL) + " velo " + velocity + " prog " + this._progress);
+        const threshold = isTouchpad ? VELOCITY_THRESHOLD_TOUCHPAD : VELOCITY_THRESHOLD_TOUCH;
+
         if (Math.abs(velocity) < threshold)
             return this._snapPoints[this._findClosestPoint(this._progress)];
 
@@ -629,18 +612,12 @@ log("GESTURE V " + (this.orientation === Clutter.Orientation.VERTICAL) + " velo 
             return;
         }
 
-        this.emit('end', velocity);
-    }
-
-    getEndProgress(velocity, threshold) {
-
-const isTouchpad = false;
         const vertical = this.orientation === Clutter.Orientation.VERTICAL;
         const distance = isTouchpad
             ? vertical ? TOUCHPAD_BASE_HEIGHT : TOUCHPAD_BASE_WIDTH
             : this._distance;
 
-        const endProgress = this._getEndProgress(velocity, distance, isTouchpad, threshold);
+        const endProgress = this._getEndProgress(velocity, distance, isTouchpad);
 
         velocity /= distance;
 
@@ -650,20 +627,18 @@ const isTouchpad = false;
         const nPoints = Math.max(1, Math.ceil(Math.abs(this._progress - endProgress)));
         const maxDuration = MAX_ANIMATION_DURATION * Math.log2(1 + nPoints);
 
-        let duration = Math.abs(((this._progress - endProgress) / velocity) * DURATION_MULTIPLIER);
+        let duration = Math.abs((this._progress - endProgress) / velocity * DURATION_MULTIPLIER);
         if (duration > 0)
             duration = Math.clamp(duration, MIN_ANIMATION_DURATION, maxDuration);
 
         this._reset();
-log("ANIMATING OUT WITH DURATION OF " + duration + " for CITY " + velocity);
-        return [duration, endProgress];
+        this.emit('end', duration, endProgress);
     }
 
     _endTouchGesture(gesture, velocityX, velocityY) {
         const velocity = this.orientation === Clutter.Orientation.HORIZONTAL
             ? -velocityX
             : -velocityY;
-log("touch gesture end CITY " + velocity);
 
         this._endGesture(velocity, false);
     }
@@ -679,7 +654,6 @@ log("touch gesture end CITY " + velocity);
     }
 
     _cancelTouchGesture(_gesture) {
-log("TOUCH GESTURE CANCELL");
         this._cancelled = true;
         this._endGesture(0, false);
     }
@@ -704,7 +678,6 @@ log("TOUCH GESTURE CANCELL");
         this._snapPoints = snapPoints;
         this._initialProgress = currentProgress;
         this._progress = currentProgress;
-        this._realProg = this._progress;
         this._cancelProgress = cancelProgress;
     }
 

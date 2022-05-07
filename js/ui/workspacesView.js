@@ -823,7 +823,7 @@ class WorkspacesDisplay extends St.Widget {
 
         global.window_manager.connectObject('switch-workspace',
             this._activeWorkspaceChanged.bind(this), this);
-/*
+
         this._swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.OVERVIEW,
@@ -835,7 +835,7 @@ class WorkspacesDisplay extends St.Widget {
         this._swipeTracker.set_name('WorkspacesView swipe tracker');
         Main.layoutManager.overviewGroup.add_action(this._swipeTracker);
         this.connect('notify::mapped', this._updateSwipeTracker.bind(this));
-*/
+
         workspaceManager.connectObject(
             'workspaces-reordered', this._workspacesReordered.bind(this),
             'notify::layout-rows', this._updateTrackerOrientation.bind(this), this);
@@ -868,12 +868,12 @@ class WorkspacesDisplay extends St.Widget {
 
     _windowDragBegin() {
         this._inWindowDrag = true;
-//        this._updateSwipeTracker();
+        this._updateSwipeTracker();
     }
 
     _windowDragEnd() {
         this._inWindowDrag = false;
-  //      this._updateSwipeTracker();
+        this._updateSwipeTracker();
     }
 
     _updateSwipeTracker() {
@@ -902,9 +902,9 @@ class WorkspacesDisplay extends St.Widget {
 
     _updateTrackerOrientation() {
         const { layoutRows } = global.workspace_manager;
-//        this._swipeTracker.orientation = layoutRows !== -1
-  //          ? Clutter.Orientation.HORIZONTAL
-    //        : Clutter.Orientation.VERTICAL;
+        this._swipeTracker.orientation = layoutRows !== -1
+            ? Clutter.Orientation.HORIZONTAL
+            : Clutter.Orientation.VERTICAL;
     }
 
     _directionForProgress(progress) {
@@ -947,36 +947,22 @@ class WorkspacesDisplay extends St.Widget {
         this._gestureActive = true;
     }
 
-    _switchWorkspaceUpdate(tracker, progress, ease) {
-    if (ease) {
-        this._scrollAdjustment.ease(progress, {
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            duration: 100,
-        });
-    } else {
-        const trans = this._scrollAdjustment.get_transition('value');
-        if (trans) {
-            trans.get_interval().final = progress * this._scrollAdjustment.page_size;
-        } else {
-            this._scrollAdjustment.value = progress * this._scrollAdjustment.page_size;
-        }
-    }
+    _switchWorkspaceUpdate(tracker, progress) {
+        let adjustment = this._scrollAdjustment;
+        adjustment.value = progress * adjustment.page_size;
     }
 
-    _switchWorkspaceEnd(tracker, duration, endProgress, complete) {
+    _switchWorkspaceEnd(tracker, duration, endProgress) {
         let workspaceManager = global.workspace_manager;
         let newWs = workspaceManager.get_workspace_by_index(endProgress);
-
-                if (!newWs.active)
-                    newWs.activate(global.get_current_time());
 
         this._scrollAdjustment.ease(endProgress, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
             onComplete: () => {
-
+                if (!newWs.active)
+                    newWs.activate(global.get_current_time());
                 this._endTouchGesture();
-complete();
             },
         });
     }
@@ -1020,7 +1006,7 @@ complete();
             this._workspacesViews[i].prepareToLeaveOverview();
 
         this._leavingOverview = true;
-//        this._updateSwipeTracker();
+        this._updateSwipeTracker();
     }
 
     vfunc_hide() {
@@ -1093,8 +1079,8 @@ complete();
     }
 
     _onScrollEvent(actor, event) {
-//        if (this._swipeTracker.canHandleScrollEvent(event))
-  //          return Clutter.EVENT_PROPAGATE;
+        if (this._swipeTracker.canHandleScrollEvent(event))
+            return Clutter.EVENT_PROPAGATE;
 
         if (!this.mapped)
             return Clutter.EVENT_PROPAGATE;

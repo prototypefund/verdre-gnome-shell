@@ -748,7 +748,7 @@ class ControlsManager extends St.Widget {
     }
 
     gestureBegin(tracker) {
-        const baseDistance = global.screen_height * 0.6;
+        const baseDistance = global.screen_height;
         const progress = this._stateAdjustment.value;
         const points = [
             ControlsState.HIDDEN,
@@ -768,20 +768,8 @@ class ControlsManager extends St.Widget {
         this._stateAdjustment.gestureInProgress = true;
     }
 
-    gestureProgress(progress, ease) {
-        if (ease) {
-            this._stateAdjustment.ease(progress, {
-                duration: 100,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            });
-        } else {
-            const trans = this._stateAdjustment.get_transition('value');
-            if (trans) {
-                trans.get_interval().final = progress;
-            } else {
-                this._stateAdjustment.value = progress;
-            }
-        }
+    gestureProgress(progress) {
+        this._stateAdjustment.value = progress;
     }
 
     gestureEnd(target, duration, onComplete) {

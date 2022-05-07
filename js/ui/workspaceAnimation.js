@@ -275,13 +275,13 @@ var WorkspaceAnimationController = class {
             if (this._switchData) {
                 if (this._switchData.gestureActivated)
                     this._finishWorkspaceSwitch(this._switchData);
-    //            this._swipeTracker.enabled = false;
+                this._swipeTracker.enabled = false;
             }
         });
         Main.overview.connect('hiding', () => {
-     //       this._swipeTracker.enabled = true;
+            this._swipeTracker.enabled = true;
         });
-/*
+
         const swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.NORMAL,
@@ -296,7 +296,6 @@ var WorkspaceAnimationController = class {
         global.display.bind_property('compositor-modifiers',
             this._swipeTracker, 'scroll-modifiers',
             GObject.BindingFlags.SYNC_CREATE);
-*/
     }
 
     _prepareWorkspaceSwitch(workspaceIndices) {
@@ -346,7 +345,7 @@ var WorkspaceAnimationController = class {
     }
 
     animateSwitch(from, to, direction, onComplete) {
-  //      this._swipeTracker.enabled = false;
+        this._swipeTracker.enabled = false;
 
         let workspaceIndices = [];
 
@@ -390,7 +389,7 @@ var WorkspaceAnimationController = class {
                 params.onComplete = () => {
                     this._finishWorkspaceSwitch(this._switchData);
                     onComplete();
-            //        this._swipeTracker.enabled = true;
+                    this._swipeTracker.enabled = true;
                 };
             }
 
@@ -399,7 +398,6 @@ var WorkspaceAnimationController = class {
     }
 
     canHandleScrollEvent(event) {
-return false;
         return this._swipeTracker.canHandleScrollEvent(event);
     }
 
