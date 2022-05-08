@@ -25,7 +25,6 @@ const DECELERATION_TOUCH = 0.998;
 const DECELERATION_TOUCHPAD = 0.997;
 const VELOCITY_CURVE_THRESHOLD = 2;
 const DECELERATION_PARABOLA_MULTIPLIER = 0.35;
-const DRAG_THRESHOLD_DISTANCE = 16;
 
 // Derivative of easeOutCubic at t=0
 const DURATION_MULTIPLIER = 3;
@@ -150,6 +149,8 @@ var SwipeTracker = GObject.registerClass({
         this._cancelProgress = 0;
         this._progress = 0;
         this._reset();
+
+        this.begin_threshold = 16;
 
         this.connect('pan-begin', this._beginTouchGesture.bind(this));
         this.connect('pan-update', this._updateTouchGesture.bind(this));
@@ -358,7 +359,7 @@ var SwipeTracker = GObject.registerClass({
             const cdy = this._cumulativeY;
             const distance = Math.sqrt(cdx * cdx + cdy * cdy);
 
-            if (distance >= DRAG_THRESHOLD_DISTANCE) {
+            if (distance >= this.begin_threshold) {
                 const gestureOrientation = Math.abs(cdx) > Math.abs(cdy)
                     ? Clutter.Orientation.HORIZONTAL
                     : Clutter.Orientation.VERTICAL;
