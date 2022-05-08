@@ -364,10 +364,6 @@ var Overview = class {
     }
 
     _overviewGestureBegin(tracker) {
-        this._overview.controls.overviewGestureBegin(tracker);
-    }
-
-    _overviewGestureUpdate(tracker, progress) {
         if (!this._shown) {
             Meta.disable_unredirect_for_display(global.display);
 
@@ -381,7 +377,14 @@ var Overview = class {
             Main.layoutManager.showOverview();
             this._syncGrab();
         }
+        delete this._shownForWorkspacesGesture;
+            this._visible = true;
+            this._visibleTarget = true;
 
+        this._overview.controls.overviewGestureBegin(tracker);
+    }
+
+    _overviewGestureUpdate(tracker, progress) {
         this._overview.controls.overviewGestureProgress(progress);
     }
 
