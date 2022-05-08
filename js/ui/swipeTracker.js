@@ -355,28 +355,15 @@ var SwipeTracker = GObject.registerClass({
             this._cumulativeX += dx;
             this._cumulativeY += dy;
 
-            const cdx = this._cumulativeX;
-            const cdy = this._cumulativeY;
-            const distance = Math.sqrt(cdx * cdx + cdy * cdy);
+            if ((this.orientation === Clutter.Orientation.VERTICAL &&
+                 Math.abs(this._cumulativeY) >= this.begin_threshold) ||
+                (this.orientation === Clutter.Orientation.HORIZONTAL &&
+                 Math.abs(this._cumulativeX) >= this.begin_threshold)) {
+                this._beginX = x;
+                this._beginY = y;
+                this._history.append(time, 0);
 
-            if (distance >= this.begin_threshold) {
-                const gestureOrientation = Math.abs(cdx) > Math.abs(cdy)
-                    ? Clutter.Orientation.HORIZONTAL
-                    : Clutter.Orientation.VERTICAL;
-
-                this._cumulativeX = 0;
-                this._cumulativeY = 0;
-
-                if (gestureOrientation === this.orientation) {
-                    this._beginX = x;
-                    this._beginY = y;
-                    this._history.append(time, 0);
-
-                    this.set_state(Clutter.GestureState.RECOGNIZING);
-                } else {
-                    this.set_state(Clutter.GestureState.CANCELLED);
-                    return Clutter.EVENT_PROPAGATE;
-                }
+                this.set_state(Clutter.GestureState.RECOGNIZING);
             } else {
                 return Clutter.EVENT_PROPAGATE;
             }
