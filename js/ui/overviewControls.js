@@ -716,7 +716,7 @@ class ControlsManager extends St.Widget {
         this._ignoreShowAppsButtonToggle = true;
 
         this._searchController.prepareToEnterOverview();
-        this._workspacesDisplay.prepareToEnterOverview();
+        this._workspacesDisplay.show();
 
         this._stateAdjustment.value = ControlsState.HIDDEN;
         this._stateAdjustment.ease(state, {
@@ -772,7 +772,7 @@ class ControlsManager extends St.Widget {
         this._stateAdjustment.remove_transition('value');
 
         tracker.confirmSwipe(baseDistance, points, progress, cancelProgress);
-        this._workspacesDisplay.prepareToEnterOverview();
+        this._workspacesDisplay.show();
         this._searchController.prepareToEnterOverview();
         this._stateAdjustment.gestureInProgress = true;
     }
@@ -802,7 +802,7 @@ class ControlsManager extends St.Widget {
         this._ignoreShowAppsButtonToggle = true;
 
         this._searchController.prepareToEnterOverview();
-        this._workspacesDisplay.prepareToEnterOverview();
+        this._workspacesDisplay.show();
 
         this._stateAdjustment.value = ControlsState.HIDDEN;
         this._stateAdjustment.ease(ControlsState.WINDOW_PICKER, {

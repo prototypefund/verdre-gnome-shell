@@ -970,8 +970,7 @@ distance = Main.layoutManager.primaryMonitor.width;
             primaryWorkspace.visible = visible;
     }
 
-    prepareToEnterOverview() {
-        this.show();
+    vfunc_show() {
         this._updateWorkspacesViews();
 
         Main.overview.connectObject(
@@ -980,6 +979,8 @@ distance = Main.layoutManager.primaryMonitor.width;
 
         global.stage.connectObject(
             'key-press-event', this._onKeyPressEvent.bind(this), this);
+
+        super.vfunc_show();
     }
 
     prepareToLeaveOverview() {
