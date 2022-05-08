@@ -514,7 +514,7 @@ var SwipeTracker = GObject.registerClass({
         return this._snapPoints[index];
     }
 
-    _endGesture(velocity, isTouchpad) {
+    _getAnimateOutParams(velocity, isTouchpad) {
         const vertical = this.orientation === Clutter.Orientation.VERTICAL;
         const distance = isTouchpad
             ? vertical ? TOUCHPAD_BASE_HEIGHT : TOUCHPAD_BASE_WIDTH
@@ -533,6 +533,43 @@ var SwipeTracker = GObject.registerClass({
         let duration = Math.abs((this._progress - endProgress) / velocity * DURATION_MULTIPLIER);
         if (duration > 0)
             duration = Math.clamp(duration, MIN_ANIMATION_DURATION, maxDuration);
+
+        return [duration, endProgress];
+    }
+
+    _endGesture(velocity, isTouchpad) {
+        if (this._otherDimensionTracker) {
+            const otherTracker = this._otherDimensionTracker;
+
+            if (otherTracker.state === Clutter.GestureState.RECOGNIZING) {
+                this._endVelocity = velocity;
+                this._endIsTouchpad = isTouchpad;
+                return;
+            }
+
+            if (otherTracker._endVelocity !== undefined) {
+                if (Math.abs(velocity) < Math.abs(otherTracker._endVelocity))
+                    velocity = 0;
+                else
+                    otherTracker._endVelocity = 0;
+
+                const [ourDuration, ourEndProgress] = this._getAnimateOutParams(velocity, isTouchpad);
+                const [otherDuration, otherEndProgress] =
+                    otherTracker._getAnimateOutParams(otherTracker._endVelocity, otherTracker._endIsTouchpad);
+
+                const finalDuration = ourDuration > otherDuration ? ourDuration : otherDuration;
+
+                otherTracker.emit('end', finalDuration, otherEndProgress);
+                this.emit('end', finalDuration, ourEndProgress);
+
+                delete otherTracker._endVelocity;
+                delete otherTracker._endIsTouchpad;
+
+                return;
+            }
+        }
+
+        const [duration, endProgress] = this._getAnimateOutParams(velocity, isTouchpad);
 
         this.emit('end', duration, endProgress);
     }
@@ -577,5 +614,28 @@ var SwipeTracker = GObject.registerClass({
 
     destroy() {
         global.stage.disconnectObject(this);
+    }
+
+    make2d(otherSwipeTracker) {
+        if (!(otherSwipeTracker instanceof SwipeTracker))
+            throw new Error('Must pass a SwipeTracker to make2d');
+
+        if (this.orientation === otherSwipeTracker.orientation)
+            throw new Error('Other SwipeTracker must have different orientation');
+
+        if (this._otherDimensionTracker || otherSwipeTracker._otherDimensionTracker)
+            throw new Error('Is already 2d');
+
+        this.can_not_cancel(otherSwipeTracker);
+        otherSwipeTracker.can_not_cancel(this);
+
+        /* ClutterGesture is not aware of sequences from scroll/touchpad
+         * events, so we also need to enable recognizing independently.
+         */
+        this.recognize_independently_from(otherSwipeTracker);
+        otherSwipeTracker.recognize_independently_from(this);
+
+        this._otherDimensionTracker = otherSwipeTracker;
+        otherSwipeTracker._otherDimensionTracker = this;
     }
 });
