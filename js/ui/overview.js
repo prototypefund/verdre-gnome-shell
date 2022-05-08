@@ -254,6 +254,8 @@ var Overview = class extends Signals.EventEmitter {
             this._threeFingerWorkspacesGesture, 'scroll-modifiers',
             GObject.BindingFlags.SYNC_CREATE);
 
+        this._threeFingerOverviewGesture.make2d(this._threeFingerWorkspacesGesture);
+
         const workspaceManager = global.workspace_manager;
 
         workspaceManager.connectObject('notify::layout-rows', () => {
