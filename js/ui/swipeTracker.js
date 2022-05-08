@@ -309,8 +309,6 @@ var SwipeTracker = GObject.registerClass({
 
             this._history.append(time, delta);
             this._updateGesture(delta, true);
-
-            return Clutter.EVENT_STOP;
         }
 
         return Clutter.EVENT_PROPAGATE;
@@ -409,9 +407,7 @@ var SwipeTracker = GObject.registerClass({
             }
         }
 
-        return this.state === Clutter.GestureState.RECOGNIZING
-            ? Clutter.EVENT_STOP
-            : Clutter.EVENT_PROPAGATE;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _beginGesture(x, y) {
