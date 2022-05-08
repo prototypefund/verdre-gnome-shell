@@ -251,6 +251,8 @@ var Overview = class {
         global.display.bind_property('compositor-modifiers',
             this._workspacesSwipeTracker, 'scroll-modifiers',
             GObject.BindingFlags.SYNC_CREATE);
+
+        this._overviewSwipeTracker.make2d(this._workspacesSwipeTracker);
     }
 
     //
