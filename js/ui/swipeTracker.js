@@ -85,139 +85,6 @@ const EventHistory = class {
     }
 };
 
-const ScrollGesture = GObject.registerClass({
-    Properties: {
-        'enabled': GObject.ParamSpec.boolean(
-            'enabled', 'enabled', 'enabled',
-            GObject.ParamFlags.READWRITE,
-            true),
-        'actor': GObject.ParamSpec.object(
-            'actor', 'actor', 'actor',
-            GObject.ParamFlags.READWRITE,
-            Clutter.Actor.$gtype),
-        'orientation': GObject.ParamSpec.enum(
-            'orientation', 'orientation', 'orientation',
-            GObject.ParamFlags.READWRITE,
-            Clutter.Orientation, Clutter.Orientation.HORIZONTAL),
-        'scroll-modifiers': GObject.ParamSpec.flags(
-            'scroll-modifiers', 'scroll-modifiers', 'scroll-modifiers',
-            GObject.ParamFlags.READWRITE,
-            Clutter.ModifierType, 0),
-    },
-    Signals: {
-        'begin':  { param_types: [GObject.TYPE_DOUBLE, GObject.TYPE_DOUBLE] },
-        'update': { param_types: [GObject.TYPE_DOUBLE] },
-        'end':    { param_types: [GObject.TYPE_DOUBLE] },
-    },
-}, class ScrollGesture extends GObject.Object {
-    _init(allowedModes) {
-        super._init();
-        this._allowedModes = allowedModes;
-        this._began = false;
-        this._enabled = true;
-        this._history = new EventHistory();
-
-        this._actor = null;
-    }
-
-    get enabled() {
-        return this._enabled;
-    }
-
-    set enabled(enabled) {
-        if (this._enabled === enabled)
-            return;
-
-        this._enabled = enabled;
-        this._began = false;
-
-        this.notify('enabled');
-    }
-
-    get actor() {
-        return this._actor;
-    }
-
-    set actor(actor) {
-        if (this._actor === actor)
-            return;
-
-        if (this._actor) {
-            this._actor.disconnect(this._scrollEventId);
-            delete this._scrollEventId;
-        }
-        this._actor = actor;
-        if (this._actor) {
-            this._scrollEventId =
-                this._actor.connect('event::scroll', this._handleEvent.bind(this));
-        }
-
-        this.notify('actor');
-    }
-
-    canHandleEvent(event) {
-        if (event.type() !== Clutter.EventType.SCROLL)
-            return false;
-
-        if (event.get_scroll_source() !== Clutter.ScrollSource.FINGER &&
-            event.get_source_device().get_device_type() !== Clutter.InputDeviceType.TOUCHPAD_DEVICE)
-            return false;
-
-        if (!this.enabled)
-            return false;
-
-        if ((this._allowedModes & Main.actionMode) === 0)
-            return false;
-
-        if (!this._began && this.scrollModifiers !== 0 &&
-            (event.get_state() & this.scrollModifiers) === 0)
-            return false;
-
-        return true;
-    }
-
-    _handleEvent(actor, event) {
-        if (!this.canHandleEvent(event))
-            return Clutter.EVENT_PROPAGATE;
-
-        if (event.get_scroll_direction() !== Clutter.ScrollDirection.SMOOTH)
-            return Clutter.EVENT_PROPAGATE;
-
-        const vertical = this.orientation === Clutter.Orientation.VERTICAL;
-
-        let time = event.get_time();
-        let [dx, dy] = event.get_scroll_delta();
-        if (dx === 0 && dy === 0) {
-            this._history.trim(time);
-            const velocity = this._history.calculateVelocity();
-
-            this.emit('end', velocity);
-            this._began = false;
-            return Clutter.EVENT_STOP;
-        }
-
-        if (!this._began) {
-            let [x, y] = event.get_coords();
-            this._history.append(time, 0);
-
-            this.emit('begin', x, y);
-            this._began = true;
-        }
-
-        const delta = (vertical ? dy : dx) * SCROLL_MULTIPLIER;
-
-        this._history.append(time, delta);
-
-        this.emit('update', delta);
-
-        return Clutter.EVENT_STOP;
-    }
-
-    reset() {
-        this._history.reset();
-    }
-});
-
 // USAGE:
 //
 // To correctly implement the gesture, there must be handlers for the following
@@ -294,6 +161,8 @@ var SwipeTracker = GObject.registerClass({
         this.connect('pan-end', this._endTouchGesture.bind(this));
         this.connect('pan-cancel', this._cancelTouchGesture.bind(this));
 
+        this._scrollEnabled = params.allowScroll;
+
         this._touchpadState = TouchpadState.NONE;
         this._cumulativeX = 0;
         this._cumulativeY = 0;
@@ -301,23 +170,6 @@ var SwipeTracker = GObject.registerClass({
             schema_id: 'org.gnome.desktop.peripherals.touchpad',
         });
         this._history = new EventHistory();
-
-        if (params.allowScroll) {
-            this._scrollGesture = new ScrollGesture(allowedModes);
-            this._scrollGesture.connect('begin', this._beginGesture.bind(this));
-            this._scrollGesture.connect('update', this._updateTouchpadGesture.bind(this));
-            this._scrollGesture.connect('end', this._endTouchpadGesture.bind(this));
-            this.bind_property('enabled', this._scrollGesture, 'enabled',
-                GObject.BindingFlags.SYNC_CREATE);
-            this.bind_property('actor', this._scrollGesture, 'actor',
-                GObject.BindingFlags.SYNC_CREATE);
-            this.bind_property('orientation', this._scrollGesture, 'orientation',
-                GObject.BindingFlags.SYNC_CREATE);
-            this.bind_property('scroll-modifiers',
-                this._scrollGesture, 'scroll-modifiers', 0);
-        } else {
-            this._scrollGesture = null;
-        }
 
         this.connect('notify::enabled', () => {
             if (!this.enabled && this.state === Clutter.GestureState.RECOGNIZING)
@@ -328,8 +180,12 @@ var SwipeTracker = GObject.registerClass({
     }
 
     vfunc_set_actor(actor) {
-        actor.connectObject(
-            'event::touchpad', this._handleEvent.bind(this), this);
+        if (actor) {
+            actor.connectObject(
+                'event::scroll', this._handleScrollEvent.bind(this),
+                'event::touchpad', this._handleTouchpadEvent.bind(this),
+                this);
+        }
 
         super.vfunc_set_actor(actor);
     }
@@ -346,11 +202,28 @@ var SwipeTracker = GObject.registerClass({
      * This function can be used to combine swipe gesture and mouse
      * scrolling.
      */
-    canHandleScrollEvent(scrollEvent) {
-        if (!this.enabled || this._scrollGesture === null)
+    canHandleScrollEvent(event) {
+        if (!this.enabled || !this._scrollEnabled)
             return false;
 
-        return this._scrollGesture.canHandleEvent(scrollEvent);
+        if (event.type() !== Clutter.EventType.SCROLL)
+            return false;
+
+        if (event.get_scroll_source() !== Clutter.ScrollSource.FINGER &&
+            event.get_source_device().get_device_type() !== Clutter.InputDeviceType.TOUCHPAD_DEVICE)
+            return false;
+
+        if (!this.enabled)
+            return false;
+
+        if ((this._allowedModes & Main.actionMode) === 0)
+            return false;
+
+        if (!this._scrollBegan && this.scrollModifiers !== 0 &&
+            (event.get_state() & this.scrollModifiers) === 0)
+            return false;
+
+        return true;
     }
 
     get distance() {
@@ -376,7 +249,6 @@ var SwipeTracker = GObject.registerClass({
         this._cancelled = false;
 
         this._history.reset();
-        this._scrollGesture?.reset();
     }
 
     _interrupt() {
@@ -385,7 +257,43 @@ var SwipeTracker = GObject.registerClass({
         this._reset();
     }
 
-    _handleEvent(actor, event) {
+    _handleScrollEvent(actor, event) {
+        if (!this.canHandleScrollEvent(event))
+            return Clutter.EVENT_PROPAGATE;
+
+        if (event.get_scroll_direction() !== Clutter.ScrollDirection.SMOOTH)
+            return Clutter.EVENT_PROPAGATE;
+
+        const vertical = this.orientation === Clutter.Orientation.VERTICAL;
+
+        let time = event.get_time();
+        let [dx, dy] = event.get_scroll_delta();
+        if (dx === 0 && dy === 0) {
+            this._history.trim(time);
+            const velocity = this._history.calculateVelocity();
+log("ending scroll");
+            this._endTouchpadGesture(this, velocity);
+            this._scrollBegan = false;
+            return Clutter.EVENT_STOP;
+        }
+
+        if (!this._scrollBegan) {
+            let [x, y] = event.get_coords();
+            this._history.append(time, 0);
+log("begin scorll ");
+            this._beginGesture(this, x, y);
+            this._scrollBegan = true;
+        }
+
+        const delta = (vertical ? dy : dx) * SCROLL_MULTIPLIER;
+log("Appending delta " + delta);
+        this._history.append(time, delta);
+        this._updateTouchpadGesture(this, delta);
+
+        return Clutter.EVENT_STOP;
+    }
+
+    _handleTouchpadEvent(actor, event) {
         if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE)
             return Clutter.EVENT_PROPAGATE;
 
