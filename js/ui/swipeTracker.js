@@ -311,8 +311,6 @@ var SwipeTracker = GObject.registerClass({
 
             this._history.append(time, delta);
             this._updateTouchpadGesture(this, delta);
-
-            return Clutter.EVENT_STOP;
         }
 
         return Clutter.EVENT_PROPAGATE;
@@ -412,9 +410,7 @@ var SwipeTracker = GObject.registerClass({
             }
         }
 
-        return this.state === Clutter.GestureState.RECOGNIZING
-            ? Clutter.EVENT_STOP
-            : Clutter.EVENT_PROPAGATE;
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _beginGesture(gesture, x, y) {
