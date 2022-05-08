@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported SwipeTracker */
 
-const { Clutter, Gio, GObject, Meta } = imports.gi;
+const { Clutter, Gio, GLib, GObject, Meta } = imports.gi;
 
 const Main = imports.ui.main;
 const Params = imports.misc.params;
@@ -299,6 +299,11 @@ var SwipeTracker = GObject.registerClass({
             return Clutter.EVENT_PROPAGATE;
 
         if (this.state === Clutter.GestureState.RECOGNIZING) {
+            if (this._holdEndedId) {
+                GLib.source_remove(this._holdEndedId);
+                delete this._holdEndedId;
+            }
+
             if (dx === 0 && dy === 0) {
                 this._history.trim(time);
                 const velocity = this._history.calculateVelocity();
@@ -317,14 +322,61 @@ var SwipeTracker = GObject.registerClass({
         return Clutter.EVENT_PROPAGATE;
     }
 
-    _handleTouchpadEvent(actor, event) {
-        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE)
+    _handleHoldEvent(event) {
+        const phase = event.get_gesture_phase();
+
+        const mods = global.get_pointer()[2];
+        const scrollEnabled = this._scrollEnabled &&
+            (this.scrollModifiers === 0 || (mods & this.scrollModifiers) !== 0);
+
+         if (event.get_touchpad_gesture_finger_count() !== GESTURE_FINGER_COUNT &&
+             (!scrollEnabled || event.get_touchpad_gesture_finger_count() !== 2))
             return Clutter.EVENT_PROPAGATE;
 
+        if (phase === Clutter.TouchpadGesturePhase.BEGIN) {
+            if (this.state === Clutter.GestureState.WAITING && this.begin_threshold === 0) {
+                this._isTouchpadGesture = true;
+                [this._beginX, this._beginY] = event.get_coords();
+                this._history.append(event.get_time(), 0);
+
+                this.set_state(Clutter.GestureState.POSSIBLE);
+                if (this.state === Clutter.GestureState.POSSIBLE)
+                    this.set_state(Clutter.GestureState.RECOGNIZING);
+                else
+                    this._isTouchpadGesture = false;
+            }
+        } else if (phase === Clutter.TouchpadGesturePhase.END ||
+                   phase === Clutter.TouchpadGesturePhase.CANCEL) {
+            if (this.state === Clutter.GestureState.RECOGNIZING) {
+                this._holdEndedId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+                    this.set_state(Clutter.GestureState.RECOGNIZED);
+                    this._endTouchpadGesture(this, 0);
+
+                    delete this._holdEndedId;
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _handleTouchpadEvent(actor, event) {
         if (!this.enabled)
             return Clutter.EVENT_PROPAGATE;
 
-        if (event.get_gesture_phase() === Clutter.TouchpadGesturePhase.BEGIN) {
+        if (event.type() === Clutter.EventType.TOUCHPAD_HOLD)
+            return this._handleHoldEvent(event);
+
+        if (event.type() !== Clutter.EventType.TOUCHPAD_SWIPE)
+            return Clutter.EVENT_PROPAGATE;
+
+        const phase = event.get_gesture_phase();
+
+        if (event.get_touchpad_gesture_finger_count() !== GESTURE_FINGER_COUNT)
+            return Clutter.EVENT_PROPAGATE;
+
+        if (phase === Clutter.TouchpadGesturePhase.BEGIN) {
             if (this.state === Clutter.GestureState.WAITING) {
                 this._isTouchpadGesture = true;
 
@@ -335,12 +387,6 @@ var SwipeTracker = GObject.registerClass({
         }
 
         if (!this._isTouchpadGesture)
-            return Clutter.EVENT_PROPAGATE;
-
-        if (event.get_touchpad_gesture_finger_count() !== GESTURE_FINGER_COUNT)
-            return Clutter.EVENT_PROPAGATE;
-
-        if (this.state === Clutter.GestureState.WAITING)
             return Clutter.EVENT_PROPAGATE;
 
         let time = event.get_time();
@@ -376,7 +422,12 @@ var SwipeTracker = GObject.registerClass({
             const vertical = this.orientation === Clutter.Orientation.VERTICAL;
             let delta = vertical ? dy : dx;
 
-            switch (event.get_gesture_phase()) {
+            if (this._holdEndedId) {
+                GLib.source_remove(this._holdEndedId);
+                delete this._holdEndedId;
+            }
+
+            switch (phase) {
             case Clutter.TouchpadGesturePhase.BEGIN:
             case Clutter.TouchpadGesturePhase.UPDATE:
                 if (this._touchpadSettings.get_boolean('natural-scroll'))
