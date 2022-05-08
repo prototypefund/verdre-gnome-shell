@@ -810,7 +810,7 @@ var UnlockDialog = GObject.registerClass({
         this._adjustment.value = progress;
     }
 
-    _swipeEnd(tracker, duration, endProgress) {
+    _swipeEnd(tracker, duration, endProgress, endCb) {
         this._activePage = endProgress
             ? this._promptBox
             : this._clock;
@@ -818,9 +818,11 @@ var UnlockDialog = GObject.registerClass({
         this._adjustment.ease(endProgress, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
-            onComplete: () => {
+            onStopped: () => {
                 if (this._activePage === this._clock)
                     this._maybeDestroyAuthPrompt();
+
+                endCb();
             },
         });
     }

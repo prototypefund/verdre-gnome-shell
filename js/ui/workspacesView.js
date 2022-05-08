@@ -872,7 +872,7 @@ distance = Main.layoutManager.primaryMonitor.width;
         adjustment.value = progress * adjustment.page_size;
     }
 
-    workspacesGestureEnd(tracker, duration, endProgress, completeCb) {
+    workspacesGestureEnd(tracker, duration, endProgress, stoppedCb) {
         let workspaceManager = global.workspace_manager;
         let newWs = workspaceManager.get_workspace_by_index(endProgress);
 
@@ -881,16 +881,18 @@ distance = Main.layoutManager.primaryMonitor.width;
         this._scrollAdjustment.ease(endProgress, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
-            onComplete: () => {
+            onStopped: (finished) => {
                 /* Activating the workspace needs to happen before calling
                  * stoppedCb so that the workspace-changed handling in overview
                  * still sees animationInProgress = true.
                  */
-                if (!newWs.active)
-                    newWs.activate(global.get_current_time());
-                this._endTouchGesture();
+                if (finished) {
+                    if (!newWs.active)
+                        newWs.activate(global.get_current_time());
+                    this._endTouchGesture();
+                }
 
-                completeCb();
+                stoppedCb(finished);
             },
         });
     }
