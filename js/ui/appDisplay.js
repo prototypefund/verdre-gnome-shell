@@ -735,13 +735,14 @@ var BaseAppView = GObject.registerClass({
         adjustment.value = progress * adjustment.page_size;
     }
 
-    _swipeEnd(tracker, duration, endProgress) {
+    _swipeEnd(tracker, duration, endProgress, endCb) {
         const adjustment = this._adjustment;
         const value = endProgress * adjustment.page_size;
 
         adjustment.ease(value, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
+            onStopped: endCb,
             onComplete: () => this.goToPage(endProgress, false),
         });
     }

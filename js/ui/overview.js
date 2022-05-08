@@ -432,20 +432,28 @@ var Overview = class extends Signals.EventEmitter {
         this._overview.controls.overviewGestureProgress(progress);
     }
 
-    _overviewGestureEnd(tracker, duration, endProgress) {
-        let onComplete;
+    _overviewGestureEnd(tracker, duration, endProgress, endCb) {
+        let onStopped;
         if (endProgress === 0) {
             this._animationInProgress = true;
             this._shown = false;
             this._visibleTarget = false;
             this.emit('hiding');
             Main.panel.style = `transition-duration: ${duration}ms;`;
-            onComplete = () => this._hideDone();
+            onStopped = (finished) => {
+                endCb();
+                if (finished)
+                    this._hideDone();
+            };
         } else {
-            onComplete = () => this._showDone();
+            onStopped = (finished) => {
+                endCb();
+                if (finished)
+                    this._showDone();
+            }
         }
 
-        this._overview.controls.overviewGestureEnd(endProgress, duration, onComplete);
+        this._overview.controls.overviewGestureEnd(endProgress, duration, onStopped);
     }
 
     _workspacesGestureBegin(tracker, monitor) {
@@ -473,8 +481,10 @@ var Overview = class extends Signals.EventEmitter {
         this._overview.controls.workspacesGestureProgress(tracker, progress);
     }
 
-    _workspacesGestureEnd(tracker, duration, endProgress) {
-        let onComplete = () => {};
+    _workspacesGestureEnd(tracker, duration, endProgress, endCb) {
+        let onStopped = (finished) => {
+            endCb();
+        };
 
         if (this._shownForWorkspacesGesture) {
             this._animationInProgress = true;
@@ -482,14 +492,18 @@ var Overview = class extends Signals.EventEmitter {
             this.emit('hiding');
             Main.panel.style = `transition-duration: ${duration}ms;`;
 
-            onComplete = () => {
-                this._hideDone();
+            onStopped = (finished) => {
+                endCb();
 
-                delete this._shownForWorkspacesGesture;
+                if (finished) {
+                    this._hideDone();
+
+                    delete this._shownForWorkspacesGesture;
+                }
             };
         }
 
-        this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onComplete);
+        this._overview.controls.workspacesGestureEnd(tracker, duration, endProgress, onStopped);
     }
 
     cancelSwitchWorkspace() {
