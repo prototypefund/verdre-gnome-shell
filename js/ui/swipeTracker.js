@@ -125,7 +125,7 @@ var SwipeTracker = GObject.registerClass({
     Signals: {
         'begin':  { param_types: [GObject.TYPE_UINT] },
         'update': { param_types: [GObject.TYPE_DOUBLE] },
-        'end':    { param_types: [GObject.TYPE_UINT64, GObject.TYPE_DOUBLE] },
+        'end':    { param_types: [GObject.TYPE_UINT64, GObject.TYPE_DOUBLE, GObject.TYPE_JSOBJECT] },
     },
 }, class SwipeTracker extends Clutter.PanGesture {
     _init(orientation, allowedModes, params) {
@@ -241,6 +241,10 @@ var SwipeTracker = GObject.registerClass({
         ]);
     }
 
+    _endAnimationDoneCb() {
+        this.begin_threshold = this._oldBeginThreshold;
+    }
+
     vfunc_state_changed(oldState, newState) {
         if (this._isTouchpadGesture) {
             if (oldState === Clutter.GestureState.WAITING &&
@@ -257,7 +261,7 @@ var SwipeTracker = GObject.registerClass({
 
             if (oldState === Clutter.GestureState.RECOGNIZING &&
                 newState === Clutter.GestureState.CANCELLED)
-                this.emit('end', 0, this._cancelProgress);
+                this.emit('end', 0, this._cancelProgress, () => {});
         } else {
             super.vfunc_state_changed(oldState, newState);
         }
@@ -586,7 +590,9 @@ var SwipeTracker = GObject.registerClass({
         if (duration > 0)
             duration = Math.clamp(duration, MIN_ANIMATION_DURATION, maxDuration);
 
-        this.emit('end', duration, endProgress);
+        this._oldBeginThreshold = this.begin_threshold;
+        this.begin_threshold = 0;
+        this.emit('end', duration, endProgress, this._endAnimationDoneCb.bind(this));
     }
 
     _endTouchGesture(gesture, velocityX, velocityY) {
@@ -602,7 +608,7 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _cancelTouchGesture(_gesture) {
-        this.emit('end', 0, this._cancelProgress);
+        this.emit('end', 0, this._cancelProgress, () => {});
     }
 
     /**

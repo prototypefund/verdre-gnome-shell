@@ -840,19 +840,18 @@ class WorkspacesDisplay extends St.Widget {
         adjustment.value = progress * adjustment.page_size;
     }
 
-    workspacesGestureEnd(tracker, duration, endProgress, completeCb) {
+    workspacesGestureEnd(tracker, duration, endProgress, onStopped) {
         let workspaceManager = global.workspace_manager;
         let newWs = workspaceManager.get_workspace_by_index(endProgress);
 
         this._scrollAdjustment.ease(endProgress, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
             duration,
+            onStopped,
             onComplete: () => {
                 if (!newWs.active)
                     newWs.activate(global.get_current_time());
                 this._endTouchGesture();
-
-                completeCb();
             },
         });
     }
