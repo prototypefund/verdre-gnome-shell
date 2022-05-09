@@ -229,22 +229,22 @@ var Overview = class {
         const overviewSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: true, allowScroll: false });
+            { allowDrag: false, allowScroll: false });
         overviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
         overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
         overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
-        Main.layoutManager._bottomPanelBox.add_action_full('Overview swipe tracker',
+        global.stage.add_action_full('Overview swipe tracker',
             Clutter.EventPhase.CAPTURE, overviewSwipeTracker);
         this._overviewSwipeTracker = overviewSwipeTracker;
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: true });
+            { allowDrag: false });
         workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
-        Main.layoutManager._bottomPanelBox.add_action_full('Workspaces swipe tracker',
+        global.stage.add_action_full('Workspaces swipe tracker',
             Clutter.EventPhase.CAPTURE, workspacesSwipeTracker);
         this._workspacesSwipeTracker = workspacesSwipeTracker;
 
