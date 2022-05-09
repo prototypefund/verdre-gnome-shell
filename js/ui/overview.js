@@ -256,14 +256,42 @@ var Overview = class extends Signals.EventEmitter {
 
         this._threeFingerOverviewGesture.make2d(this._threeFingerWorkspacesGesture);
 
+        const singleFingerOverviewGesture = new SwipeTracker.SwipeTracker(
+            Clutter.Orientation.VERTICAL,
+            Shell.ActionMode.OVERVIEW,
+            { allowScroll: false });
+        singleFingerOverviewGesture.connect('begin', this._overviewGestureBegin.bind(this));
+        singleFingerOverviewGesture.connect('update', this._overviewGestureUpdate.bind(this));
+        singleFingerOverviewGesture.connect('end', this._overviewGestureEnd.bind(this));
+        global.stage.add_action_full('Single finger overview gesture',
+            Clutter.EventPhase.BUBBLE, singleFingerOverviewGesture);
+        this._singleFingerOverviewGesture = singleFingerOverviewGesture;
+
+        const singleFingerWorkspacesGesture = new SwipeTracker.SwipeTracker(
+            Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.OVERVIEW);
+        singleFingerWorkspacesGesture.allowLongSwipes = true;
+        singleFingerWorkspacesGesture.connect('begin', this._workspacesGestureBegin.bind(this));
+        singleFingerWorkspacesGesture.connect('update', this._workspacesGestureUpdate.bind(this));
+        singleFingerWorkspacesGesture.connect('end', this._workspacesGestureEnd.bind(this));
+        global.stage.add_action_full('Single finger workspaces gesture',
+            Clutter.EventPhase.BUBBLE, singleFingerWorkspacesGesture);
+        this._singleFingerWorkspacesGesture = singleFingerWorkspacesGesture;
+
+        this._singleFingerOverviewGesture.make2d(this._singleFingerWorkspacesGesture);
+
         const workspaceManager = global.workspace_manager;
 
         workspaceManager.connectObject('notify::layout-rows', () => {
             this._threeFingerWorkspacesGesture.enabled =
                 workspaceManager.layoutRows !== -1;
+            this._singleFingerWorkspacesGesture.enabled =
+                workspaceManager.layoutRows !== -1;
         }, this);
 
         this._threeFingerWorkspacesGesture.enabled =
+            workspaceManager.layoutRows !== -1;
+        this._singleFingerWorkspacesGesture.enabled =
             workspaceManager.layoutRows !== -1;
     }
 
@@ -663,7 +691,6 @@ var Overview = class extends Signals.EventEmitter {
 
         this._syncGrab();
 
-        this._threeFingerWorkspacesGesture.scroll_modifiers = 0;
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
     }
 
@@ -712,8 +739,6 @@ var Overview = class extends Signals.EventEmitter {
         // Re-enable unredirection
         Meta.enable_unredirect_for_display(global.display);
 
-        this._threeFingerWorkspacesGesture.scroll_modifiers =
-            global.display.compositor_modifiers;
         this._threeFingerWorkspacesGesture.allowLongSwipes = false;
 
         this._coverPane.hide();
