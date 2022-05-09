@@ -229,7 +229,7 @@ var Overview = class {
         const overviewSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: false, allowScroll: false });
+            { allowScroll: false });
         overviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
         overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
         overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
@@ -239,8 +239,7 @@ var Overview = class {
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: false });
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
         workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
@@ -664,6 +663,8 @@ var Overview = class {
         this._syncGrab();
 
         this._workspacesSwipeTracker.scroll_modifiers = 0;
+        this._workspacesSwipeTracker.allow_drag = true;
+        this._overviewSwipeTracker.allow_drag = true;
     }
 
     // hide:
@@ -713,6 +714,8 @@ var Overview = class {
 
         this._workspacesSwipeTracker.scroll_modifiers =
             global.display.compositor_modifiers;
+        this._workspacesSwipeTracker.allow_drag = false;
+        this._overviewSwipeTracker.allow_drag = false;
 
         this._coverPane.hide();
 
