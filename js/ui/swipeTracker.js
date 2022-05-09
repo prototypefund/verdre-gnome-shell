@@ -121,6 +121,10 @@ var SwipeTracker = GObject.registerClass({
             'scroll-modifiers', 'scroll-modifiers', 'scroll-modifiers',
             GObject.ParamFlags.READWRITE,
             Clutter.ModifierType, 0),
+        'allow-drag': GObject.ParamSpec.boolean(
+            'allow-drag', 'allow-drag', 'allow-drag',
+            GObject.ParamFlags.READWRITE,
+            true),
     },
     Signals: {
         'begin':  { param_types: [GObject.TYPE_UINT] },
@@ -134,14 +138,15 @@ var SwipeTracker = GObject.registerClass({
         super._init({
             pan_axis: orientation === Clutter.Orientation.HORIZONTAL
                 ? Clutter.PanAxis.X : Clutter.PanAxis.Y,
-            min_n_points: params.allowDrag ? 1 : GESTURE_FINGER_COUNT,
-            max_n_points: params.allowDrag ? 0 : GESTURE_FINGER_COUNT,
+            min_n_points: 1,
+            max_n_points: GESTURE_FINGER_COUNT,
         });
 
         this.orientation = orientation;
         this._allowedModes = allowedModes;
         this._enabled = true;
         this._distance = global.screen_height;
+        this._allowDrag = true;
 
         this.begin_threshold = 16;
 
@@ -229,6 +234,23 @@ var SwipeTracker = GObject.registerClass({
 
         this._distance = distance;
         this.notify('distance');
+    }
+
+    get allowDrag() {
+        return this._allowDrag;
+    }
+
+    set allowDrag(allowDrag) {
+        if (this._allowDrag === allowDrag)
+            return;
+
+        this._allowDrag = allowDrag;
+        if (this._allowDrag)
+            this.min_n_points = 1;
+        else
+            this.min_n_points = GESTURE_FINGER_COUNT;
+
+        this.notify('allow-drag');
     }
 
     _reset() {
