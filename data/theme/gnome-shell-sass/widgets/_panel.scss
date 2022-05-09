@@ -206,3 +206,8 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
     padding-right: $base_padding * 2;
   }
 }
+
+#bottomPanelBox {
+  background-color: orange;
+  height: 30px;
+}
