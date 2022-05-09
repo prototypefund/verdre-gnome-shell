@@ -234,7 +234,7 @@ var Overview = class {
         overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
         overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
         global.stage.add_action_full('Overview swipe tracker',
-            Clutter.EventPhase.CAPTURE, overviewSwipeTracker);
+            Clutter.EventPhase.BUBBLE, overviewSwipeTracker);
         this._overviewSwipeTracker = overviewSwipeTracker;
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
@@ -244,7 +244,7 @@ var Overview = class {
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
         global.stage.add_action_full('Workspaces swipe tracker',
-            Clutter.EventPhase.CAPTURE, workspacesSwipeTracker);
+            Clutter.EventPhase.BUBBLE, workspacesSwipeTracker);
         this._workspacesSwipeTracker = workspacesSwipeTracker;
 
         global.display.bind_property('compositor-modifiers',
