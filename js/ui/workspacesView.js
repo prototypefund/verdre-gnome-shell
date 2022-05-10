@@ -834,8 +834,13 @@ class WorkspacesDisplay extends St.Widget {
 
         let workspaceManager = global.workspace_manager;
         let adjustment = this._scrollAdjustment;
-        if (this._gestureActive)
+
+        let wasEasingTo = null;
+        const transition = adjustment.get_transition('value');
+        if (transition) {
+            wasEasingTo = transition.get_interval().peek_final_value();
             adjustment.remove_transition('value');
+        }
 
 
 let distance;
@@ -861,7 +866,7 @@ distance = Main.layoutManager.primaryMonitor.width;
         let points = Array.from(
             { length: workspaceManager.n_workspaces }, (v, i) => i);
 
-        tracker.confirmSwipe(distance, points, progress, Math.round(progress));
+        tracker.confirmSwipe(distance, points, progress, Math.round(progress), wasEasingTo);
 
         this._gestureActive = true;
         this._activeTracker = tracker;
