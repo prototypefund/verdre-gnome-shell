@@ -505,6 +505,8 @@ var SwipeTracker = GObject.registerClass({
         const prev = this._findPreviousPoint(pos);
         const next = this._findNextPoint(pos);
 
+        // If the swipe was so small that the projection landed on the current
+        // page, we still choose the next page (feels better in real use).
         if ((velocity > 0 ? prev : next) === initial)
             return velocity > 0 ? next : prev;
 
