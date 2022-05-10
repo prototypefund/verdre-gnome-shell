@@ -676,6 +676,7 @@ var SwipeTracker = GObject.registerClass({
      *     An array of snap points, sorted in ascending order
      * @param {number} currentProgress: initial progress value
      * @param {number} cancelProgress: the value to be used on cancelling
+     * @param {number} animatingTowardsProgress:
      *
      * Confirms a swipe. User has to call this in 'begin' signal handler,
      * otherwise the swipe wouldn't start. If there's an animation running,
@@ -684,7 +685,7 @@ var SwipeTracker = GObject.registerClass({
      * @cancel_progress must always be a snap point, or a value matching
      * some other non-transient state.
      */
-    confirmSwipe(distance, snapPoints, currentProgress, cancelProgress) {
+    confirmSwipe(distance, snapPoints, currentProgress, cancelProgress, animatingTowardsProgress = null) {
         this.distance = distance;
         this._snapPoints = snapPoints;
         this._initialProgress = currentProgress;
@@ -693,6 +694,16 @@ var SwipeTracker = GObject.registerClass({
 
         this._peekedMinSnapPoint = this._findPreviousPoint(this._progress);
         this._peekedMaxSnapPoint = this._findNextPoint(this._progress);
+
+        if (animatingTowardsProgress &&
+            this._peekedMinSnapPoint > 0 &&
+            animatingTowardsProgress === this._snapPoints[this._peekedMinSnapPoint])
+            this._peekedMinSnapPoint--;
+
+        if (animatingTowardsProgress &&
+            this._peekedMaxSnapPoint < this._snapPoints.length - 1 &&
+            animatingTowardsProgress === this._snapPoints[this._peekedMaxSnapPoint])
+            this._peekedMaxSnapPoint++;
     }
 
     destroy() {

@@ -515,14 +515,20 @@ var BaseAppView = GObject.registerClass({
             return;
 
         const adjustment = this._adjustment;
-        adjustment.remove_transition('value');
+        let wasEasingTo = null
+        const transition = adjustment.get_transition('value');
+        if (transition) {
+            wasEasingTo = transition.get_interval().peek_final_value()
+                / adjustment.page_size;
+            adjustment.remove_transition('value');
+        }
 
         const progress = adjustment.value / adjustment.page_size;
         const points = Array.from({ length: this._grid.nPages }, (v, i) => i);
         const size = tracker.orientation === Clutter.Orientation.VERTICAL
             ? this._grid.allocation.get_height() : this._grid.allocation.get_width();
 
-        tracker.confirmSwipe(size, points, progress, Math.round(progress));
+        tracker.confirmSwipe(size, points, progress, Math.round(progress), wasEasingTo);
     }
 
     _swipeUpdate(tracker, progress) {

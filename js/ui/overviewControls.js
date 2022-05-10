@@ -758,13 +758,15 @@ class ControlsManager extends St.Widget {
             ControlsState.APP_GRID,
         ];
 
+        let wasEasingTo = null;
+        let cancelProgress = Math.round(progress);
         const transition = this._stateAdjustment.get_transition('value');
-        const cancelProgress = transition
-            ? transition.get_interval().peek_final_value()
-            : Math.round(progress);
-        this._stateAdjustment.remove_transition('value');
+        if (transition) {
+            wasEasingTo = cancelProgress = transition.get_interval().peek_final_value();
+            this._stateAdjustment.remove_transition('value');
+        }
 
-        tracker.confirmSwipe(baseDistance, points, progress, cancelProgress);
+        tracker.confirmSwipe(baseDistance, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
         this._searchController.show();
         this._stateAdjustment.gestureInProgress = true;
