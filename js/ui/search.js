@@ -563,9 +563,14 @@ var SearchResultsView = GObject.registerClass({
         this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this._scrollView.add_actor(this._content);
 
-        const panGesture = new Clutter.PanGesture();
-        panGesture.connect('pan-update', this._onPanUpdate.bind(this));
-        this._scrollView.add_action(panGesture);
+        this._swipeTracker = new imports.ui.swipeTracker.SwipeTracker(
+            Clutter.Orientation.VERTICAL, Shell.ActionMode.OVERVIEW);
+        this._swipeTracker.dont_snap = true;
+        this._swipeTracker.connect('begin', this._swipeBegin.bind(this));
+        this._swipeTracker.connect('update', this._swipeUpdate.bind(this));
+        this._swipeTracker.connect('end', this._swipeEnd.bind(this));
+        this._swipeTracker.set_name('AppDisplay swipe tracker');
+        this._scrollView.add_action(this._swipeTracker);
 
         this.add_child(this._scrollView);
 
@@ -735,9 +740,39 @@ var SearchResultsView = GObject.registerClass({
         this.emit('terms-changed');
     }
 
-    _onPanUpdate(action, deltaX, deltaY, totalDistance) {
+    _swipeBegin(tracker, monitor) {
+        if (monitor !== Main.layoutManager.primaryIndex)
+            return;
+
+        const adjustment = this._scrollView.vscroll.adjustment;
+        let wasEasingTo = null
+        const transition = adjustment.get_transition('value');
+        if (transition) {
+            wasEasingTo = transition.get_interval().peek_final_value()
+                / adjustment.page_size;
+            adjustment.remove_transition('value');
+        }
+
+        const progress = adjustment.value / adjustment.page_size;
+        const size = this._scrollView.allocation.get_height();
+
+        tracker.confirmSwipe(size, [], progress, progress, wasEasingTo);
+    }
+
+    _swipeUpdate(tracker, progress) {
         let adjustment = this._scrollView.vscroll.adjustment;
-        adjustment.value -= (deltaY / this.height) * adjustment.page_size;
+        adjustment.value = progress * adjustment.page_size;
+    }
+
+    _swipeEnd(tracker, duration, endProgress, endCb) {
+        let adjustment = this._scrollView.vscroll.adjustment;
+        const value = endProgress * adjustment.page_size;
+
+        adjustment.ease(value, {
+            mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+            duration,
+            onStopped: endCb,
+        });
     }
 
     _focusChildChanged(provider) {
