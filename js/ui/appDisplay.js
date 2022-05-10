@@ -316,7 +316,6 @@ var BaseAppView = GObject.registerClass({
         // Swipe
         this._swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL, this.gestureModes);
-        this._swipeTracker.orientation = Clutter.Orientation.HORIZONTAL;
         this._swipeTracker.connect('begin', this._swipeBegin.bind(this));
         this._swipeTracker.connect('update', this._swipeUpdate.bind(this));
         this._swipeTracker.connect('end', this._swipeEnd.bind(this));
