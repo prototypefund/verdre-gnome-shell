@@ -663,6 +663,7 @@ var Overview = class {
         this._syncGrab();
 
         this._workspacesSwipeTracker.scroll_modifiers = 0;
+        this._workspacesSwipeTracker.allow_long_swipes = true;
         this._workspacesSwipeTracker.allow_drag = true;
         this._overviewSwipeTracker.allow_drag = true;
     }
@@ -714,6 +715,7 @@ var Overview = class {
 
         this._workspacesSwipeTracker.scroll_modifiers =
             global.display.compositor_modifiers;
+        this._workspacesSwipeTracker.allow_long_swipes = false;
         this._workspacesSwipeTracker.allow_drag = false;
         this._overviewSwipeTracker.allow_drag = false;
 
