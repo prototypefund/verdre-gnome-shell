@@ -125,6 +125,10 @@ var SwipeTracker = GObject.registerClass({
             'allow-drag', 'allow-drag', 'allow-drag',
             GObject.ParamFlags.READWRITE,
             true),
+        'dont-snap': GObject.ParamSpec.boolean(
+            'dont-snap', 'dont-snap', 'dont-snap',
+            GObject.ParamFlags.READWRITE,
+            false),
     },
     Signals: {
         'begin':  { param_types: [GObject.TYPE_UINT] },
@@ -528,14 +532,16 @@ var SwipeTracker = GObject.registerClass({
 
         this._progress += delta / distance;
 
-        const prevPoint = this._findPreviousPoint(this._progress);
-        const nextPoint = this._findNextPoint(this._progress);
-        if (prevPoint < this._peekedMinSnapPoint)
-            this._peekedMinSnapPoint = prevPoint;
-        if (nextPoint > this._peekedMaxSnapPoint)
-            this._peekedMaxSnapPoint = nextPoint;
+        if (!this.dontSnap) {
+            const prevPoint = this._findPreviousPoint(this._progress);
+            const nextPoint = this._findNextPoint(this._progress);
+            if (prevPoint < this._peekedMinSnapPoint)
+                this._peekedMinSnapPoint = prevPoint;
+            if (nextPoint > this._peekedMaxSnapPoint)
+                this._peekedMaxSnapPoint = nextPoint;
 
-        this._progress = Math.clamp(this._progress, this._snapPoints[0], this._snapPoints[this._snapPoints.length - 1]);
+            this._progress = Math.clamp(this._progress, this._snapPoints[0], this._snapPoints[this._snapPoints.length - 1]);
+        }
 
         this.emit('update', this._progress);
     }
@@ -555,9 +561,6 @@ var SwipeTracker = GObject.registerClass({
     _getEndProgress(velocity, distance, isTouchpad) {
         const threshold = isTouchpad ? VELOCITY_THRESHOLD_TOUCHPAD : VELOCITY_THRESHOLD_TOUCH;
 
-        if (Math.abs(velocity) < threshold)
-            return this._snapPoints[this._findClosestPoint(this._progress)];
-
         const decel = isTouchpad ? DECELERATION_TOUCHPAD : DECELERATION_TOUCH;
         const slope = decel / (1.0 - decel) / 1000.0;
 
@@ -574,6 +577,12 @@ var SwipeTracker = GObject.registerClass({
         }
 
         pos = pos * Math.sign(velocity) + this._progress;
+        if (this.dontSnap)
+            return pos;
+
+        if (Math.abs(velocity) < threshold)
+            return this._snapPoints[this._findClosestPoint(this._progress)];
+
         const boundsMin = this.allowLongSwipes
             ? this._snapPoints[0] : this._snapPoints[this._peekedMinSnapPoint];
         const boundsMax = this.allowLongSwipes
