@@ -284,7 +284,6 @@ var DndGesture = GObject.registerClass({
     startDrag() {
         if (this.get_points().length !== 1)
             return;
-log("DRAG: someone called startDrag");
 
         if (this.state === Clutter.GestureState.POSSIBLE)
             this.set_state(Clutter.GestureState.RECOGNIZING);
@@ -614,9 +613,8 @@ log("DRAG: someone called startDrag");
             this.state == Clutter.GestureState.POSSIBLE)
             this._maybeStartDrag(point);
 
-        if (this.state === Clutter.GestureState.RECOGNIZING) {
+        if (this.state === Clutter.GestureState.RECOGNIZING)
             this._updateDragPosition(point);
-        }
     }
 
     vfunc_points_ended(points) {
