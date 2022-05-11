@@ -666,6 +666,8 @@ var Overview = class {
         this._workspacesSwipeTracker.allow_long_swipes = true;
         this._workspacesSwipeTracker.allow_drag = true;
         this._overviewSwipeTracker.allow_drag = true;
+        this._overviewSwipeTracker.begin_threshold = 16;
+        this._workspacesSwipeTracker.begin_threshold = 16;
     }
 
     // hide:
@@ -718,6 +720,8 @@ var Overview = class {
         this._workspacesSwipeTracker.allow_long_swipes = false;
         this._workspacesSwipeTracker.allow_drag = false;
         this._overviewSwipeTracker.allow_drag = false;
+        this._overviewSwipeTracker.begin_threshold = 0;
+        this._workspacesSwipeTracker.begin_threshold = 0;
 
         this._coverPane.hide();
 
