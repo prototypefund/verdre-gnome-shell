@@ -842,13 +842,13 @@ class ControlsManager extends St.Widget {
         this._workspacesDisplay.show();
         this._searchController.show();
 
-        this._stateAdjustment.value = ControlsState.HIDDEN;
-        this._stateAdjustment.ease(ControlsState.WINDOW_PICKER, {
+        this._stateAdjustment.value = ControlsState.APP_GRID;
+        this._stateAdjustment.ease(ControlsState.APP_GRID, {
             duration: Overview.ANIMATION_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
-        this.dash.showAppsButton.checked = false;
+        this.dash.showAppsButton.checked = true;
         this._ignoreShowAppsButtonToggle = false;
 
         // Set the opacity here to avoid a 1-frame flicker
