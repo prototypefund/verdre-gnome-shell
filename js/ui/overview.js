@@ -229,7 +229,7 @@ var Overview = class {
         const overviewSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowScroll: false });
+            { allowDrag: true, allowScroll: false });
         overviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
         overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
         overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
@@ -239,7 +239,8 @@ var Overview = class {
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: true }););
         workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));

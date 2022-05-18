@@ -261,6 +261,22 @@ var LayoutManager = GObject.registerClass({
         this.panelBox.connect('notify::allocation',
                               this._panelBoxChanged.bind(this));
 
+        this._bottomPanelBox = new St.Widget({
+            name: 'bottomPanelBox',
+            reactive: true,
+        });
+
+        this.addChrome(this._bottomPanelBox, {
+            affectsStruts: true,
+            trackFullscreen: true,
+        });
+
+        this._bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this._bottomPanelBox.get_parent(),
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            factor: 1,
+        }));
+
         this.modalDialogGroup = new St.Widget({
             name: 'modalDialogGroup',
             layout_manager: new Clutter.BinLayout(),
@@ -531,6 +547,9 @@ var LayoutManager = GObject.registerClass({
 
         this.panelBox.set_position(this.primaryMonitor.x, this.primaryMonitor.y);
         this.panelBox.set_size(this.primaryMonitor.width, -1);
+
+        this._bottomPanelBox.x = this.primaryMonitor.x;
+        this._bottomPanelBox.width = this.primaryMonitor.width;
 
         this.keyboardIndex = this.primaryIndex;
     }
