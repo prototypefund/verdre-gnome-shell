@@ -166,8 +166,17 @@ function getWindowDimmer(actor) {
 
 var SPLASHSCREEN_GRACE_TIME_MS = 1000;
 
-var WorkspaceTracker = class {
-    constructor(wm) {
+var WorkspaceTracker = GObject.registerClass({
+    Properties: {
+        'single-window-workspaces': GObject.ParamSpec.boolean(
+            'single-window-workspaces', 'single-window-workspaces', 'single-window-workspaces',
+            GObject.ParamFlags.READWRITE,
+            false),
+    },
+}, class WorkspaceTracker extends GObject.Object {
+    _init(params) {
+        super._init(params);
+
         this._workspaces = [];
         this._windowData = new Map();
         this._updatesBlocked = false;
@@ -187,6 +196,9 @@ var WorkspaceTracker = class {
         const tracker = Shell.WindowTracker.get_default();
         tracker.connect('startup-sequence-changed',
             this._startupSequenceChanged.bind(this));
+
+        this.connect('notify::single-window-workspaces',
+            this._redoLayout.bind(this));
 
         this._workspaceSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
         this._workspaceSettings.connect('changed::dynamic-workspaces',
@@ -208,16 +220,41 @@ var WorkspaceTracker = class {
     }
 
     _redoLayout() {
-        if (Meta.prefs_get_dynamic_workspaces()) {
-            const workspaceManager = global.workspace_manager;
-            while (workspaceManager.n_workspaces < MIN_NUM_WORKSPACES)
-                workspaceManager.append_new_workspace(false, global.get_current_time());
+        if (this.singleWindowWorkspaces && !Meta.prefs_get_dynamic_workspaces()) {
+            log("Disallowing single window workspaces: Dynamic workspaces are disabled");
+            this._useSingleWindowWorkspaces = false;
+        } else {
+            this._useSingleWindowWorkspaces = this.singleWindowWorkspaces;
+        }
+log("WS: CHANGE single window: " + this._useSingleWindowWorkspaces);
 
-            /* We always want one empty workspace at the end of the strip */
-            if (this._workspaceHasOwnWindows(this._workspaces[this._workspaces.length - 1]))
-                workspaceManager.append_new_workspace(false, global.get_current_time());
+        if (this._useSingleWindowWorkspaces) {
+            for (const w of this._windowData.keys())
+                this._maybeMoveToOwnWorkspace(w);
 
             this._workspaces.slice().reverse().forEach(w => this._maybeRemoveWorkspace(w));
+        } else {
+            for (const w of this._windowData.keys())
+                w.set_can_grab(true);
+
+            this._workspaces.forEach(w => {
+                if (w._newTilingWorkspaceTimeoutId) {
+                    GLib.source_remove(w._newTilingWorkspaceTimeoutId);
+                    delete w._newTilingWorkspaceTimeoutId;
+                }
+            });
+
+            if (Meta.prefs_get_dynamic_workspaces()) {
+                const workspaceManager = global.workspace_manager;
+                while (workspaceManager.n_workspaces < MIN_NUM_WORKSPACES)
+                    workspaceManager.append_new_workspace(false, global.get_current_time());
+
+                /* We always want one empty workspace at the end of the strip */
+                if (this._workspaceHasOwnWindows(this._workspaces[this._workspaces.length - 1]))
+                    workspaceManager.append_new_workspace(false, global.get_current_time());
+
+                this._workspaces.slice().reverse().forEach(w => this._maybeRemoveWorkspace(w));
+            }
         }
     }
 
@@ -230,13 +267,25 @@ var WorkspaceTracker = class {
         return false;
     }
 
+    _moveWindowToNewWorkspace(window, workspaceIndex) {
+        const workspaceManager = global.workspace_manager;
+        const newWorkspace =
+            workspaceManager.append_new_workspace(true, global.display.get_current_time_roundtrip());
+
+        workspaceManager.reorder_workspace(newWorkspace, workspaceIndex);
+        window.change_workspace_by_index(workspaceIndex, false);
+    }
+
     _maybeRemoveWorkspace(workspace) {
         const workspaceManager = global.workspace_manager;
 
-        if (this._updatesBlocked)
-            return;
-
 log("WS: MAYBE remove removing ws " + workspace.workspace_index);
+
+        if (this._updatesBlocked) {
+log("WS: nope, updates are blocked");
+            return;
+}
+
 
         if (workspace._appStartingUp) {
 log("WS: nope, has a startup sequence");
@@ -252,30 +301,100 @@ log("WS: nope, there's a grace timeout");
 log("WS: nope, its occupied");
             return;
 }
-
-        if (workspace.active ||
-            this._workspaces.length === MIN_NUM_WORKSPACES)
-            return;
-
-        /* We always want one empty workspace at the end of the strip */
-        if (workspace.workspace_index === this._workspaces.length - 1)
-            return;
-
-        workspaceManager.remove_workspace(workspace, 0);
+        if (this._useSingleWindowWorkspaces) {
+            if (workspace._newTilingWorkspaceTimeoutId) {
+    log("WS: nope, has window added timeout");
+                return;
     }
 
-    _windowIsTemporary(window) {
-        return window.window_type === Meta.WindowType.SPLASHSCREEN ||
+            if (workspace.active)
+                Main.overview.show(2);
+
+            /* There must always be a default workspace, don't remove that one */
+            if (this._workspaces.length > 1)
+                workspaceManager.remove_workspace(workspace, 0);
+            else
+                log("WS: nope, it's the default one");
+        } else {
+            if (workspace.active ||
+                this._workspaces.length === MIN_NUM_WORKSPACES)
+                return;
+
+            /* We always want one empty workspace at the end of the strip */
+            if (workspace.workspace_index === this._workspaces.length - 1)
+                return;
+
+            workspaceManager.remove_workspace(workspace, 0);
+        }
+    }
+
+    _windowShouldHaveOwnWorkspace(window) {
+        /* Transient windows are usually modal dialogs */
+        if (window.get_transient_for() !== null)
+            return false;
+
+        if (window.is_override_redirect())
+            return false;
+
+        if (window.on_all_workspaces)
+            return false;
+
+        if (window.window_type === Meta.WindowType.SPLASHSCREEN ||
             window.window_type === Meta.WindowType.DIALOG ||
-            window.window_type === Meta.WindowType.MODAL_DIALOG;
+            window.window_type === Meta.WindowType.MODAL_DIALOG)
+            return false;
+
+        return true;
+    }
+
+    _windowShouldBeGrabbable(window) {
+        if (window.above)
+            return true;
+
+        /* Workaround for windows that are too big for the screen */
+        // allow grabbing if the window has a width thats bigger
+        // than the workarea so it can at least be moved horizontally...
+        // vertically that wouldnt really help because window can
+        // only be grabbed on the headerbar, so impossible to move them up more
+        const frameRect = window.get_frame_rect();
+        const workArea = window.get_work_area_current_monitor();
+        if (frameRect.width > workArea.width || frameRect.height > workArea.height)
+            return true;
+
+        if (!window.maximized_vertically && !window.maximized_horizontally)
+            return true;
+
+        return false;
+    }
+
+    _maybeMoveToOwnWorkspace(window) {
+        if (this._windowData.get(window).shouldHaveOwnWorkspace) {
+            const windowWorkspace = window.get_workspace();
+            let workspaceHasOtherWindows = false;
+            for (const [w, data] of this._windowData.entries()) {
+                if (w !== window &&
+                    (w.get_workspace() === windowWorkspace || w.on_all_workspaces) &&
+                    data.shouldHaveOwnWorkspace) {
+                    workspaceHasOtherWindows = true;
+                    break;
+                }
+            };
+
+            if (workspaceHasOtherWindows) {
+                log("WS: WINDOW ADDED: moving the window to new workspace");
+                this._moveWindowToNewWorkspace(window, window.get_workspace().workspace_index + 1);
+                return true;
+            }
+        }
+
+        return false;
     }
 
     _windowAddedToWorkspace(workspace, window) {
         if (!window._laterDone) {
-log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " delaying " + window.title);
             /* Give newly opened windows some time to sort things out. If we
              * passed a specific workspace the window should open on, it only
-             * gets moved to this workspace after this signal got emitted, we
+             * gets moved to this workspace after 'window-added' got emitted, we
              * want to wait until that happened.
              */
             window._addedLater = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
@@ -289,15 +408,19 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
             return;
         }
 
-log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " inside later " + window.title);
-        const windowData = this._windowData.get(window);
-
-
+log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n windows " + workspace.n_windows);
+        let windowData = this._windowData.get(window);
         if (!windowData) {
             this._windowData.set(window, {
                 connections: [
                     window.connect('transient-for-changed', () => {
     log("WS: transient for change");
+                        this._windowData.get(window).shouldHaveOwnWorkspace =
+                            this._windowShouldHaveOwnWorkspace(window);
+
+                        if (this._useSingleWindowWorkspaces)
+                            this._maybeMoveToOwnWorkspace(window);
+
                         const transientFor = window.get_transient_for();
                         if (transientFor !== null) {
                             const transientForWorkspace = transientFor.get_workspace();
@@ -305,12 +428,44 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                                 window.change_workspace(transientForWorkspace);
                         }
                     }),
+                    window.connect('notify::window-type', () => {
+    log("WS: window type change");
+                        this._windowData.get(window).shouldHaveOwnWorkspace =
+                            this._windowShouldHaveOwnWorkspace(window);
+
+                        if (this._useSingleWindowWorkspaces)
+                            this._maybeMoveToOwnWorkspace(window);
+                    }),
+                    window.connect('notify::above', () => {
+                        if (this._useSingleWindowWorkspaces)
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
+                    }),
+                    window.connect('size-changed', () => {
+                        if (this._useSingleWindowWorkspaces)
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
+                    }),
+                    window.connect('can-maximize-changed', () => {
+                        log("WS: can-maximize changed: " + window.can_maximize());
+                        log("WS: maximized v " + window.maximized_vertically + " h " + window.maximized_horizontally);
+
+                        if (window.can_maximize() && (!window.maximized_vertically || !window.maximized_horizontally))
+                            window.maximize(Meta.MaximizeFlags.BOTH);
+                    }),
+                /*    window.connect('notify::on-all-workspaces', () => {
+    log("WS: on-all-ws change");
+                        if (this._useSingleWindowWorkspaces)
+                            this._maybeMoveToOwnWorkspace(window);
+                    }),*/ // no need to listen to that, mutter will remove and re-add windows anyway
                     window.connect('unmanaged', () => {
                         this._windowData.delete(window);
                     }),
                 ],
             });
+
+            windowData = this._windowData.get(window);
         }
+
+        windowData.shouldHaveOwnWorkspace = this._windowShouldHaveOwnWorkspace(window);
 
         if (!Meta.prefs_get_dynamic_workspaces())
             return;
@@ -326,11 +481,34 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
         }
 
 
-        const workspaceManager = global.workspace_manager;
+        if (this._useSingleWindowWorkspaces) {
+            if (workspace._newTilingWorkspaceTimeoutId) {
+    log("WS: WINDOW ADDED: was app workspace, that worked, neat");
+                GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
+                delete workspace._newTilingWorkspaceTimeoutId;
+            }
 
-        /* We always want one empty workspace at the end of the strip */
-        if (!this._updatesBlocked && workspace.workspace_index === this._workspaces.length - 1)
-            workspaceManager.append_new_workspace(false, global.get_current_time());
+            if (this._maybeMoveToOwnWorkspace(window))
+                return; // let the new workspaces 'window-added' handler maximize the window
+
+            // we deliberately ignore can_maximiue() here because we're most likely too early 
+            // and no features have been calculated yet, so it would return TRUE anyway
+            const shouldMaximize = windowData.shouldHaveOwnWorkspace &&
+                !(window.maximized_vertically && window.maximized_horizontally);
+
+            if (shouldMaximize) {
+log("WS: telling window to maxi, can: " + window.can_maximize());
+                window.maximize(Meta.MaximizeFlags.BOTH);
+            }
+
+            window.set_can_grab(this._windowShouldBeGrabbable(window));
+        } else {
+            const workspaceManager = global.workspace_manager;
+
+            /* We always want one empty workspace at the end of the strip */
+            if (!this._updatesBlocked && workspace.workspace_index === this._workspaces.length - 1)
+                workspaceManager.append_new_workspace(false, global.get_current_time());
+        }
     }
 
     _windowRemovedFromWorkspace(workspace, window) {
@@ -364,7 +542,7 @@ log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows 
              * splashscreen), we leave the workspace around for a bit in case
              * the app maps another window.
              */
-            if (this._windowIsTemporary(window)) {
+            if (window.window_type === Meta.WindowType.SPLASHSCREEN) {
 log("WS: we have 0, delaying to later because splashscreen");
                 workspace._splashscreenGraceTimeoutId = GLib.timeout_add(
                     GLib.PRIORITY_DEFAULT, SPLASHSCREEN_GRACE_TIME_MS, () => {
@@ -379,6 +557,52 @@ log("WS: we have 0, removing now");
                 this._maybeRemoveWorkspace(workspace);
             }
         }
+    }
+
+    maybeCreateWorkspaceForWindow(time) {
+        if (!this._useSingleWindowWorkspaces)
+            return null;
+
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return null;
+
+        let newWorkspaceIndex;
+
+        /* The default workspace always exists, if it's empty and not
+         * reserved already, use it.
+         */
+        if (this._workspaces.length === 1 &&
+            !this._workspaces[0]._appStartingUp &&
+            !this._workspaces[0]._splashscreenGraceTimeoutId &&
+            !this._workspaces[0]._newTilingWorkspaceTimeoutId &&
+            !this._workspaceHasOwnWindows(this._workspaces[0])) {
+            newWorkspaceIndex = 0;
+        } else {
+            const workspaceManager = global.workspace_manager;
+
+            workspaceManager.append_new_workspace(false, time);
+            newWorkspaceIndex = workspaceManager.n_workspaces - 1;
+        }
+log("WS: created app workspace index " + newWorkspaceIndex);
+        const newWorkspace = this._workspaces[newWorkspaceIndex];
+        if (!newWorkspace)
+            throw new Error();
+
+        newWorkspace.activate(time);
+
+        /* If no window or startup sequence appears within five seconds,
+         * we remove the workspace again.
+         */
+        newWorkspace._newTilingWorkspaceTimeoutId =
+            GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
+    log("WS: app ws " + newWorkspaceIndex + " timed out, removing");
+                delete newWorkspace._newTilingWorkspaceTimeoutId;
+                this._maybeRemoveWorkspace(newWorkspace);
+
+                return GLib.SOURCE_REMOVE;
+            });
+
+        return newWorkspace;
     }
 
     _workspaceAdded(workspaceManager, index) {
@@ -403,6 +627,9 @@ log("WS: removed " + index);
         if (this._workspaces[index]._splashscreenGraceTimeoutId)
             throw new Error();
 
+        if (this._workspaces[index]._newTilingWorkspaceTimeoutId)
+            throw new Error();
+
         this._workspaces.splice(index, 1);
     }
 
@@ -412,7 +639,10 @@ log("WS: removed " + index);
 
         const workspaceManager = global.workspace_manager;
 
-        this._maybeRemoveWorkspace(workspaceManager.get_workspace_by_index(fromIndex));
+        if (!this._useSingleWindowWorkspaces) {
+log("WS: switched, maybe reming index " + fromIndex);
+            this._maybeRemoveWorkspace(workspaceManager.get_workspace_by_index(fromIndex));
+}
     }
 
     _startupSequenceChanged(windowTracker, startupSequence) {
@@ -429,7 +659,7 @@ log("WS: removed " + index);
 log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence.get_workspace() + " comp " + startupSequence.get_completed());
 
         const sequences = Shell.WindowTracker.get_default().get_startup_sequences();
-        const workspacesStartingUp = [];
+   /*     const workspacesStartingUp = [];
         for (const sequence of sequences) {
             if (sequence.get_completed())
                 continue;
@@ -443,14 +673,44 @@ log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence
             const wasStartingUp = workspace._appStartingUp;
 
             if (workspacesStartingUp[i]) {
+                if (workspace._newTilingWorkspaceTimeoutId) {
+        log("WS: STARTING UP : was app workspace, that worked, neat");
+                    GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
+                    delete workspace._newTilingWorkspaceTimeoutId;
+                }
+
                 workspace._appStartingUp = true;
             } else if (wasStartingUp) {
                 delete workspace._appStartingUp;
                 this._maybeRemoveWorkspace(workspace);
             }
         });
+*/
 
-     //   this._workspaces.slice().reverse().forEach(w => this._maybeRemoveWorkspace(w));
+        this._workspaces.slice().forEach((workspace, i) => {
+            let isStartingUp = false;
+
+            for (const sequence of sequences) {
+                if (!sequence.get_completed() && sequence.get_workspace() === i) {
+                    isStartingUp = true;
+                    break;
+                }
+            }
+
+            if (isStartingUp) {
+               if (workspace._newTilingWorkspaceTimeoutId) {
+                    log("WS: STARTUP: found new startup sequ for tiling workspace, that worked, neat");
+                    GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
+                    delete workspace._newTilingWorkspaceTimeoutId;
+                }
+
+                workspace._appStartingUp = true;
+            } else if (workspace._appStartingUp) {
+                log("WS: STARTUP: startup sequence got completed or removed, app might have started");
+                delete workspace._appStartingUp;
+                this._maybeRemoveWorkspace(workspace);
+            }
+        });
     }
 });
 
