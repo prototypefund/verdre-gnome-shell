@@ -1471,8 +1471,13 @@ var WindowManager = class {
 
         this._windowMenuManager = new WindowMenu.WindowMenuManager();
 
-        if (Main.sessionMode.hasWorkspaces)
+        if (Main.sessionMode.hasWorkspaces) {
             this.workspaceTracker = new WorkspaceTracker();
+
+            Main.layoutManager.bind_property('is-phone',
+                this.workspaceTracker, 'single-window-workspaces',
+                GObject.BindingFlags.SYNC_CREATE);
+        }
 
         let appSwitchAction = new AppSwitchAction();
         appSwitchAction.connect('activated', this._switchApp.bind(this));
