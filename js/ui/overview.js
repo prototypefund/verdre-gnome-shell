@@ -104,6 +104,51 @@ class OverviewActor extends St.BoxLayout {
     }
 });
 
+
+var HorizontalPickupGesture = GObject.registerClass(
+class HorizontalPickupGesture extends SwipeTracker.SwipeTracker {
+    vfunc_state_changed(oldState, newState) {
+        if (oldState === Clutter.GestureState.RECOGNIZING &&
+            newState === Clutter.GestureState.CANCELLED &&
+            this._windowPreviewGesture &&
+            this._windowPreviewGesture.state === Clutter.GestureState.RECOGNIZING) {
+            const metaWindow = this._windowPreviewGesture.actor.metaWindow;
+            const wsIndex = metaWindow.get_workspace().workspace_index;
+            this.emit('end', SwipeTracker.MIN_ANIMATION_DURATION, wsIndex, () => {});
+
+            delete this._windowPreviewGesture;
+            return;
+        }
+
+        super.vfunc_state_changed(oldState, newState);
+    }
+
+    vfunc_should_influence(otherGesture, cancel, inhibit) {
+        if (otherGesture instanceof WindowPreview.WindowPreviewCloseGesture) {
+            this._windowPreviewGesture = otherGesture;
+            return [false, false];
+        }
+
+        if (otherGesture instanceof SwipeTracker.SwipeTracker)
+            return [false, false];
+
+        return [true, false];
+    }
+});
+
+var VerticalPickupGesture = GObject.registerClass(
+class VerticalPickupGesture extends SwipeTracker.SwipeTracker {
+
+    vfunc_should_influence(otherGesture, cancel, inhibit) {
+
+        if (otherGesture instanceof SwipeTracker.SwipeTracker)
+            return [false, false];
+
+        return [true, false];
+    }
+});
+
+
 var Overview = class {
     constructor() {
         this._initCalled = false;
@@ -252,6 +297,43 @@ var Overview = class {
             GObject.BindingFlags.SYNC_CREATE);
 
         this._overviewSwipeTracker.make2d(this._workspacesSwipeTracker);
+
+        const trickSwipeTracker1 = new HorizontalPickupGesture(Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
+        trickSwipeTracker1.connect('begin', (t, monitor) => {
+            this._workspacesGestureBegin(t, monitor);
+        });
+        trickSwipeTracker1.connect('end', (tracker, duration, endProgress, endCb) => {
+            if (workspacesSwipeTracker.state === Clutter.GestureState.RECOGNIZING ||
+                overviewSwipeTracker.state === Clutter.GestureState.RECOGNIZING)
+                return;
+
+            this._workspacesGestureEnd(tracker, duration, endProgress, endCb);
+        });
+        trickSwipeTracker1.begin_threshold = 0;
+        trickSwipeTracker1.enabled = false;
+        this._trickSwipeTracker1 = trickSwipeTracker1;
+        global.stage.add_action_full('trick swipe tracker1',
+            Clutter.EventPhase.BUBBLE, trickSwipeTracker1);
+
+        const trickSwipeTracker2 = new VerticalPickupGesture(
+            Clutter.Orientation.VERTICAL,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
+        trickSwipeTracker2.connect('begin', (t, monitor) => {
+            this._overviewGestureBegin(t);
+        });
+        trickSwipeTracker2.connect('end', (tracker, duration, endProgress, endCb) => {
+            if (workspacesSwipeTracker.state === Clutter.GestureState.RECOGNIZING ||
+                overviewSwipeTracker.state === Clutter.GestureState.RECOGNIZING)
+                return;
+
+            this._overviewGestureEnd(tracker, duration, endProgress, endCb);
+        });
+        trickSwipeTracker2.begin_threshold = 0;
+        trickSwipeTracker2.enabled = false;
+        this._trickSwipeTracker2 = trickSwipeTracker2;
+        global.stage.add_action_full('trick swipe tracker2',
+            Clutter.EventPhase.BUBBLE, trickSwipeTracker2);
     }
 
     //
@@ -392,6 +474,7 @@ var Overview = class {
 
     _overviewGestureEnd(tracker, duration, endProgress, endCb) {
         let onStopped;
+this._trickSwipeTracker2.enabled = true;
         if (endProgress === 0) {
             this._animationInProgress = true;
             this._shown = false;
@@ -400,11 +483,13 @@ var Overview = class {
             Main.panel.style = `transition-duration: ${duration}ms;`;
             onStopped = (finished) => {
                 endCb();
+this._trickSwipeTracker2.enabled = false;
                 if (finished)
                     this._hideDone();
             };
         } else {
             onStopped = (finished) => {
+this._trickSwipeTracker2.enabled = false;
                 endCb();
                 if (finished)
                     this._showDone();
@@ -437,7 +522,9 @@ var Overview = class {
     }
 
     _workspacesGestureEnd(tracker, duration, endProgress, endCb) {
+this._trickSwipeTracker1.enabled = true;
         let onStopped = (finished) => {
+this._trickSwipeTracker1.enabled = false;
             endCb();
         };
 
@@ -445,8 +532,8 @@ var Overview = class {
             this._animationInProgress = true;
 
             onStopped = (finished) => {
+this._trickSwipeTracker1.enabled = false;
                 endCb();
-
                 if (finished) {
                     this._shown = false;
                     this.emit('hiding');
