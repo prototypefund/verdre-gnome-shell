@@ -172,215 +172,282 @@ function getWindowDimmer(actor) {
     return effect;
 }
 
-/*
- * When the last window closed on a workspace is a dialog or splash
- * screen, we assume that it might be an initial window shown before
- * the main window of an application, and give the app a grace period
- * where it can map another window before we remove the workspace.
- */
-var LAST_WINDOW_GRACE_TIME = 1000;
+var SPLASHSCREEN_GRACE_TIME_MS = 1000;
 
 var WorkspaceTracker = class {
     constructor(wm) {
-        this._wm = wm;
-
         this._workspaces = [];
-        this._checkWorkspacesId = 0;
+        this._windowData = new Map();
 
-        this._pauseWorkspaceCheck = false;
-
-        let tracker = Shell.WindowTracker.get_default();
-        tracker.connect('startup-sequence-changed', this._queueCheckWorkspaces.bind(this));
-
-        let workspaceManager = global.workspace_manager;
-        workspaceManager.connect('notify::n-workspaces',
-                                 this._nWorkspacesChanged.bind(this));
+        const workspaceManager = global.workspace_manager;
+        workspaceManager.connect('workspace-added',
+            this._workspaceAdded.bind(this));
+        workspaceManager.connect('workspace-removed',
+            this._workspaceRemoved.bind(this));
         workspaceManager.connect('workspaces-reordered', () => {
             this._workspaces.sort((a, b) => a.index() - b.index());
         });
-        global.window_manager.connect('switch-workspace',
-                                      this._queueCheckWorkspaces.bind(this));
 
-        global.display.connect('window-entered-monitor',
-                               this._windowEnteredMonitor.bind(this));
-        global.display.connect('window-left-monitor',
-                               this._windowLeftMonitor.bind(this));
+        global.window_manager.connect('switch-workspace',
+            this._workspaceSwitched.bind(this));
+
+        const tracker = Shell.WindowTracker.get_default();
+        tracker.connect('startup-sequence-changed',
+            this._startupSequenceChanged.bind(this));
 
         this._workspaceSettings = new Gio.Settings({ schema_id: 'org.gnome.mutter' });
-        this._workspaceSettings.connect('changed::dynamic-workspaces', this._queueCheckWorkspaces.bind(this));
+        this._workspaceSettings.connect('changed::dynamic-workspaces',
+            this._workspaceLayoutChanged.bind(this));
 
-        this._nWorkspacesChanged();
+        for (let i = 0; i < workspaceManager.n_workspaces; i++)
+            this._workspaceAdded(workspaceManager, i);
+
+        this._workspaceLayoutChanged();
     }
 
-    blockUpdates() {
-        this._pauseWorkspaceCheck = true;
+    _workspaceLayoutChanged() {
+        if (Meta.prefs_get_dynamic_workspaces()) {
+            const workspaceManager = global.workspace_manager;
+            while (workspaceManager.n_workspaces < MIN_NUM_WORKSPACES)
+                workspaceManager.append_new_workspace(false, global.get_current_time());
+
+            /* We always want one empty workspace at the end of the strip */
+            if (this._workspaceHasOwnWindows(this._workspaces[this._workspaces.length - 1]))
+                workspaceManager.append_new_workspace(false, global.get_current_time());
+
+            this._workspaces.slice().reverse().forEach(w => this._maybeRemoveWorkspace(w));
+        }
     }
 
-    unblockUpdates() {
-        this._pauseWorkspaceCheck = false;
+    _workspaceHasOwnWindows(workspace) {
+        for (const w of workspace.get_windows()) {
+            if (!w.on_all_workspaces)
+                return true;
+        }
+
+        return false;
     }
 
-    _checkWorkspaces() {
-        let workspaceManager = global.workspace_manager;
-        let i;
-        let emptyWorkspaces = [];
+    _maybeRemoveWorkspace(workspace) {
+        const workspaceManager = global.workspace_manager;
 
-        if (!Meta.prefs_get_dynamic_workspaces()) {
-            this._checkWorkspacesId = 0;
-            return false;
+log("WS: MAYBE remove removing ws " + workspace.workspace_index);
+
+        if (workspace._appStartingUp) {
+log("WS: nope, has a startup sequence");
+            return;
+}
+
+        if (workspace._splashscreenGraceTimeoutId) {
+log("WS: nope, there's a grace timeout");
+            return;
+}
+
+        if (this._workspaceHasOwnWindows(workspace)) {
+log("WS: nope, its occupied");
+            return;
+}
+
+        if (workspace.active ||
+            this._workspaces.length === MIN_NUM_WORKSPACES)
+            return;
+
+        /* We always want one empty workspace at the end of the strip */
+        if (workspace.workspace_index === this._workspaces.length - 1)
+            return;
+
+        workspaceManager.remove_workspace(workspace, 0);
+    }
+
+    _windowIsTemporary(window) {
+        return window.window_type === Meta.WindowType.SPLASHSCREEN ||
+            window.window_type === Meta.WindowType.DIALOG ||
+            window.window_type === Meta.WindowType.MODAL_DIALOG;
+    }
+
+    _windowAddedToWorkspace(workspace, window) {
+        if (!window._laterDone) {
+log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " delaying " + window.title);
+            /* Give newly opened windows some time to sort things out. If we
+             * passed a specific workspace the window should open on, it only
+             * gets moved to this workspace after this signal got emitted, we
+             * want to wait until that happened.
+             */
+            window._addedLater = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
+                window._laterDone = true;
+                delete window._addedLater;
+
+                this._windowAddedToWorkspace(workspace, window);
+                return false;
+            });
+
+            return;
         }
 
-        // Update workspaces only if Dynamic Workspace Management has not been paused by some other function
-        if (this._pauseWorkspaceCheck)
-            return true;
+log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " inside later " + window.title);
+        const windowData = this._windowData.get(window);
 
-        for (i = 0; i < this._workspaces.length; i++) {
-            let lastRemoved = this._workspaces[i]._lastRemovedWindow;
-            if ((lastRemoved &&
-                 (lastRemoved.get_window_type() == Meta.WindowType.SPLASHSCREEN ||
-                  lastRemoved.get_window_type() == Meta.WindowType.DIALOG ||
-                  lastRemoved.get_window_type() == Meta.WindowType.MODAL_DIALOG)) ||
-                this._workspaces[i]._keepAliveId)
-                emptyWorkspaces[i] = false;
-            else
-                emptyWorkspaces[i] = true;
+
+        if (!windowData) {
+            this._windowData.set(window, {
+                connections: [
+                    window.connect('transient-for-changed', () => {
+    log("WS: transient for change");
+                        const transientFor = window.get_transient_for();
+                        if (transientFor !== null) {
+                            const transientForWorkspace = transientFor.get_workspace();
+                            if (window.get_workspace() !== transientForWorkspace)
+                                window.change_workspace(transientForWorkspace);
+                        }
+                    }),
+                    window.connect('unmanaged', () => {
+                        this._windowData.delete(window);
+                    }),
+                ],
+            });
         }
 
-        let sequences = Shell.WindowTracker.get_default().get_startup_sequences();
-        for (i = 0; i < sequences.length; i++) {
-            let index = sequences[i].get_workspace();
-            if (index >= 0 && index <= workspaceManager.n_workspaces)
-                emptyWorkspaces[index] = false;
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return;
+
+        /* Stickies don't count as real windows */
+        if (window.on_all_workspaces)
+            return;
+
+        if (workspace._splashscreenGraceTimeoutId) {
+log("WS: WINDOW ADDED: removing grace timeout thingy");
+            GLib.source_remove(workspace._splashscreenGraceTimeoutId);
+            delete workspace._splashscreenGraceTimeoutId;
         }
 
-        let windows = global.get_window_actors();
-        for (i = 0; i < windows.length; i++) {
-            let actor = windows[i];
-            let win = actor.get_meta_window();
 
-            if (win.is_on_all_workspaces())
+        const workspaceManager = global.workspace_manager;
+
+        /* We always want one empty workspace at the end of the strip */
+        if (workspace.workspace_index === this._workspaces.length - 1)
+            workspaceManager.append_new_workspace(false, global.get_current_time());
+    }
+
+    _windowRemovedFromWorkspace(workspace, window) {
+        if (!window._laterDone) {
+log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows + " we pretend nothing happened");
+            Meta.later_remove(window._addedLater);
+            delete window._addedLater;
+
+            /* Window got removed so quickly again the MetaLater didn't even
+             * execute, let's pretend nothing happened.
+             */
+            return;
+        }
+
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return;
+
+        /* Stickies don't count as real windows */
+        if (window.on_all_workspaces)
+            return;
+
+        const workspaceEmpty = !this._workspaceHasOwnWindows(workspace);
+
+log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows + " " + window.title + " empty " + workspaceEmpty);
+
+        if (workspaceEmpty) {
+            if (workspace._splashscreenGraceTimeoutId)
+                throw new Error();
+
+            /* If the last window that got closed is a temporary one (like a
+             * splashscreen), we leave the workspace around for a bit in case
+             * the app maps another window.
+             */
+            if (this._windowIsTemporary(window)) {
+log("WS: we have 0, delaying to later because splashscreen");
+                workspace._splashscreenGraceTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT, SPLASHSCREEN_GRACE_TIME_MS, () => {
+log("WS: alright now is later");
+                        delete workspace._splashscreenGraceTimeoutId;
+                        this._maybeRemoveWorkspace(workspace);
+
+                        return GLib.SOURCE_REMOVE;
+                    });
+            } else {
+log("WS: we have 0, removing now");
+                this._maybeRemoveWorkspace(workspace);
+            }
+        }
+    }
+
+    _workspaceAdded(workspaceManager, index) {
+        const newWorkspace = workspaceManager.get_workspace_by_index(index);
+log("WS: added " + index);
+
+        this._workspaces.splice(index, 0, newWorkspace);
+
+        newWorkspace.connectObject(
+            'window-added', this._windowAddedToWorkspace.bind(this),
+            'window-removed', this._windowRemovedFromWorkspace.bind(this), this);
+    }
+
+    _workspaceRemoved(workspaceManager, index) {
+log("WS: removed " + index);
+        if (!this._workspaces[index])
+            throw new Error();
+
+        if (this._workspaces[index]._appStartingUp)
+            throw new Error();
+
+        if (this._workspaces[index]._splashscreenGraceTimeoutId)
+            throw new Error();
+
+        this._workspaces.splice(index, 1);
+    }
+
+    _workspaceSwitched(shellwm, fromIndex, toIndex, direction) {
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return;
+
+        const workspaceManager = global.workspace_manager;
+
+        this._maybeRemoveWorkspace(workspaceManager.get_workspace_by_index(fromIndex));
+    }
+
+    _startupSequenceChanged(windowTracker, startupSequence) {
+        if (!Meta.prefs_get_dynamic_workspaces())
+            return;
+
+        /* Note that the way startup sequences work is quite sub-optimal
+         * right now: The workspace index gets set once when creating the
+         * sequence and it won't get updated if workspaces change. That
+         * means the index might be outdated and the window will open on
+         * the wrong workspace.
+         */
+
+log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence.get_workspace() + " comp " + startupSequence.get_completed());
+
+        const sequences = Shell.WindowTracker.get_default().get_startup_sequences();
+        const workspacesStartingUp = [];
+        for (const sequence of sequences) {
+            if (sequence.get_completed())
                 continue;
 
-            let workspaceIndex = win.get_workspace().index();
-            emptyWorkspaces[workspaceIndex] = false;
+            const wsIndex = sequence.get_workspace();
+            if (wsIndex >= 0 && wsIndex < this._workspaces.length)
+                workspacesStartingUp[wsIndex] = true;
         }
 
-        // If we don't have an empty workspace at the end, add one
-        if (!emptyWorkspaces[emptyWorkspaces.length - 1]) {
-            workspaceManager.append_new_workspace(false, global.get_current_time());
-            emptyWorkspaces.push(true);
-        }
+        this._workspaces.slice().forEach((workspace, i) => {
+            const wasStartingUp = workspace._appStartingUp;
 
-        // Enforce minimum number of workspaces
-        while (emptyWorkspaces.length < MIN_NUM_WORKSPACES) {
-            workspaceManager.append_new_workspace(false, global.get_current_time());
-            emptyWorkspaces.push(true);
-        }
-
-        let lastIndex = emptyWorkspaces.length - 1;
-        let lastEmptyIndex = emptyWorkspaces.lastIndexOf(false) + 1;
-        let activeWorkspaceIndex = workspaceManager.get_active_workspace_index();
-        emptyWorkspaces[activeWorkspaceIndex] = false;
-
-        // Delete empty workspaces except for the last one; do it from the end
-        // to avoid index changes
-        for (i = lastIndex; i >= 0; i--) {
-            if (workspaceManager.n_workspaces === MIN_NUM_WORKSPACES)
-                break;
-            if (emptyWorkspaces[i] && i != lastEmptyIndex)
-                workspaceManager.remove_workspace(this._workspaces[i], global.get_current_time());
-        }
-
-        this._checkWorkspacesId = 0;
-        return false;
-    }
-
-    keepWorkspaceAlive(workspace, duration) {
-        if (workspace._keepAliveId)
-            GLib.source_remove(workspace._keepAliveId);
-
-        workspace._keepAliveId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, duration, () => {
-            workspace._keepAliveId = 0;
-            this._queueCheckWorkspaces();
-            return GLib.SOURCE_REMOVE;
+            if (workspacesStartingUp[i]) {
+                workspace._appStartingUp = true;
+            } else if (wasStartingUp) {
+                delete workspace._appStartingUp;
+                this._maybeRemoveWorkspace(workspace);
+            }
         });
-        GLib.Source.set_name_by_id(workspace._keepAliveId, '[gnome-shell] this._queueCheckWorkspaces');
+
+     //   this._workspaces.slice().reverse().forEach(w => this._maybeRemoveWorkspace(w));
     }
-
-    _windowRemoved(workspace, window) {
-        workspace._lastRemovedWindow = window;
-        this._queueCheckWorkspaces();
-        let id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, LAST_WINDOW_GRACE_TIME, () => {
-            if (workspace._lastRemovedWindow == window) {
-                workspace._lastRemovedWindow = null;
-                this._queueCheckWorkspaces();
-            }
-            return GLib.SOURCE_REMOVE;
-        });
-        GLib.Source.set_name_by_id(id, '[gnome-shell] this._queueCheckWorkspaces');
-    }
-
-    _windowLeftMonitor(metaDisplay, monitorIndex, _metaWin) {
-        // If the window left the primary monitor, that
-        // might make that workspace empty
-        if (monitorIndex == Main.layoutManager.primaryIndex)
-            this._queueCheckWorkspaces();
-    }
-
-    _windowEnteredMonitor(metaDisplay, monitorIndex, _metaWin) {
-        // If the window entered the primary monitor, that
-        // might make that workspace non-empty
-        if (monitorIndex == Main.layoutManager.primaryIndex)
-            this._queueCheckWorkspaces();
-    }
-
-    _queueCheckWorkspaces() {
-        if (this._checkWorkspacesId == 0)
-            this._checkWorkspacesId = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, this._checkWorkspaces.bind(this));
-    }
-
-    _nWorkspacesChanged() {
-        let workspaceManager = global.workspace_manager;
-        let oldNumWorkspaces = this._workspaces.length;
-        let newNumWorkspaces = workspaceManager.n_workspaces;
-
-        if (oldNumWorkspaces == newNumWorkspaces)
-            return false;
-
-        if (newNumWorkspaces > oldNumWorkspaces) {
-            let w;
-
-            // Assume workspaces are only added at the end
-            for (w = oldNumWorkspaces; w < newNumWorkspaces; w++)
-                this._workspaces[w] = workspaceManager.get_workspace_by_index(w);
-
-            for (w = oldNumWorkspaces; w < newNumWorkspaces; w++) {
-                this._workspaces[w].connectObject(
-                    'window-added', this._queueCheckWorkspaces.bind(this),
-                    'window-removed', this._windowRemoved.bind(this), this);
-            }
-        } else {
-            // Assume workspaces are only removed sequentially
-            // (e.g. 2,3,4 - not 2,4,7)
-            let removedIndex;
-            let removedNum = oldNumWorkspaces - newNumWorkspaces;
-            for (let w = 0; w < oldNumWorkspaces; w++) {
-                let workspace = workspaceManager.get_workspace_by_index(w);
-                if (this._workspaces[w] != workspace) {
-                    removedIndex = w;
-                    break;
-                }
-            }
-
-            let lostWorkspaces = this._workspaces.splice(removedIndex, removedNum);
-            lostWorkspaces.forEach(workspace => workspace.disconnectObject(this));
-        }
-
-        this._queueCheckWorkspaces();
-
-        return false;
-    }
-};
+});
 
 var TilePreview = GObject.registerClass(
 class TilePreview extends St.Widget {
@@ -943,7 +1010,7 @@ var WindowManager = class {
         this._windowMenuManager = new WindowMenu.WindowMenuManager();
 
         if (Main.sessionMode.hasWorkspaces)
-            this._workspaceTracker = new WorkspaceTracker(this);
+            this._workspaceTracker = new WorkspaceTracker();
 
         const appSwitchGesture = new AppSwitchGesture();
         appSwitchGesture.connect('activated', this._switchApp.bind(this));
