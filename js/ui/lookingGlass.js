@@ -1564,7 +1564,7 @@ class LookingGlass extends St.BoxLayout {
     _resize() {
         let primary = Main.layoutManager.primaryMonitor;
         let myWidth = primary.width * 0.7;
-        let availableHeight = primary.height - Main.keyboard.keyboardActor.get_transformed_extents().size.height;
+        let availableHeight = Main.keyboard.keyboardActor ? primary.height - Main.keyboard.keyboardActor.get_transformed_extents().size.height : primary.height;
         let myHeight = Math.min(primary.height * 0.7, availableHeight * 0.9);
         this.x = primary.x + (primary.width - myWidth) / 2;
         this._hiddenY = primary.y + Main.layoutManager.panelBox.height - myHeight;
