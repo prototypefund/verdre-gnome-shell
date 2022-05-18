@@ -268,8 +268,7 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _endAnimationDoneCb() {
-//        this.begin_threshold = this._oldBeginThreshold;
-  //      delete this._oldBeginThreshold;
+        this.begin_threshold = this._oldBeginThreshold;
     }
 
     vfunc_state_changed(oldState, newState) {
@@ -487,15 +486,6 @@ var SwipeTracker = GObject.registerClass({
         let rect = new Meta.Rectangle({ x, y, width: 1, height: 1 });
         let monitor = global.display.get_monitor_index_for_rect(rect);
 
-       // if (!this._oldBeginThreshold)
-       //     this._oldBeginThreshold = this.begin_threshold;
-       // this.begin_threshold = 0;
-       // if (this._otherDimensionTracker) {
-       //     if (!this._otherDimensionTracker._oldBeginThreshold)
-       //         this._otherDimensionTracker._oldBeginThreshold = this._otherDimensionTracker.begin_threshold;
-       //     this._otherDimensionTracker.begin_threshold = 0;
-       // }
-
         this.emit('begin', monitor);
     }
 
@@ -650,10 +640,10 @@ var SwipeTracker = GObject.registerClass({
 
                 const finalDuration = ourDuration > otherDuration ? ourDuration : otherDuration;
 
-          //      this._oldBeginThreshold = this.begin_threshold;
-            //    this.begin_threshold = 0;
-              //  otherTracker._oldBeginThreshold = otherTracker.begin_threshold;
-                //otherTracker.begin_threshold = 0;
+                this._oldBeginThreshold = this.begin_threshold;
+                this.begin_threshold = 0;
+                otherTracker._oldBeginThreshold = otherTracker.begin_threshold;
+                otherTracker.begin_threshold = 0;
 
                 otherTracker.emit('end', finalDuration, otherEndProgress, this._endAnimationDoneCb.bind(otherTracker));
                 this.emit('end', finalDuration, ourEndProgress, this._endAnimationDoneCb.bind(this));
@@ -667,8 +657,8 @@ var SwipeTracker = GObject.registerClass({
 
         const [duration, endProgress] = this._getAnimateOutParams(velocity, isTouchpad);
 
-   //     this._oldBeginThreshold = this.begin_threshold;
-     //   this.begin_threshold = 0;
+        this._oldBeginThreshold = this.begin_threshold;
+        this.begin_threshold = 0;
         this.emit('end', duration, endProgress, this._endAnimationDoneCb.bind(this));
     }
 
