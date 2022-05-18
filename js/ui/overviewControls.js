@@ -70,7 +70,9 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         const [width, height] = workspaceBox.get_size();
         const {y1: startY} = this._workAreaBox;
         const {spacing} = this;
-        const {expandFraction} = this._workspacesThumbnails;
+        let expandFraction = 0;
+        if (this._workspacesThumbnails.visible)
+            expandFraction = this._workspacesThumbnails.expandFraction;
 
         switch (state) {
         case ControlsState.HIDDEN:
@@ -80,12 +82,12 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         case ControlsState.WINDOW_PICKER:
             workspaceBox.set_origin(0,
                 startY + searchHeight + spacing +
-                thumbnailsHeight + spacing * expandFraction);
+                (thumbnailsHeight + spacing) * expandFraction);
             workspaceBox.set_size(width,
                 height -
                 dashHeight - spacing -
                 searchHeight - spacing -
-                thumbnailsHeight - spacing * expandFraction);
+                (thumbnailsHeight + spacing) * expandFraction);
             break;
         case ControlsState.APP_GRID:
             workspaceBox.set_origin(0, startY + searchHeight + spacing);
