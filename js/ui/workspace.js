@@ -770,7 +770,8 @@ var WorkspaceLayout = GObject.registerClass({
 
     _syncOverlay(preview) {
         const active = this._metaWorkspace?.active ?? true;
-        preview.overlayEnabled = active && this._stateAdjustment.value === 1;
+        preview.overlayEnabled = !Main.layoutManager.is_phone &&
+            active && this._stateAdjustment.value === 1;
     }
 
     /**
@@ -1083,6 +1084,9 @@ class Workspace extends St.Widget {
         // Background
         this._background =
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
+        Main.layoutManager.bind_property('is-phone',
+            this._background, 'visible',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
         this.add_child(this._background);
 
         // Window previews

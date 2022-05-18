@@ -265,6 +265,9 @@ var WindowPreview = GObject.registerClass({
         const topOverlap = 0;
         const bottomOverlap = ICON_TITLE_SPACING + titleHeight;
 
+        if (Main.layoutManager.is_phone)
+            return [0, 0];
+
         return [topOverlap, bottomOverlap];
     }
 
@@ -276,6 +279,9 @@ var WindowPreview = GObject.registerClass({
 
         const topOversize = closeButtonHeight / 2;
         const bottomOversize = (1 - ICON_OVERLAP) * iconHeight;
+
+        if (Main.layoutManager.is_phone)
+            return [0, bottomOversize];
 
         return [
             topOversize + activeExtraSize,
@@ -294,6 +300,9 @@ var WindowPreview = GObject.registerClass({
         const rightOversize = this._closeButtonSide === St.Side.LEFT
             ? 0
             : closeButtonWidth / 2;
+
+        if (Main.layoutManager.is_phone)
+            return [0, 0];
 
         return [
             leftOversize + activeExtraSize,
