@@ -1096,13 +1096,6 @@ var WindowManager = class {
         }
     }
 
-    keepWorkspaceAlive(workspace, duration) {
-        if (!this._workspaceTracker)
-            return;
-
-        this._workspaceTracker.keepWorkspaceAlive(workspace, duration);
-    }
-
     skipNextEffect(actor) {
         this._skippedActors.add(actor);
     }
