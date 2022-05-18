@@ -184,6 +184,12 @@ const defaultParams = {
 };
 
 var LayoutManager = GObject.registerClass({
+    Properties: {
+        'is-phone': GObject.ParamSpec.boolean(
+            'is-phone', 'is-phone', 'is-phone',
+            GObject.ParamFlags.READABLE,
+            false),
+    },
     Signals: {
         'hot-corners-changed': {},
         'startup-complete': {},
@@ -310,6 +316,8 @@ var LayoutManager = GObject.registerClass({
         monitorManager.connect('monitors-changed',
                                this._monitorsChanged.bind(this));
         this._monitorsChanged();
+
+        this._updateIsPhone();
 
         this.screenTransition = new ScreenTransition();
         this.uiGroup.add_child(this.screenTransition);
@@ -560,6 +568,7 @@ var LayoutManager = GObject.registerClass({
 
     _monitorsChanged() {
         this._updateMonitors();
+        this._updateIsPhone(),
         this._updateBoxes();
         this._updateHotCorners();
         this._updateBackgrounds();
@@ -1076,6 +1085,41 @@ var LayoutManager = GObject.registerClass({
         // We don't update the stage input region while in a modal,
         // so queue an update now.
         this._queueUpdateRegions();
+    }
+
+    get is_phone() {
+        return this._isPhone;
+    }
+
+    _checkIsPhone() {
+        if (!this.primaryMonitor)
+            return false;
+
+        const { scaleFactor } = St.ThemeContext.get_for_stage(global.stage);
+        const width = this.primaryMonitor.width / scaleFactor;
+        const height = this.primaryMonitor.height / scaleFactor;
+
+        if ((width < 801 && height < 1281) ||
+            (height < 801 && width < 1281))
+            return true;
+
+      //  if ((width < 720 && height < 1280) ||
+        //    (height < 720 && width < 1280))
+          //  return true;
+
+        return false;
+    }
+
+    _updateIsPhone() {
+        const isPhone = this._checkIsPhone();
+
+        if (this._isPhone === isPhone)
+            return;
+
+        this._isPhone = isPhone;
+log("IS PHONE: " + this._isPhone);
+
+        this.notify('is-phone');
     }
 });
 
