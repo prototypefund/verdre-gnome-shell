@@ -184,6 +184,12 @@ const defaultParams = {
 };
 
 var LayoutManager = GObject.registerClass({
+    Properties: {
+        'is-phone': GObject.ParamSpec.boolean(
+            'is-phone', 'is-phone', 'is-phone',
+            GObject.ParamFlags.READABLE,
+            false),
+    },
     Signals: {
         'hot-corners-changed': {},
         'startup-complete': {},
@@ -566,6 +572,7 @@ var LayoutManager = GObject.registerClass({
 
     _monitorsChanged() {
         this._updateMonitors();
+        this._updateIsPhone(),
         this._updateBoxes();
         this._updateHotCorners();
         this._updateBackgrounds();
@@ -1087,6 +1094,36 @@ var LayoutManager = GObject.registerClass({
         // We don't update the stage input region while in a modal,
         // so queue an update now.
         this._queueUpdateRegions();
+    }
+
+    get is_phone() {
+        return this._isPhone;
+    }
+
+    _checkIsPhone() {
+        if (!this.primaryMonitor)
+            return false;
+
+        const { scaleFactor } = St.ThemeContext.get_for_stage(global.stage);
+        const width = this.primaryMonitor.width / scaleFactor;
+        const height = this.primaryMonitor.height / scaleFactor;
+
+        if ((width < 500 && height < 1000) ||
+            (height < 500 && width < 1000))
+            return true;
+
+        return false;
+    }
+
+    _updateIsPhone() {
+        const isPhone = this._checkIsPhone();
+
+        if (this._isPhone === isPhone)
+            return;
+
+        this._isPhone = isPhone;
+
+        this.notify('is-phone');
     }
 });
 
