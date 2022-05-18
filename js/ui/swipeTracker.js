@@ -168,10 +168,10 @@ var SwipeTracker = GObject.registerClass({
         });
         this._history = new EventHistory();
 
-        this.connect('notify::enabled', () => {
-            if (!this.enabled && this.state === Clutter.GestureState.RECOGNIZING)
-                this.set_state(Clutter.GestureState.CANCELLED);
-        });
+      //  this.connect('notify::enabled', () => {
+      //      if (!this.enabled && this.state === Clutter.GestureState.RECOGNIZING)
+      //          this.set_state(Clutter.GestureState.CANCELLED);
+      //  });
 
         this._snapPoints = [];
         this._initialProgress = 0;
