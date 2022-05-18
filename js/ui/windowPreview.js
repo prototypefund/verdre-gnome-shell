@@ -5,6 +5,7 @@ const {
     Atk, Clutter, GLib, GObject, Graphene, Meta, Pango, Shell, St,
 } = imports.gi;
 
+const Main = imports.ui.main;
 const DND = imports.ui.dnd;
 const OverviewControls = imports.ui.overviewControls;
 
@@ -22,6 +23,10 @@ const ICON_SIZE = 64;
 const ICON_OVERLAP = 0.7;
 
 const ICON_TITLE_SPACING = 6;
+
+var WindowPreviewCloseGesture = GObject.registerClass(
+class WindowPreviewCloseGesture extends Clutter.PanGesture {
+});
 
 var WindowPreview = GObject.registerClass({
     Properties: {
@@ -101,6 +106,23 @@ var WindowPreview = GObject.registerClass({
         const clickGesture = new Clutter.ClickGesture();
         clickGesture.connect('clicked', () => this._activate());
         this.add_action(clickGesture);
+
+        this._panGesture = new WindowPreviewCloseGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this._panGesture.connect('pan-cancel', this._panCancel.bind(this));
+        this.add_action(this._panGesture);
+
+  //      Main.overview._workspacesSwipeTracker.require_failure_of(this._panGesture);
+//        Main.overview._overviewSwipeTracker.require_failure_of(this._panGesture);
+
+  //      Main.overview._workspacesSwipeTracker.can_not_cancel(this._panGesture);
+//        Main.overview._overviewSwipeTracker.can_not_cancel(this._panGesture);
 
         this.connect('destroy', this._onDestroy.bind(this));
 
@@ -641,5 +663,58 @@ var WindowPreview = GObject.registerClass({
             this.showOverlay(true);
 
         this.emit('drag-end');
+    }
+
+    _panMayRecognize(gesture) {
+        const points = gesture.get_points();
+        if (!points[0])
+            return true;
+
+        const delta = points[0].latest_coords.y - points[0].begin_coords.y;
+
+        return delta < 0;
+    }
+
+    _panBegin(gesture, x, y) {
+        this.remove_transition('translation-y');
+        this.remove_transition('opacity');
+
+        this._panHeight = this.get_transformed_extents().size.height;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        this.translation_y += deltaY;
+        if (this.translation_y > 0)
+            this.translation_y = 0;
+
+        this.opacity = 255 * (1 - Math.min(Math.abs(this.translation_y / this._panHeight), 1));
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const remainingHeight = this._panHeight - Math.abs(this.translation_y);
+
+log("pan End: " + velocityY);
+log("pan travelled: " + remainingHeight + " of " + this._panHeight);
+
+        if (velocityY < -0.9 || (remainingHeight < this._panHeight / 2 && velocityY < -0.5) || remainingHeight <= 0) {
+            this.ease({
+                translation_y: -this._panHeight,
+                opacity: 0,
+                duration: Math.clamp(Math.abs(velocityY) / remainingHeight, 100, 350),
+                mode: Clutter.AnimationMode.LINEAR,
+                onComplete: () => this._deleteAll(),
+            });
+        } else {
+            this.ease({
+                translation_y: 0,
+                opacity: 255,
+                duration: Math.clamp((1 - (remainingHeight / this._panHeight)) * 250, 100, 350),
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+    }
+
+    _panCancel(gesture) {
+
     }
 });
