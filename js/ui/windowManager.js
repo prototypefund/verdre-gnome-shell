@@ -1810,10 +1810,8 @@ var WindowManager = class {
 
         if (!Main.overview.visible) {
             if (this._workspaceSwitcherPopup == null) {
-                this._workspaceTracker.blockUpdates();
                 this._workspaceSwitcherPopup = new WorkspaceSwitcherPopup.WorkspaceSwitcherPopup();
                 this._workspaceSwitcherPopup.connect('destroy', () => {
-                    this._workspaceTracker.unblockUpdates();
                     this._workspaceSwitcherPopup = null;
                     this._isWorkspacePrepended = false;
                 });
