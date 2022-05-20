@@ -351,15 +351,20 @@ var Dash = GObject.registerClass({
 
         this.showAppsButton = this._showAppsIcon.toggleButton;
 
+        Main.layoutManager.bind_property('is-phone',
+            this._showAppsIcon, 'visible',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
+
         this._background = new St.Widget({
             style_class: 'dash-background',
         });
 
         const sizerBox = new Clutter.Actor();
-        sizerBox.add_constraint(new Clutter.BindConstraint({
-            source: this._showAppsIcon.icon,
+        this._heightConstraint = new Clutter.BindConstraint({
+            source: null,
             coordinate: Clutter.BindCoordinate.HEIGHT,
-        }));
+        });
+        sizerBox.add_constraint(this._heightConstraint);
         sizerBox.add_constraint(new Clutter.BindConstraint({
             source: this._dashContainer,
             coordinate: Clutter.BindCoordinate.WIDTH,
@@ -676,7 +681,7 @@ var Dash = GObject.registerClass({
     _redisplay() {
         let favorites = AppFavorites.getAppFavorites().getFavoriteMap();
 
-        let running = this._appSystem.get_running();
+        let running = Main.layoutManager.is_phone ? [] : this._appSystem.get_running();
 
         let children = this._box.get_children().filter(actor => {
             return actor.child &&
@@ -821,6 +826,8 @@ var Dash = GObject.registerClass({
             this._separator.destroy();
             this._separator = null;
         }
+
+        this._heightConstraint.source = this._box.get_first_child().child.icon;
 
         // Workaround for https://bugzilla.gnome.org/show_bug.cgi?id=692744
         // Without it, StBoxLayout may use a stale size cache

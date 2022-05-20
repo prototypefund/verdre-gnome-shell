@@ -3,7 +3,7 @@
 $dash_background_color: lighten($system_bg_color, 5%);
 $dash_placeholder_size: 32px;
 $dash_padding: $base_padding*2; // 12px
-$dash_border_radius: $modal_radius + $dash_padding;
+$dash_border_radius: $modal_radius + 8px;
 
 // container for the dash
 #dash {
@@ -24,7 +24,7 @@ $dash_border_radius: $modal_radius + $dash_padding;
 
   // Running app indicator (also shown in app grid)
   .app-well-app-running-dot {
-    margin-bottom: 14px; // hardcoded
+    margin-bottom: 6px; // hardcoded
   }
 }
 
@@ -32,9 +32,9 @@ $dash_border_radius: $modal_radius + $dash_padding;
 .dash-background {
   background-color: $dash_background_color;
   border-radius: $dash_border_radius;
-  padding: $dash_padding;
+  padding: 8px;
   spacing: $base_padding;
-  margin-bottom: $dash_padding * 2;
+  margin-bottom: $dash_padding;
 }
 
 // items on the dash
@@ -52,7 +52,7 @@ $dash_border_radius: $modal_radius + $dash_padding;
   .show-apps { @include overview_icon($osd_fg_color);}
 
   .show-apps, .app-well-app {
-    padding-bottom: $dash_padding * 2;
+    padding-bottom: $dash_padding;
   }
 }
 

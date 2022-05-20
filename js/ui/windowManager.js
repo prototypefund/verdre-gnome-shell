@@ -341,6 +341,23 @@ log("WS: nope, its occupied");
         return true;
     }
 
+    _windowShouldBeGrabbable(window) {
+        if (window.above)
+            return true;
+
+        /* Workaround for windows that are too big for the screen */
+        // allow grabbing if the window has a width thats bigger
+        // than the workarea so it can at least be moved horizontally...
+        // vertically that wouldnt really help because window can
+        // only be grabbed on the headerbar, so impossible to move them up more
+        const frameRect = window.get_frame_rect();
+        const workArea = window.get_work_area_current_monitor();
+        if (frameRect.width > workArea.width)
+            return true;
+
+        return false;
+    }
+
     _maybeMoveToOwnWorkspace(window) {
 log("WS:  updated should have own workspaces: " + this._windowData.get(window).shouldHaveOwnWorkspace);
 
@@ -383,12 +400,9 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
         }
 
 log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " inside later " + window.title);
-        const windowData = this._windowData.get(window);
-
-
+        let windowData = this._windowData.get(window);
         if (!windowData) {
             this._windowData.set(window, {
-                shouldHaveOwnWorkspace: this._windowShouldHaveOwnWorkspace(window),
                 connections: [
                     window.connect('transient-for-changed', () => {
     log("WS: transient for change");
@@ -416,7 +430,12 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                     window.connect('notify::above', () => {
     log("WS: above change");
                         if (this._useTilingWorkspaces)
-                            window.set_can_grab(window.above);
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
+                    }),
+                    window.connect('size-changed', () => {
+    log("WS: siye change");
+                        if (this._useTilingWorkspaces)
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
                 /*    window.connect('notify::on-all-workspaces', () => {
     log("WS: on-all-ws change");
@@ -428,9 +447,11 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                     }),
                 ],
             });
-        } else {
-            windowData.shouldHaveOwnWorkspace = this._windowShouldHaveOwnWorkspace(window);
+
+            windowData = this._windowData.get(window);
         }
+
+        windowData.shouldHaveOwnWorkspace = this._windowShouldHaveOwnWorkspace(window);
 
         if (!Meta.prefs_get_dynamic_workspaces())
             return;
@@ -455,10 +476,15 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
 
             this._maybeMoveToOwnWorkspace(window);
 
-            window.set_can_grab(window.above);
+            /* FIXME: still have to figure out when to auto-maximize and when not to */
+            if (windowData.shouldHaveOwnWorkspace) {
+                if (window.can_maximize())
+                    window.maximize(Meta.MaximizeFlags.BOTH);
+                else
+                    window.maximize(Meta.MaximizeFlags.VERTICAL); // this is a hack and should have an own can_max_vert() func
+            }
 
-            if (!this._windowIsTemporary(window) && window.can_maximize())
-                window.maximize(Meta.MaximizeFlags.BOTH);
+            window.set_can_grab(this._windowShouldBeGrabbable(window));
         } else {
             const workspaceManager = global.workspace_manager;
 

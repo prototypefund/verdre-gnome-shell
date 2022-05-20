@@ -443,6 +443,13 @@ const PANEL_ITEM_IMPLEMENTATIONS = {
     'screenRecording': imports.ui.status.remoteAccess.ScreenRecordingIndicator,
 };
 
+const PANEL_PHONE_ITEM_IMPLEMENTATIONS = {
+    'aggregateMenu': AggregateMenu,
+    'dateMenu': imports.ui.dateMenu.DateMenuButton,
+    'keyboard': imports.ui.status.keyboard.InputSourceIndicator, // need this shit due to architecture
+    'screenRecording': imports.ui.status.remoteAccess.ScreenRecordingIndicator,
+};
+
 var Panel = GObject.registerClass(
 class Panel extends St.Widget {
     _init() {
@@ -679,6 +686,9 @@ class Panel extends St.Widget {
     }
 
     _hideIndicators() {
+        const implementations = Main.layoutManager.is_phone
+            ? PANEL_PHONE_ITEM_IMPLEMENTATIONS : PANEL_ITEM_IMPLEMENTATIONS;
+
         for (let role in PANEL_ITEM_IMPLEMENTATIONS) {
             let indicator = this.statusArea[role];
             if (!indicator)
@@ -688,9 +698,12 @@ class Panel extends St.Widget {
     }
 
     _ensureIndicator(role) {
+        const implementations = Main.layoutManager.is_phone
+            ? PANEL_PHONE_ITEM_IMPLEMENTATIONS : PANEL_ITEM_IMPLEMENTATIONS;
+
         let indicator = this.statusArea[role];
         if (!indicator) {
-            let constructor = PANEL_ITEM_IMPLEMENTATIONS[role];
+            let constructor = implementations[role];
             if (!constructor) {
                 // This icon is not implemented (this is a bug)
                 return null;
