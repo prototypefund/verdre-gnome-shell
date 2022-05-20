@@ -17,7 +17,7 @@ const WorkspacesView = imports.ui.workspacesView;
 var WORKSPACE_SWITCH_TIME = 250;
 
 const SMALL_WORKSPACE_RATIO = 0.15;
-const DASH_MAX_HEIGHT_RATIO = 0.15;
+const DASH_MAX_HEIGHT_RATIO = 0.18;
 
 const A11Y_SCHEMA = 'org.gnome.desktop.a11y.keyboard';
 
@@ -50,38 +50,34 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
     }
 
     _computeWorkspacesBoxForState(state, box, workAreaBox, searchHeight, dashHeight, thumbnailsHeight) {
-        const workspaceBox = box.copy();
-        const [width, height] = workspaceBox.get_size();
+        const hiddenBox = box.copy();
+        const appGridBox = box.copy();
+        const [width, height] = appGridBox.get_size();
         const { y1: startY } = workAreaBox;
         const { spacing } = this;
         let expandFraction = 0;
         if (this._workspacesThumbnails.visible)
             expandFraction = this._workspacesThumbnails.expandFraction;
 
-        switch (state) {
-        case ControlsState.HIDDEN:
-            workspaceBox.set_origin(...workAreaBox.get_origin());
-            workspaceBox.set_size(...workAreaBox.get_size());
-            break;
-        case ControlsState.WINDOW_PICKER:
-            workspaceBox.set_origin(0,
-                startY + searchHeight + spacing +
-                (thumbnailsHeight + spacing) * expandFraction);
-            workspaceBox.set_size(width,
-                height -
-                dashHeight - spacing -
-                searchHeight - spacing -
-                (thumbnailsHeight - spacing) * expandFraction);
-            break;
-        case ControlsState.APP_GRID:
-            workspaceBox.set_origin(0, startY + searchHeight + spacing);
-            workspaceBox.set_size(
-                width,
-                Math.round(height * SMALL_WORKSPACE_RATIO));
-            break;
-        }
+        hiddenBox.set_origin(...workAreaBox.get_origin());
+        hiddenBox.set_size(...workAreaBox.get_size());
 
-        return workspaceBox;
+        appGridBox.set_origin(0, startY + searchHeight + spacing);
+        appGridBox.set_size(
+            width,
+            Math.round(height * SMALL_WORKSPACE_RATIO));
+
+        const windowPickerY2 = height - dashHeight - spacing;
+log("windowPickerY2: " + windowPickerY2 + " height " + height + " dash h " + dashHeight + " spacing " + spacing);
+        const windowPickerProgress = (windowPickerY2 - hiddenBox.y2) / (appGridBox.y2 - hiddenBox.y2);
+log("RATIO: " + (windowPickerProgress));
+        if (state === ControlsState.HIDDEN) {
+            return hiddenBox;
+        } else if (state === ControlsState.WINDOW_PICKER) {
+            return hiddenBox.interpolate(appGridBox, windowPickerProgress);
+        } else if (state === ControlsState.APP_GRID) {
+            return appGridBox;
+        }
     }
 
     _getAppDisplayBoxForState(state, box, workAreaBox, searchHeight, dashHeight, appGridBox) {
@@ -173,7 +169,7 @@ workAreaBox.y2 = box.y2;
             childBox.set_origin(0, startY + height - dashHeight);
             childBox.set_size(width, dashHeight);
             this._dash.allocate(childBox);
-
+log("using dash h of " + dashHeight);
             availableHeight -= dashHeight + spacing;
         }
 
@@ -334,9 +330,9 @@ class ControlsManager extends St.Widget {
         });
 
         this.dash = new Dash.Dash();
-        Main.layoutManager.bind_property('is-phone',
-            this.dash, 'visible',
-            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
+   //     Main.layoutManager.bind_property('is-phone',
+     //       this.dash, 'visible',
+       //     GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
 
         let workspaceManager = global.workspace_manager;
         let activeWorkspaceIndex = workspaceManager.get_active_workspace_index();
@@ -508,6 +504,7 @@ class ControlsManager extends St.Widget {
     }
 
     _getFitModeForState(state) {
+            return WorkspacesView.FitMode.SINGLE;
         switch (state) {
         case ControlsState.HIDDEN:
         case ControlsState.WINDOW_PICKER:
@@ -606,6 +603,16 @@ class ControlsManager extends St.Widget {
             this._getFitModeForState(params.finalState),
             params.progress);
 
+        if (!this._searchController.searchActive) {
+            if (params.finalState === ControlsState.APP_GRID) {
+                this._searchEntryBin.show();
+                this._searchEntryBin.opacity = params.progress * 255;
+            } else {
+                this._searchEntryBin.hide();
+            }
+        }
+
+
         const { fitModeAdjustment } = this._workspacesDisplay;
         fitModeAdjustment.value = fitMode;
 
@@ -620,8 +627,13 @@ class ControlsManager extends St.Widget {
             this._updateAppDisplayVisibility();
             this._workspacesDisplay.reactive = true;
             this._workspacesDisplay.setPrimaryWorkspaceVisible(true);
+
+            this._searchEntryBin.hide();
         } else {
             this._searchController.show();
+
+            this._searchEntryBin.show();
+            this._searchEntryBin.opacity = 255;
         }
 
         this._updateThumbnailsBox(true);
@@ -765,12 +777,21 @@ class ControlsManager extends St.Widget {
 
     overviewGestureBegin(tracker) {
         const baseDistance = global.screen_height;
-        const progress = this._stateAdjustment.value;
-        const points = [
+        let progress = this._stateAdjustment.value;
+     /*   const points = [
             ControlsState.HIDDEN,
             ControlsState.WINDOW_PICKER,
             ControlsState.APP_GRID,
         ];
+*/
+        const hiddenBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.HIDDEN);
+        const windowPickerBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.WINDOW_PICKER);
+        const appGridBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.APP_GRID);
+
+        const distanceHiddenToWindowPicker = Math.abs(hiddenBox.y2 - windowPickerBox.y2);
+        const distanceWindowPickerToAppGrid = Math.abs(windowPickerBox.y2 - appGridBox.y2);
+
+        this._distanceRatio = distanceWindowPickerToAppGrid / distanceHiddenToWindowPicker;
 
         let wasEasingTo = null;
         let cancelProgress = Math.round(progress);
@@ -778,19 +799,42 @@ class ControlsManager extends St.Widget {
         if (transition) {
             wasEasingTo = cancelProgress = transition.get_interval().peek_final_value();
             this._stateAdjustment.remove_transition('value');
+
+            if (wasEasingTo > ControlsState.WINDOW_PICKER)
+                wasEasingTo = ControlsState.WINDOW_PICKER + ((wasEasingTo - ControlsState.WINDOW_PICKER) * this._distanceRatio);
         }
 
-        tracker.confirmSwipe(baseDistance, points, progress, cancelProgress, wasEasingTo);
+        const points = [
+            ControlsState.HIDDEN,
+            ControlsState.WINDOW_PICKER,
+            ControlsState.WINDOW_PICKER + this._distanceRatio,
+        ];
+
+        if (progress > ControlsState.WINDOW_PICKER)
+            progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) * this._distanceRatio);
+
+        if (cancelProgress > ControlsState.WINDOW_PICKER)
+            cancelProgress = ControlsState.WINDOW_PICKER + ((cancelProgress - ControlsState.WINDOW_PICKER) * this._distanceRatio);
+
+        tracker.confirmSwipe(distanceHiddenToWindowPicker, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
         this._searchController.show();
         this._stateAdjustment.gestureInProgress = true;
     }
 
     overviewGestureProgress(progress) {
+log("moving to prog: " + progress);
+        if (progress > ControlsState.WINDOW_PICKER)
+            progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) / this._distanceRatio);
+
+log("normalized prog: " + progress);
         this._stateAdjustment.value = progress;
     }
 
     overviewGestureEnd(target, duration, onStopped) {
+        if (target > ControlsState.WINDOW_PICKER)
+            target = ControlsState.WINDOW_PICKER + ((target - ControlsState.WINDOW_PICKER) / this._distanceRatio);
+
         if (target === ControlsState.HIDDEN)
             this._workspacesDisplay.prepareToLeaveOverview();
 

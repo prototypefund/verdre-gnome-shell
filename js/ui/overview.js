@@ -462,6 +462,7 @@ var Overview = class {
     }
 
     _workspacesGestureEnd(tracker, duration, endProgress, endCb) {
+log("WS Gesture end " + duration);
         let onStopped = (finished) => {
             endCb();
         };
@@ -477,7 +478,6 @@ var Overview = class {
 
                 if (finished) {
                     this._hideDone();
-
                     delete this._shownForWorkspacesGesture;
                 }
             };

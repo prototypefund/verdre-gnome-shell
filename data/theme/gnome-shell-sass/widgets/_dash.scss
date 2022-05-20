@@ -34,7 +34,7 @@ $dash_border_radius: $modal_radius + $dash_padding;
   border-radius: $dash_border_radius;
   padding: $dash_padding;
   spacing: $base_padding;
-  margin-bottom: $dash_padding;
+  margin-bottom: $dash_padding * 2;
 }
 
 // items on the dash
@@ -52,7 +52,7 @@ $dash_border_radius: $modal_radius + $dash_padding;
   .show-apps { @include overview_icon($osd_fg_color);}
 
   .show-apps, .app-well-app {
-    padding-bottom: $dash_padding;
+    padding-bottom: $dash_padding * 2;
   }
 }
 

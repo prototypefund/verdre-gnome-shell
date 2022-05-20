@@ -258,6 +258,7 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _reset() {
+log("RESETTING THIS FOR SOMER EASON");
         this._history.reset();
 
         this._isTouchpadGesture = false;
@@ -338,12 +339,13 @@ var SwipeTracker = GObject.registerClass({
             if (isScrollEnd) {
                 this._history.trim(time);
                 const velocity = this._history.calculateVelocity();
+log("SCROLL done: velo " + velocity + " hist " + this._history._data.length);
 
                 this.set_state(Clutter.GestureState.RECOGNIZED);
                 this._endTouchpadGesture(this, velocity);
                 return Clutter.EVENT_PROPAGATE;
             }
-
+log("SCROLL appending delta " + dy + " x " + dx);
             const delta = (vertical ? dy : dx) * SCROLL_MULTIPLIER;
 
             this._history.append(time, delta);
@@ -614,7 +616,7 @@ var SwipeTracker = GObject.registerClass({
 
         let duration = Math.abs((this._progress - endProgress) / velocity * DURATION_MULTIPLIER);
         if (duration > 0)
-            duration = Math.clamp(duration, MIN_ANIMATION_DURATION, maxDuration);
+            duration = Math.clamp(duration, MIN_ANIMATION_DURATION, MAX_ANIMATION_DURATION);
 
         return [duration, endProgress];
     }
