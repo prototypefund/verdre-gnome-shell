@@ -85,7 +85,7 @@ class WorkspacesView extends WorkspacesViewBase {
         let workspaceManager = global.workspace_manager;
 
         super._init(monitorIndex, overviewAdjustment);
-this._pivotX = 0;
+
         this._controls = controls;
         this._fitModeAdjustment = fitModeAdjustment;
         this._fitModeAdjustment.connectObject('notify::value', () => {
@@ -157,7 +157,7 @@ this._pivotX = 0;
         return fitAllBox;
     }
 
-    _getFirstFitSingleWorkspaceBox(box, spacing, vertical, pivotX) {
+    _getFirstFitSingleWorkspaceBox(box, spacing, vertical) {
         const [width, height] = box.get_size();
         const [workspace] = this._workspaces;
 
@@ -174,11 +174,7 @@ this._pivotX = 0;
             y1 -= currentWorkspace * (workspaceHeight + spacing);
         } else {
             const [, workspaceWidth] = workspace.get_preferred_width(height);
-const active = this._workspaces[currentWorkspace];
-//const transf = active.get_transformed_extents();
-const offset = pivotX - currentWorkspace * (workspaceWidth + spacing);
-
-            x1 += pivotX - offset;
+            x1 += (width - workspaceWidth) / 2;
             x1 -= currentWorkspace * (workspaceWidth + spacing);
         }
 
@@ -333,7 +329,7 @@ return 0;
         const fitSingleSpacing =
             this._getSpacing(fitSingleBox, FitMode.SINGLE, vertical);
         fitSingleBox =
-            this._getFirstFitSingleWorkspaceBox(fitSingleBox, fitSingleSpacing, vertical, this._pivotX);
+            this._getFirstFitSingleWorkspaceBox(fitSingleBox, fitSingleSpacing, vertical);
 
       /*  const fitAllSpacing =
             this._getSpacing(fitAllBox, FitMode.ALL, vertical);
@@ -846,10 +842,7 @@ class WorkspacesDisplay extends St.Widget {
 
     workspacesGestureUpdate(tracker, progress) {
         let adjustment = this._scrollAdjustment;
-log("UPDATING WS GEST: " + tracker.get_points()[0].latest_coords.x);
-this._workspacesViews[0]._pivotX = tracker.get_points()[0].latest_coords.x;
-this._workspacesViews[0].queue_relayout();
-//        adjustment.value = progress * adjustment.page_size;
+        adjustment.value = progress * adjustment.page_size;
     }
 
     workspacesGestureEnd(tracker, duration, endProgress, stoppedCb) {
