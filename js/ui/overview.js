@@ -9,6 +9,7 @@ const Signals = imports.signals;
 var ANIMATION_TIME = 250;
 
 const DND = imports.ui.dnd;
+const EdgeDragAction = imports.ui.edgeDragAction;
 const LayoutManager = imports.ui.layout;
 const Main = imports.ui.main;
 const MessageTray = imports.ui.messageTray;
@@ -229,7 +230,7 @@ var Overview = class {
         const overviewSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.VERTICAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: true, allowScroll: false });
+            { allowScroll: false });
         overviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
         overviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
         overviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
@@ -239,8 +240,7 @@ var Overview = class {
 
         const workspacesSwipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
-            { allowDrag: true }););
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
         workspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
         workspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
         workspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
@@ -253,6 +253,30 @@ var Overview = class {
             GObject.BindingFlags.SYNC_CREATE);
 
         this._overviewSwipeTracker.make2d(this._workspacesSwipeTracker);
+
+        const bottomBarOverviewSwipeTracker = new EdgeDragAction.EdgeSwipeTracker(
+            Clutter.Orientation.VERTICAL,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: true, allowScroll: false });
+        bottomBarOverviewSwipeTracker.connect('begin', this._overviewGestureBegin.bind(this));
+        bottomBarOverviewSwipeTracker.connect('update', this._overviewGestureUpdate.bind(this));
+        bottomBarOverviewSwipeTracker.connect('end', this._overviewGestureEnd.bind(this));
+        global.stage.add_action_full('Overview swipe tracker',
+            Clutter.EventPhase.BUBBLE, bottomBarOverviewSwipeTracker);
+        this._bottomBarOverviewSwipeTracker = bottomBarOverviewSwipeTracker;
+
+        const bottomBarWorkspacesSwipeTracker = new EdgeDragAction.EdgeSwipeTracker(
+            Clutter.Orientation.HORIZONTAL,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
+            { allowDrag: true });
+        bottomBarWorkspacesSwipeTracker.connect('begin', this._workspacesGestureBegin.bind(this));
+        bottomBarWorkspacesSwipeTracker.connect('update', this._workspacesGestureUpdate.bind(this));
+        bottomBarWorkspacesSwipeTracker.connect('end', this._workspacesGestureEnd.bind(this));
+        global.stage.add_action_full('Workspaces swipe tracker',
+            Clutter.EventPhase.BUBBLE, bottomBarWorkspacesSwipeTracker);
+        this._bottomBarWorkspacesSwipeTracker = bottomBarWorkspacesSwipeTracker;
+
+        this._bottomBarOverviewSwipeTracker.make2d(this._bottomBarWorkspacesSwipeTracker);
     }
 
     //
@@ -666,6 +690,7 @@ var Overview = class {
         this._workspacesSwipeTracker.scroll_modifiers = 0;
         this._workspacesSwipeTracker.allow_long_swipes = true;
         this._workspacesSwipeTracker.allow_drag = true;
+        this._bottomBarWorkspacesSwipeTracker.allow_long_swipes = true;
         this._overviewSwipeTracker.allow_drag = true;
         this._overviewSwipeTracker.begin_threshold = 16;
         this._workspacesSwipeTracker.begin_threshold = 16;
@@ -720,6 +745,7 @@ var Overview = class {
             global.display.compositor_modifiers;
         this._workspacesSwipeTracker.allow_long_swipes = false;
         this._workspacesSwipeTracker.allow_drag = false;
+        this._bottomBarWorkspacesSwipeTracker.allow_long_swipes = false;
         this._overviewSwipeTracker.allow_drag = false;
         this._overviewSwipeTracker.begin_threshold = 0;
         this._workspacesSwipeTracker.begin_threshold = 0;
