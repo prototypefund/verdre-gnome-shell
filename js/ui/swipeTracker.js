@@ -306,10 +306,11 @@ var SwipeTracker = GObject.registerClass({
 
         const vertical = this.orientation === Clutter.Orientation.VERTICAL;
 
-        let time = event.get_time();
-        let [dx, dy] = event.get_scroll_delta();
+        const time = event.get_time();
+        const [dx, dy] = event.get_scroll_delta();
+        const isScrollEnd = dx === 0 && dy === 0;
 
-        if (this.state === Clutter.GestureState.WAITING) {
+        if (!isScrollEnd && this.state === Clutter.GestureState.WAITING) {
             this._isTouchpadGesture = true;
 
             this.set_state(Clutter.GestureState.POSSIBLE);
@@ -334,13 +335,13 @@ var SwipeTracker = GObject.registerClass({
                 delete this._holdEndedId;
             }
 
-            if (dx === 0 && dy === 0) {
+            if (isScrollEnd) {
                 this._history.trim(time);
                 const velocity = this._history.calculateVelocity();
 
                 this.set_state(Clutter.GestureState.RECOGNIZED);
                 this._endTouchpadGesture(this, velocity);
-                return;
+                return Clutter.EVENT_PROPAGATE;
             }
 
             const delta = (vertical ? dy : dx) * SCROLL_MULTIPLIER;
@@ -428,7 +429,7 @@ var SwipeTracker = GObject.registerClass({
             if (phase === Clutter.TouchpadGesturePhase.END ||
                 phase === Clutter.TouchpadGesturePhase.CANCEL) {
                 this.set_state(Clutter.GestureState.CANCELLED);
-                return;
+                return Clutter.EVENT_PROPAGATE;
             }
 
             this._cumulativeX += dx;
