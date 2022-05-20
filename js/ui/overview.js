@@ -468,14 +468,14 @@ var Overview = class {
 
         if (this._shownForWorkspacesGesture) {
             this._animationInProgress = true;
+            this._shown = false;
+            this.emit('hiding');
+            Main.panel.style = `transition-duration: ${duration}ms;`;
 
             onStopped = (finished) => {
                 endCb();
 
                 if (finished) {
-                    this._shown = false;
-                    this.emit('hiding');
-                    Main.panel.style = `transition-duration: 0ms;`;
                     this._hideDone();
 
                     delete this._shownForWorkspacesGesture;
