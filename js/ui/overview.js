@@ -73,7 +73,7 @@ class OverviewActor extends St.BoxLayout {
             vertical: true,
         });
 
-        this.add_constraint(new LayoutManager.MonitorConstraint({ primary: true }));
+        this.add_constraint(new LayoutManager.MonitorConstraint({ primary: true, work_area: true }));
 
         this._controls = new OverviewControls.ControlsManager();
         this.add_child(this._controls);

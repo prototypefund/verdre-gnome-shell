@@ -208,6 +208,6 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
 }
 
 #bottomPanelBox {
-  background-color: orange;
-  height: 30px;
+  background-color: $panel_bg_color;
+  height: 16px;
 }

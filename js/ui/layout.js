@@ -261,9 +261,15 @@ var LayoutManager = GObject.registerClass({
         this.panelBox.connect('notify::allocation',
                               this._panelBoxChanged.bind(this));
 
-        this._bottomPanelBox = new St.Widget({
+        this._bottomPanelBox = new St.Bin({
             name: 'bottomPanelBox',
             reactive: true,
+        });
+
+        this._bottomPanelBox.child = new St.Label({
+            text: '˄˄˄',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
         });
 
         this.addChrome(this._bottomPanelBox, {

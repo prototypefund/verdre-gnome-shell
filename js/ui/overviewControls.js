@@ -141,12 +141,16 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
 
         const monitor = Main.layoutManager.findMonitorForActor(this._container);
         const workArea = Main.layoutManager.getWorkAreaForMonitor(monitor.index);
-        const startX = workArea.x - monitor.x;
-        const startY = workArea.y - monitor.y;
+        const startX = 0;
+        const startY = 0;
         const workAreaBox = new Clutter.ActorBox();
         workAreaBox.set_origin(startX, startY);
         workAreaBox.set_size(workArea.width, workArea.height);
-        box.y1 += startY;
+workAreaBox.x1 = box.x1;
+workAreaBox.x2 = box.x2;
+workAreaBox.y1 = box.y1;
+workAreaBox.y2 = box.y2;
+//        box.y1 += startY;
         const [width, height] = box.get_size();
         let availableHeight = height;
 
