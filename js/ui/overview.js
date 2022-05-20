@@ -404,13 +404,13 @@ var Overview = class {
         delete this._shownForWorkspacesGesture;
             this._visible = true;
             this._visibleTarget = true;
-
+this._overview.controls._workspacesDisplay._workspacesViews[0]._pivotX = tracker.get_points()[0].latest_coords.x;
         this._overview.controls.overviewGestureBegin(tracker);
     }
 
     _overviewGestureUpdate(tracker, progress) {
         this._overview.controls.overviewGestureProgress(progress);
-
+this._overview.controls._workspacesDisplay._workspacesViews[0]._pivotX = tracker.get_points()[0].latest_coords.x;
         if (this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().allocation.get_width() > 0)
             this._workspacesSwipeTracker._distance = this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().allocation.get_width();
     }
