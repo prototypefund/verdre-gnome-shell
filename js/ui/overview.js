@@ -409,7 +409,7 @@ var Overview = class {
     }
 
     _overviewGestureUpdate(tracker, progress) {
-        this._overview.controls.overviewGestureProgress(progress);
+        this._overview.controls.overviewGestureProgress(tracker, progress);
 
         if (this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().get_transformed_extents().size.width > 0)
             this._workspacesSwipeTracker.distance = this._overview.controls._workspacesDisplay._workspacesViews[0].get_first_child().get_transformed_extents().size.width;

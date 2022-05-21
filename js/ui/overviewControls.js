@@ -17,7 +17,7 @@ const WorkspacesView = imports.ui.workspacesView;
 
 var WORKSPACE_SWITCH_TIME = 250;
 
-const SMALL_WORKSPACE_RATIO = 0.20;
+const SMALL_WORKSPACE_RATIO = 0.21;
 const DASH_MAX_HEIGHT_RATIO = 0.16;
 
 const A11Y_SCHEMA = 'org.gnome.desktop.a11y.keyboard';
@@ -51,19 +51,26 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         stateAdjustment.connect('notify::value', () => this.layout_changed());
     }
 
-    _computeWorkspacesBoxForState(state, box, workAreaBox, searchHeight, dashHeight, thumbnailsHeight) {
-        const hiddenBox = box.copy();
-        const appGridBox = box.copy();
-        const [width, height] = appGridBox.get_size();
+    _computeWorkspacesBoxForState(state, inGesture, box, workAreaBox, searchHeight, dashHeight, thumbnailsHeight) {
+        const workspaceBox = box.copy();
+        const [width, height] = workspaceBox.get_size();
         const { y1: startY } = workAreaBox;
         const { spacing } = this;
         let expandFraction = 0;
         if (this._workspacesThumbnails.visible)
             expandFraction = this._workspacesThumbnails.expandFraction;
 
+        const hiddenBox = box.copy();
+        const appGridBox = box.copy();
+
         hiddenBox.set_origin(...workAreaBox.get_origin());
         hiddenBox.set_size(...workAreaBox.get_size());
 
+
+const OVERVIEW_WORKSPACE_RATIO = 0.72;
+
+const finalH = height * OVERVIEW_WORKSPACE_RATIO;
+const yBegin = (height - finalH) / 2;
 //const bigger = width > height ? width : height;
 
         appGridBox.set_origin(0, startY + searchHeight + spacing);
@@ -71,17 +78,44 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
             width,
             Math.round(height * SMALL_WORKSPACE_RATIO));
 
-        const windowPickerY2 = height - dashHeight - spacing;
-log("windowPickerY2: " + windowPickerY2 + " height " + height + " dash h " + dashHeight + " spacing " + spacing);
+        //const windowPickerY2 = height - dashHeight - spacing;
+        const windowPickerY2 = startY + searchHeight + spacing + finalH;
         const windowPickerProgress = (windowPickerY2 - hiddenBox.y2) / (appGridBox.y2 - hiddenBox.y2);
-log("RATIO: " + (windowPickerProgress));
         if (state === ControlsState.HIDDEN) {
             return hiddenBox;
         } else if (state === ControlsState.WINDOW_PICKER) {
+if (inGesture && (this._stateAdjustment.gestureStartProg === ControlsState.HIDDEN || this._stateAdjustment.gestureStartProg === ControlsState.APP_GRID))
             return hiddenBox.interpolate(appGridBox, windowPickerProgress);
+
+            workspaceBox.set_origin(0,
+                startY + yBegin);
+            workspaceBox.set_size(width,
+                height * OVERVIEW_WORKSPACE_RATIO);
+        return workspaceBox;
         } else if (state === ControlsState.APP_GRID) {
             return appGridBox;
         }
+
+        switch (state) {
+        case ControlsState.HIDDEN:
+            workspaceBox.set_origin(...workAreaBox.get_origin());
+            workspaceBox.set_size(...workAreaBox.get_size());
+            break;
+        case ControlsState.WINDOW_PICKER:
+            workspaceBox.set_origin(0,
+                startY + yBegin - Main.panel.height);
+            workspaceBox.set_size(width,
+                height * OVERVIEW_WORKSPACE_RATIO);
+            break;
+        case ControlsState.APP_GRID:
+            workspaceBox.set_origin(0, startY + searchHeight + spacing);
+            workspaceBox.set_size(
+                width,
+                Math.round(height * SMALL_WORKSPACE_RATIO));
+            break;
+        }
+
+        return workspaceBox;
     }
 
     _getAppDisplayBoxForState(state, box, workAreaBox, searchHeight, dashHeight, appGridBox) {
@@ -96,15 +130,15 @@ log("RATIO: " + (windowPickerProgress));
             appDisplayBox.set_origin(0, box.y2);
             break;
         case ControlsState.APP_GRID:
-            appDisplayBox.set_origin(9,
-                startY + searchHeight + spacing + appGridBox.get_height() + spacing);
+            appDisplayBox.set_origin(0,
+                startY + searchHeight + spacing + appGridBox.get_height() + spacing * 2);
             break;
         }
 
-        appDisplayBox.set_size(width - 18,
+        appDisplayBox.set_size(width,
             height -
-            searchHeight - spacing -
-            appGridBox.get_height() - spacing -
+            searchHeight - spacing * 2 -
+            appGridBox.get_height() - spacing * 2 -
             dashHeight - spacing);
 
         return appDisplayBox;
@@ -198,7 +232,7 @@ log("using dash h of " + dashHeight);
         // Update cached boxes
         for (const state of Object.values(ControlsState)) {
             this._cachedWorkspaceBoxes.set(
-                state, this._computeWorkspacesBoxForState(state, ...params));
+                state, this._computeWorkspacesBoxForState(state, transitionParams.gesture, ...params));
         }
 
         let workspacesBox;
@@ -210,7 +244,13 @@ log("using dash h of " + dashHeight);
             workspacesBox = initialBox.interpolate(finalBox, transitionParams.progress);
         }
 
+    this._workspacesDisplay.save_easing_state();
+    this._workspacesDisplay.set_easing_mode(Clutter.AnimationMode.EASE_OUT_QUAD);
+    this._workspacesDisplay.set_easing_duration(70);
+
         this._workspacesDisplay.allocate(workspacesBox);
+
+    this._workspacesDisplay.restore_easing_state();
 
         // AppDisplay
         if (this._appDisplay.visible) {
@@ -299,6 +339,7 @@ var OverviewAdjustment = GObject.registerClass({
 
         return {
             transitioning: transition !== null || this.gestureInProgress,
+gesture: this.gestureInProgress,
             currentState,
             initialState,
             finalState,
@@ -589,7 +630,7 @@ widget.add_effect(ef);
         const { searchActive } = this._searchController;
         const [opacity, scale, translationY] = this._getThumbnailsBoxParams();
 
-        const thumbnailsBoxVisible = !Main.layoutManager.is_phone &&
+        const thumbnailsBoxVisible = false && !Main.layoutManager.is_phone &&
             shouldShow && !searchActive && opacity !== 0;
 
         if (thumbnailsBoxVisible) {
@@ -636,9 +677,9 @@ widget.add_effect(ef);
         if (!this._searchController.searchActive) {
             if (params.finalState === ControlsState.APP_GRID) {
                 this._searchEntryBin.show();
-                this._searchEntryBin.opacity = params.progress * 255;
+           //     this._searchEntryBin.opacity = params.progress * 255;
             } else {
-                this._searchEntryBin.hide();
+               // this._searchEntryBin.hide();
             }
         }
 
@@ -659,8 +700,8 @@ widget.add_effect(ef);
             this._workspacesDisplay.setPrimaryWorkspaceVisible(true);
 
             const params = this._stateAdjustment.getStateTransitionParams();
-            if (params.finalState !== ControlsState.APP_GRID)
-                this._searchEntryBin.hide();
+        //    if (params.finalState !== ControlsState.APP_GRID)
+          //      this._searchEntryBin.hide();
         } else {
             this._searchController.show();
 
@@ -851,11 +892,31 @@ widget.add_effect(ef);
         tracker.confirmSwipe(distanceHiddenToWindowPicker, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
        // this._searchController.show();
+
+this._stateAdjustment.gestureStartProg = this._stateAdjustment.value;
+
         this._stateAdjustment.gestureInProgress = true;
     }
 
-    overviewGestureProgress(progress) {
+    overviewGestureProgress(tracker, progress) {
 log("moving to prog: " + progress);
+
+if (this._stateAdjustment.gestureStartProg === ControlsState.WINDOW_PICKER && tracker._snapPoints.length === 3) {
+    if (progress > ControlsState.WINDOW_PICKER) {
+        tracker._snapPoints = [
+            ControlsState.WINDOW_PICKER,
+            ControlsState.WINDOW_PICKER + this._distanceRatio,
+        ];
+tracker._peekedMinSnapPoint--
+tracker._peekedMaxSnapPoint-- 
+   } else if (progress < ControlsState.WINDOW_PICKER) {
+        tracker._snapPoints = [
+            ControlsState.HIDDEN,
+            ControlsState.WINDOW_PICKER,
+        ];
+}
+}
+
         if (progress > ControlsState.WINDOW_PICKER)
             progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) / this._distanceRatio);
 

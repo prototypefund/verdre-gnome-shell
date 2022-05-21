@@ -502,8 +502,8 @@ var WorkspaceLayout = GObject.registerClass({
 
             const [, bottomOverlap] = window.overlapHeights();
 
-            if ((bottomOverlap + oversize) > bottomFreeSpace)
-                containerBox.y2 -= (bottomOverlap + oversize) - bottomFreeSpace;
+         //   if ((bottomOverlap + oversize) > bottomFreeSpace)
+           //     containerBox.y2 -= (bottomOverlap + oversize) - bottomFreeSpace;
         }
 
         return [rowSpacing, colSpacing, containerBox];

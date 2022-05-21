@@ -699,7 +699,6 @@ log("SCROLL appending delta " + dy + " x " + dx);
      * some other non-transient state.
      */
     confirmSwipe(distance, snapPoints, currentProgress, cancelProgress, animatingTowardsProgress = null) {
-log("SWIPE CONF:" );
         this.distance = distance;
         this._snapPoints = snapPoints;
         this._initialProgress = currentProgress;

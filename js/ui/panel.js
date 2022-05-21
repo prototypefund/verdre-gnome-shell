@@ -444,7 +444,6 @@ const PANEL_ITEM_IMPLEMENTATIONS = {
 };
 
 const PANEL_PHONE_ITEM_IMPLEMENTATIONS = {
-    'activities': ActivitiesButton,
     'aggregateMenu': AggregateMenu,
     'dateMenu': imports.ui.dateMenu.DateMenuButton,
     'keyboard': imports.ui.status.keyboard.InputSourceIndicator, // need this shit due to architecture

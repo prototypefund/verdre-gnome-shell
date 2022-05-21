@@ -8,10 +8,10 @@ $search_entry_height: 36px;
   border-radius: $search_entry_height * 0.5; // half the height
 
   margin-top: $base_padding * 2;
-  margin-bottom: 0;
-margin-left: 20px;
-margin-right: 20px;
-  padding: 4px 6px;
+  margin-bottom: 12px;
+margin-left: 30px;
+margin-right: 30px;
+  padding: 6px 7px;
   width: $search_entry_width;
 
   @include entry(normal);

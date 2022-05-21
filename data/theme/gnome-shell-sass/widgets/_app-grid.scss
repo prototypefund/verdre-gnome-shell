@@ -24,7 +24,7 @@ StLabel {@extend %smaller;}
   .overview-icon { }
   .overview-icon.overview-icon-with-label {
     > StBoxLayout {
-      spacing: 0;
+      spacing: 4px;
     }
   }
 }
@@ -73,6 +73,7 @@ StLabel {@extend %smaller;}
   }
 
   & .page-indicators {
+
     margin-bottom: 18px;
   }
 }
@@ -100,9 +101,13 @@ StLabel {@extend %smaller;}
   }
 }
 
+.page-indicators {
+margin-top: 12px;
+}
+
 // App Grid pagination indicators
 .page-indicator {
-  padding: $base_padding $base_padding * 2 0;
+  padding: $base_padding $base_padding 0;
 
   .page-indicator-icon {
     width: 10px;
