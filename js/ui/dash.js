@@ -612,7 +612,7 @@ var Dash = GObject.registerClass({
         const [, , buttonWidth, buttonHeight] = firstButton.get_preferred_size();
 
         // Subtract icon padding and box spacing from the available width
-        availWidth -= iconChildren.length * (buttonWidth - iconWidth) +
+        availWidth -= /*iconChildren.length * (buttonWidth - iconWidth) +*/
                        (iconChildren.length - 1) * spacing;
 
         let availHeight = this._maxHeight;

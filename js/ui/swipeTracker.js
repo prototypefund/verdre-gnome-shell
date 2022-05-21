@@ -265,6 +265,7 @@ log("RESETTING THIS FOR SOMER EASON");
         this.set_allowed_device_types([
             Clutter.InputDeviceType.TOUCHSCREEN_DEVICE,
             Clutter.InputDeviceType.TABLET_DEVICE,
+            Clutter.InputDeviceType.POINTER_DEVICE,
         ]);
     }
 

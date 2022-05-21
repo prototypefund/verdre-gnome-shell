@@ -336,9 +336,9 @@ class ControlsManager extends St.Widget {
         });
 
         this.dash = new Dash.Dash();
-   //     Main.layoutManager.bind_property('is-phone',
-     //       this.dash, 'visible',
-       //     GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
+        Main.layoutManager.bind_property('is-phone',
+            this.dash, 'visible',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
 
         let workspaceManager = global.workspace_manager;
         let activeWorkspaceIndex = workspaceManager.get_active_workspace_index();
