@@ -32,7 +32,7 @@ $dash_border_radius: $modal_radius + 8px;
 .dash-background {
   background-color: $dash_background_color;
   border-radius: $dash_border_radius;
-  padding: 0px;
+  padding: 8px;
   spacing: $base_padding;
   margin-bottom: 8px;
 }

@@ -391,10 +391,8 @@ var IconGridLayout = GObject.registerClass({
                 this._pageHeight - usedHeight -  rowSpacingPerPage -
                 this.pagePadding.top - this.pagePadding.bottom;
 
-            if (emptyHSpace >= 0 && emptyVSpace > 0) {
-log("GRID chose icon size + " + size);
+            if (emptyHSpace >= 0 && emptyVSpace > 0)
                 return size;
-}
         }
 
         return IconSize.TINY;
@@ -1196,18 +1194,17 @@ var IconGrid = GObject.registerClass({
         const sizeRatio = width / height;
         let closestRatio = Infinity;
         let bestMode = -1;
-log("SIZE RATION DETECTED: " + sizeRatio + " w " + width + " h" + height);
+
         for (let modeIndex in this._gridModes) {
             const mode = this._gridModes[modeIndex];
             const modeRatio = mode.columns / mode.rows;
-log("MODE " + modeIndex + " has ratio " + modeRatio);
+
             if (Math.abs(sizeRatio - modeRatio) < Math.abs(sizeRatio - closestRatio)) {
                 closestRatio = modeRatio;
                 bestMode = modeIndex;
-log("ITS CLOSER");
             }
         }
-log("CHOSE MODE: " + bestMode);
+
         this._setGridMode(bestMode);
     }
 

@@ -88,10 +88,11 @@ StLabel {@extend %smaller;}
 .app-well-app-running-dot {
   height: 5px;
   width: 5px;
-  border-radius:5px;
+ // border-radius:5px;
   margin-top: 10px;
   margin-bottom: 0px;
-  background-color: $osd_fg_color;
+//  background-color: $osd_fg_color;
+//opacity: 0;
 }
 
 // Rename popup for app folders

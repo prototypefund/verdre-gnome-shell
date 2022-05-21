@@ -84,8 +84,20 @@ const yBegin = (height - finalH) / 2;
         if (state === ControlsState.HIDDEN) {
             return hiddenBox;
         } else if (state === ControlsState.WINDOW_PICKER) {
-if (inGesture && (this._stateAdjustment.gestureStartProg === ControlsState.HIDDEN || this._stateAdjustment.gestureStartProg === ControlsState.APP_GRID))
-            return hiddenBox.interpolate(appGridBox, windowPickerProgress);
+if (!Main.layoutManager.is_phone) {
+            workspaceBox.set_origin(0,
+                startY + searchHeight + spacing +
+                (thumbnailsHeight + spacing) * expandFraction);
+            workspaceBox.set_size(width,
+                height -
+                dashHeight - spacing -
+                searchHeight - spacing -
+                (thumbnailsHeight + spacing) * expandFraction);
+        return workspaceBox;
+}
+
+//if (inGesture && (this._stateAdjustment.gestureStartProg === ControlsState.HIDDEN || this._stateAdjustment.gestureStartProg === ControlsState.APP_GRID))
+  //          return hiddenBox.interpolate(appGridBox, windowPickerProgress);
 
             workspaceBox.set_origin(0,
                 startY + yBegin);
@@ -207,7 +219,7 @@ workAreaBox.y2 = box.y2;
             childBox.set_origin(0, startY + height - dashHeight);
             childBox.set_size(width, dashHeight);
             this._dash.allocate(childBox);
-log("using dash h of " + dashHeight);
+
             availableHeight -= dashHeight + spacing;
         }
 
@@ -244,13 +256,7 @@ log("using dash h of " + dashHeight);
             workspacesBox = initialBox.interpolate(finalBox, transitionParams.progress);
         }
 
-    this._workspacesDisplay.save_easing_state();
-    this._workspacesDisplay.set_easing_mode(Clutter.AnimationMode.EASE_OUT_QUAD);
-    this._workspacesDisplay.set_easing_duration(70);
-
         this._workspacesDisplay.allocate(workspacesBox);
-
-    this._workspacesDisplay.restore_easing_state();
 
         // AppDisplay
         if (this._appDisplay.visible) {
@@ -630,7 +636,7 @@ widget.add_effect(ef);
         const { searchActive } = this._searchController;
         const [opacity, scale, translationY] = this._getThumbnailsBoxParams();
 
-        const thumbnailsBoxVisible = false && !Main.layoutManager.is_phone &&
+        const thumbnailsBoxVisible = !Main.layoutManager.is_phone &&
             shouldShow && !searchActive && opacity !== 0;
 
         if (thumbnailsBoxVisible) {
@@ -899,7 +905,6 @@ this._stateAdjustment.gestureStartProg = this._stateAdjustment.value;
     }
 
     overviewGestureProgress(tracker, progress) {
-log("moving to prog: " + progress);
 
 if (this._stateAdjustment.gestureStartProg === ControlsState.WINDOW_PICKER && tracker._snapPoints.length === 3) {
     if (progress > ControlsState.WINDOW_PICKER) {
@@ -920,7 +925,6 @@ tracker._peekedMaxSnapPoint--
         if (progress > ControlsState.WINDOW_PICKER)
             progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) / this._distanceRatio);
 
-log("normalized prog: " + progress);
         this._stateAdjustment.value = progress;
     }
 
