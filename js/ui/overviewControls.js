@@ -96,16 +96,16 @@ log("RATIO: " + (windowPickerProgress));
             appDisplayBox.set_origin(0, box.y2);
             break;
         case ControlsState.APP_GRID:
-            appDisplayBox.set_origin(0,
-                startY + searchHeight + spacing + appGridBox.get_height());
+            appDisplayBox.set_origin(9,
+                startY + searchHeight + spacing + appGridBox.get_height() + spacing);
             break;
         }
 
-        appDisplayBox.set_size(width,
+        appDisplayBox.set_size(width - 18,
             height -
             searchHeight - spacing -
             appGridBox.get_height() - spacing -
-            dashHeight);
+            dashHeight - spacing);
 
         return appDisplayBox;
     }

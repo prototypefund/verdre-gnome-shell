@@ -8,7 +8,7 @@ $dash_border_radius: $modal_radius + 8px;
 // container for the dash
 #dash {
   @extend %caption;
-  margin-top: $dash_padding;
+//  margin-top: $dash_padding;
 
   .placeholder {
     // background-image: url("resource:///org/gnome/shell/theme/dash-placeholder.svg");
@@ -32,9 +32,9 @@ $dash_border_radius: $modal_radius + 8px;
 .dash-background {
   background-color: $dash_background_color;
   border-radius: $dash_border_radius;
-  padding: 8px;
+  padding: 0px;
   spacing: $base_padding;
-  margin-bottom: $dash_padding;
+  margin-bottom: 8px;
 }
 
 // items on the dash
@@ -52,7 +52,7 @@ $dash_border_radius: $modal_radius + 8px;
   .show-apps { @include overview_icon($osd_fg_color);}
 
   .show-apps, .app-well-app {
-    padding-bottom: $dash_padding;
+    padding-bottom: 8px;
   }
 }
 

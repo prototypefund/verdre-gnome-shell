@@ -295,6 +295,10 @@ var BaseAppView = GObject.registerClass({
         this._hintContainer.add_child(this._prevPageIndicator);
         this._hintContainer.add_child(this._nextPageIndicator);
 
+        Main.layoutManager.bind_property('is-phone',
+            this._hintContainer, 'visible',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
+
         const scrollContainer = new St.Widget({
             layout_manager: new Clutter.BinLayout(),
             clip_to_allocation: true,
@@ -1085,6 +1089,8 @@ var BaseAppView = GObject.registerClass({
         const availWidth = box.get_width();
         const availHeight = box.get_height();
 
+        this._grid.adaptToSize(availWidth, availHeight);
+
         const gridRatio = this._grid.layout_manager.columnsPerPage /
             this._grid.layout_manager.rowsPerPage;
         const spaceRatio = availWidth / availHeight;
@@ -1116,7 +1122,7 @@ var BaseAppView = GObject.registerClass({
                 Math.ceil(availWidth * 0.02);
         }
 
-        this._grid.adaptToSize(pageWidth, pageHeight);
+      //  this._grid.adaptToSize(pageWidth, pageHeight);
 
         const leftPadding = Math.floor(
             (availWidth - this._grid.layout_manager.pageWidth) / 2);
@@ -1126,7 +1132,7 @@ var BaseAppView = GObject.registerClass({
             (availHeight - this._grid.layout_manager.pageHeight) / 2);
         const bottomPadding = Math.ceil(
             (availHeight - this._grid.layout_manager.pageHeight) / 2);
-
+/*
         this._scrollView.content_padding = new Clutter.Margin({
             left: leftPadding,
             right: rightPadding,
@@ -1139,7 +1145,7 @@ var BaseAppView = GObject.registerClass({
 
         this._pageIndicatorOffset = leftPadding;
         this._pageArrowOffset = Math.max(
-            leftPadding - PAGE_PREVIEW_MAX_ARROW_OFFSET, 0);
+            leftPadding - PAGE_PREVIEW_MAX_ARROW_OFFSET, 0);*/
     }
 
     _getIndicatorOffset(page, progress, baseOffset) {

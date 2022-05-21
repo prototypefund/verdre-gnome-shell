@@ -11,11 +11,13 @@ var ICON_SIZE = 96;
 var PAGE_SWITCH_TIME = 300;
 
 var IconSize = {
-    LARGE: 96,
+ //   LARGE: 96,
     MEDIUM: 64,
-    MEDIUM_SMALL: 48,
+  //  MEDIUM_SMALL: 48,
     SMALL: 32,
+    SMAL: 28,
     SMALLER: 24,
+    SMALLE: 20,
     TINY: 16,
 };
 
@@ -389,8 +391,10 @@ var IconGridLayout = GObject.registerClass({
                 this._pageHeight - usedHeight -  rowSpacingPerPage -
                 this.pagePadding.top - this.pagePadding.bottom;
 
-            if (emptyHSpace >= 0 && emptyVSpace > 0)
+            if (emptyHSpace >= 0 && emptyVSpace > 0) {
+log("GRID chose icon size + " + size);
                 return size;
+}
         }
 
         return IconSize.TINY;
