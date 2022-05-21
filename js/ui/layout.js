@@ -266,8 +266,8 @@ var LayoutManager = GObject.registerClass({
             reactive: true,
         });
 
-        this._bottomPanelBox.child = new St.Label({
-            text: '˄˄˄',
+        this._bottomPanelBox.child = new St.Icon({
+            icon_name: 'swipe-arrow-symbolic',
             x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
         });
@@ -282,6 +282,8 @@ var LayoutManager = GObject.registerClass({
             align_axis: Clutter.AlignAxis.Y_AXIS,
             factor: 1,
         }));
+
+
 
         this.modalDialogGroup = new St.Widget({
             name: 'modalDialogGroup',
@@ -355,6 +357,13 @@ var LayoutManager = GObject.registerClass({
 
         this.keyboardBox.add_constraint(new MonitorConstraint({ primary: true }));
         this._loadBackground();
+
+        Main.overview.connect('showing', () => {
+            this._bottomPanelBox.add_style_pseudo_class('overview');
+        });
+        Main.overview.connect('hiding', () => {
+            this._bottomPanelBox.remove_style_pseudo_class('overview');
+        });
     }
 
     showOverview() {

@@ -210,4 +210,9 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
 #bottomPanelBox {
   background-color: $panel_bg_color;
   height: 16px;
+
+  // transparent panel on lock & login screens
+  &:overview {
+    background-color: transparent;
+  }
 }
