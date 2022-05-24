@@ -29,46 +29,46 @@ const defaultKeysPre = [
         [],
         [],
         [{ width: 1.5, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 1 }}],
-        [{ label: '?123', width: 1.5, action: { switchToLevel: 2 }}],
+        [{ label: '?123', width: 1.5, action: { switchToLevel: 2 }}, { action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }],
     ], [
         [],
         [],
         [{ width: 1.5, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 0 }}],
-        [{ label: '?123', width: 1.5, action: { switchToLevel: 0 }}],
+        [{ label: '?123', width: 1.5, action: { switchToLevel: 0 }}, { action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }],
     ], [
         [],
         [],
         [{ label: '=/<', width: 1.5, action: { switchToLevel: 3 }}],
-        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}],
+        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}, { action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }],
     ], [
         [],
         [],
         [{ label: '?123', width: 1.5, action: { switchToLevel: 2 }}],
-        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}],
+        [{ label: 'ABC', width: 1.5, action: { switchToLevel: 0 }}, { action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }],
     ],
 ];
 
 const defaultKeysPost = [
     [
+        [],
+        [],
         [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
         [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
-        [{ width: 3, right: true, extraClassName: 'shift-key-lowercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 1 }}],
-        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
+        [],
+        [],
         [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
         [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
-        [{ width: 3, right: true, extraClassName: 'shift-key-uppercase', icon: 'keyboard-shift-symbolic', action: { switchToLevel: 0 }}],
-        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [],
+        [],
+        [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
         [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
-        [{ label: '=/<', width: 3, right: true,  action: { switchToLevel: 3 }}],
-        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ], [
-        [{ width: 1.5, keyval: Clutter.KEY_BackSpace, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
+        [],
+        [],
+        [{ width: 1.5, icon: 'edit-clear-symbolic', action: { keyval: Clutter.KEY_BackSpace }}],
         [{ width: 2, extraClassName: 'enter-key', icon: 'keyboard-enter-symbolic', action: { keyval: Clutter.KEY_Return }}],
-        [{ label: '?123', width: 3, right: true,  action: { switchToLevel: 2 }}],
-        [{ action: { switchToPage: 'emoji' }, icon: 'face-smile-symbolic' }, { action: { switchToPage: 'languageMenu' }, extraClassName: 'layout-key', icon: 'keyboard-layout-symbolic' }, { action: { switchToPage: 'none' }, extraClassName: 'hide-key', icon: 'go-down-symbolic' }],
     ],
 ];
 
@@ -137,6 +137,7 @@ class KeyContainer extends St.Widget {
             x_expand: true,
             y_expand: true,
         });
+
         this._gridLayout = gridLayout;
         this._currentRow = 0;
         this._currentCol = 0;
@@ -1552,7 +1553,7 @@ var Keyboard = GObject.registerClass({
 
             /* Space key gets special width, dependent on the number of surrounding keys */
             if (button.key == ' ')
-                width = keys.length <= 3 ? 5 : 3;
+                width = 3.5;
 
             button.connect('release', (actor, keyval, str) => {
                 if (keyval !== 0) {

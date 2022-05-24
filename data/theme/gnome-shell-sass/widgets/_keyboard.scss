@@ -23,8 +23,8 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
   }
 
   // padding added to paddings of key-containers to achieve uniform side paddings
-  padding-left: 4px;
-  padding-right: 4px;
+  padding-left: 0px;
+  padding-right: 0px;
   padding-bottom: 0px;
 }
 
@@ -165,7 +165,6 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
 
 // emoji
 .emoji-page {
-background-color: green;
   .keyboard-key {
     background-color: transparent;
     border: none;
