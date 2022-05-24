@@ -37,10 +37,6 @@ const defaultGridModes = [
     },
     {
         rows: 4,
-        columns: 4,
-    },
-    {
-        rows: 4,
         columns: 6,
     },
     {

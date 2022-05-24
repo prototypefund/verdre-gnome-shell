@@ -190,7 +190,17 @@ class KeyContainer extends St.Widget {
             }
 
             for (let j = 0; j < row.keys.length; j++) {
-                let keyInfo = row.keys[j];
+                const keyInfo = row.keys[j];
+
+                if (i === 0)
+                    keyInfo.key.add_style_class_name('topmost-row');
+                else if (i === this._rows.length - 1)
+                    keyInfo.key.add_style_class_name('bottommost-row');
+                if (j === 0)
+                    keyInfo.key.add_style_class_name('leftmost-column');
+                else if (j === row.keys.length - 1)
+                    keyInfo.key.add_style_class_name('rightmost-column');
+
                 let width = keyInfo.width * KEY_SIZE;
                 let height = keyInfo.height * KEY_SIZE;
 
@@ -203,7 +213,7 @@ class KeyContainer extends St.Widget {
         }
 
         if (container)
-            container.setRatio(this._maxCols, this._rows.length);
+            container.setRatio(this._maxCols, this._rows.length * 1.5);
     }
 });
 
@@ -919,6 +929,7 @@ var EmojiPager = GObject.registerClass({
         for (let i = 0; i < page.pageKeys.length; i++) {
             let modelKey = page.pageKeys[i];
             let key = new Key(modelKey.label, modelKey.variants);
+            key.add_style_class_name('emoji');
 
             key.connect('release', (actor, keyval, str) => {
                 this.emit('emoji', str);
@@ -1136,7 +1147,7 @@ var EmojiSelection = GObject.registerClass({
          * at the moment. Ideally this should be as wide as the current
          * keymap.
          */
-        actor.setRatio(11.5, 1);
+        actor.setRatio(11.5, 1.5);
 
         return actor;
     }
@@ -1736,22 +1747,19 @@ var Keyboard = GObject.registerClass({
         if (!monitor)
             return;
 
-        let maxHeight = monitor.height / 3;
         this.width = monitor.width;
 
-        if (monitor.width > monitor.height) {
-            this.height = maxHeight;
-        } else {
-            /* In portrait mode, lack of horizontal space means we won't be
-             * able to make the OSK that big while keeping size ratio, so
-             * we allow the OSK being smaller than 1/3rd of the monitor height
-             * there.
-             */
-            this.height = -1;
-            const forWidth = this.get_theme_node().adjust_for_width(monitor.width);
-            const [, natHeight] = this.get_preferred_height(forWidth);
-            this.height = Math.min(maxHeight, natHeight);
-        }
+        this.height = -1;
+        const forWidth = this.get_theme_node().adjust_for_width(monitor.width);
+        const [, natHeight] = this.get_preferred_height(forWidth);
+log("PREF h " + natHeight + " moni " + (monitor.height / 3));
+        /* If the requested height is smaller than 1/3rd of the monitor height,
+         * we'll extend the height to the full 1/3rd of the monitor.
+         */
+      //  if (natHeight > monitor.height * (2/3))
+        //    this.height = monitor.height * (2/3);
+       // else
+            this.height = natHeight;
     }
 
     _onGroupChanged() {
