@@ -6,7 +6,7 @@ const { Clutter, GLib, GObject, Meta, St } = imports.gi;
 const Main = imports.ui.main;
 const SwipeTracker = imports.ui.swipeTracker;
 
-var EDGE_THRESHOLD = 20;
+var EDGE_THRESHOLD = 30;
 var DRAG_DISTANCE = 80;
 var CANCEL_THRESHOLD = 100;
 var CANCEL_TIMEOUT_MS = 300;
