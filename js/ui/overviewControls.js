@@ -121,7 +121,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
             height -
             searchHeight - spacing -
             appGridBox.get_height() - spacing -
-            dashHeight);
+            (dashHeight > 0 ? dashHeight + spacing : 0));
 
         return appDisplayBox;
     }
