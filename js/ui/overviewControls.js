@@ -514,6 +514,7 @@ class ControlsManager extends St.Widget {
     }
 
     _getFitModeForState(state) {
+            return WorkspacesView.FitMode.SINGLE;
         switch (state) {
         case ControlsState.HIDDEN:
         case ControlsState.WINDOW_PICKER:
