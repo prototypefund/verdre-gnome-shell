@@ -4,11 +4,12 @@
 const { Clutter, GLib, GObject, Meta, St } = imports.gi;
 
 const Main = imports.ui.main;
+const SwipeTracker = imports.ui.swipeTracker;
 
 var EDGE_THRESHOLD = 20;
 var DRAG_DISTANCE = 80;
 var CANCEL_THRESHOLD = 100;
-var CANCEL_TIMEOUT_MS = 200;
+var CANCEL_TIMEOUT_MS = 300;
 
 var EdgeDragAction = GObject.registerClass({
     Signals: {
@@ -144,5 +145,105 @@ var EdgeDragAction = GObject.registerClass({
                 this._cancelTimeoutId = 0;
             }
         }
+    }
+});
+
+var EdgeSwipeTracker = GObject.registerClass({
+    Properties: {
+        'allow-swipe-anywhere': GObject.ParamSpec.boolean(
+            'allow-swipe-anywhere', 'allow-swipe-anywhere', 'allow-swipe-anywhere',
+            GObject.ParamFlags.READWRITE,
+            false),
+    },
+}, class EdgeSwipeTracker extends SwipeTracker.SwipeTracker {
+    _init(side, orientation, allowedModes, params) {
+        super._init(orientation, allowedModes, params);
+
+        this._side = side;
+    }
+
+    _getMonitorForCoords(coords) {
+        const rect = new Meta.Rectangle({ x: coords.x - 1, y: coords.y - 1, width: 1, height: 1 });
+        const monitorIndex = global.display.get_monitor_index_for_rect(rect);
+
+        return Main.layoutManager.monitors[monitorIndex];
+    }
+
+    _isNearMonitorEdge(point) {
+        const monitor = this._getMonitorForCoords(point.latest_coords);
+
+        switch (this._side) {
+        case St.Side.LEFT:
+            return point.latest_coords.x < monitor.x + EDGE_THRESHOLD;
+        case St.Side.RIGHT:
+            return point.latest_coords.x > monitor.x + monitor.width - EDGE_THRESHOLD;
+        case St.Side.TOP:
+            return point.latest_coords.y < monitor.y + EDGE_THRESHOLD;
+        case St.Side.BOTTOM:
+            return point.latest_coords.y > monitor.y + monitor.height - EDGE_THRESHOLD;
+        }
+    }
+
+    _exceedsBeginThreshold(point) {
+        const [distance, offsetX, offsetY] = point.begin_coords.distance(point.latest_coords);
+
+        return distance >= this.begin_threshold;
+    }
+
+    vfunc_points_began(points) {
+        if (this.allowSwipeAnywhere) {
+            super.vfunc_points_began(points);
+            return;
+        }
+
+        const point = points[0];
+        const nPoints = this.get_points().length;
+
+        if (this.state !== Clutter.GestureState.POSSIBLE) {
+            super.vfunc_points_began(points);
+            return;
+        }
+
+        if (!this._isNearMonitorEdge(point)) {
+            this.set_state(Clutter.GestureState.CANCELLED);
+            return;
+        }
+
+        this._cancelTimeoutId =
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, CANCEL_TIMEOUT_MS, () => {
+                if (this.state === Clutter.GestureState.POSSIBLE)
+                    this.set_state(Clutter.GestureState.CANCELLED);
+
+                delete this._cancelTimeoutId;
+                return GLib.SOURCE_REMOVE;
+            });
+
+        super.vfunc_points_began(points);
+    }
+
+    vfunc_points_moved(points) {
+        const point = points[0];
+
+        if (this._exceedsBeginThreshold(point)) {
+            if (this._cancelTimeoutId) {
+                GLib.source_remove(this._cancelTimeoutId);
+                this._cancelTimeoutId = 0;
+            }
+        }
+
+        super.vfunc_points_moved(points);
+    }
+
+    vfunc_state_changed(oldState, newState) {
+        if (newState === Clutter.GestureState.CANCELLED ||
+            newState === Clutter.GestureState.RECOGNIZE_PENDING ||
+            newState === Clutter.GestureState.RECOGNIZING) {
+            if (this._cancelTimeoutId) {
+                GLib.source_remove(this._cancelTimeoutId);
+                this._cancelTimeoutId = 0;
+            }
+        }
+
+        super.vfunc_state_changed(oldState, newState);
     }
 });
