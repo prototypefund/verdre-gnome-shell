@@ -1195,7 +1195,7 @@ var KeyboardManager = class extends Signals.EventEmitter {
         });
 
         const mode = Shell.ActionMode.ALL & ~Shell.ActionMode.LOCK_SCREEN;
-        const bottomDragAction = new EdgeDragAction.EdgeDragAction(St.Side.BOTTOM, mode);
+    /*    const bottomDragAction = new EdgeDragAction.EdgeDragAction(St.Side.BOTTOM, mode);
         bottomDragAction.connect('activated', () => {
             if (this._keyboard)
                 this._keyboard.gestureActivate(Main.layoutManager.bottomIndex);
@@ -1210,7 +1210,7 @@ var KeyboardManager = class extends Signals.EventEmitter {
         });
         global.stage.add_action_full('osk', Clutter.EventPhase.CAPTURE, bottomDragAction);
         this._bottomDragAction = bottomDragAction;
-
+*/
         this._syncEnabled();
     }
 
@@ -1234,13 +1234,13 @@ var KeyboardManager = class extends Signals.EventEmitter {
             this._keyboard = new Keyboard();
             this._keyboard.connect('visibility-changed', () => {
                 this.emit('visibility-changed');
-                this._bottomDragAction.enabled = !this._keyboard.visible;
+      //          this._bottomDragAction.enabled = !this._keyboard.visible;
             });
         } else if (!enabled && this._keyboard) {
             this._keyboard.setCursorLocation(null);
             this._keyboard.destroy();
             this._keyboard = null;
-            this._bottomDragAction.enabled = true;
+       //     this._bottomDragAction.enabled = true;
         }
     }
 
