@@ -263,6 +263,48 @@ var LayoutManager = GObject.registerClass({
         this.panelBox.connect('notify::allocation',
                               this._panelBoxChanged.bind(this));
 
+        this.bottomPanelBox = new St.Bin({
+            name: 'bottomPanelBox',
+            reactive: true,
+            opacity: Main.sessionMode.hasBottomPanel ? 255 : 0,
+        });
+
+        this._settings = new Gio.Settings({
+            schema_id: 'org.gnome.desktop.interface',
+        });
+
+        const updateColorScheme = () => {
+            const colorScheme = this._settings.get_string('color-scheme');
+            const darkMode = colorScheme === 'prefer-dark';
+            if (colorScheme === 'prefer-dark')
+                this.bottomPanelBox.add_style_class_name('dark-mode-enabled');
+            else
+                this.bottomPanelBox.remove_style_class_name('dark-mode-enabled');
+        }
+
+        this._settings.connect('changed::color-scheme',
+            updateColorScheme);
+
+        updateColorScheme();
+
+        this.bottomPanelBox.child = new St.Widget({
+            name: 'bottomPanelLine',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+
+        this.addChrome(this.bottomPanelBox, {
+            affectsStruts: true,
+            trackFullscreen: true,
+        });
+
+        this.bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this.bottomPanelBox.get_parent(),
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            factor: 1,
+        }));
+
         this.modalDialogGroup = new St.Widget({
             name: 'modalDialogGroup',
             layout_manager: new Clutter.BinLayout(),
@@ -328,11 +370,30 @@ var LayoutManager = GObject.registerClass({
         }));
     }
 
+    maybeShowBottomPanel() {
+        if (Main.overview.visible ||
+            !Main.sessionMode.hasBottomPanel)
+            return;
+
+        this.bottomPanelBox.opacity = 255;
+    }
+
     // This is called by Main after everything else is constructed
     init() {
         Main.sessionMode.connect('updated', this._sessionUpdated.bind(this));
 
         this._loadBackground();
+
+        Main.overview.connect('showing', () => {
+            this.bottomPanelBox.opacity = 0;
+        });
+        Main.overview.connect('hidden', this.maybeShowBottomPanel.bind(this));
+        Main.sessionMode.connect('updated', () => {
+            if (!Main.sessionMode.hasBottomPanel)
+                this.bottomPanelBox.opacity = 0;
+            else
+                this.maybeShowBottomPanel();
+        });
     }
 
     showOverview() {
@@ -534,6 +595,9 @@ var LayoutManager = GObject.registerClass({
 
         this.panelBox.set_position(this.primaryMonitor.x, this.primaryMonitor.y);
         this.panelBox.set_size(this.primaryMonitor.width, -1);
+
+        this.bottomPanelBox.x = this.primaryMonitor.x;
+        this.bottomPanelBox.width = this.primaryMonitor.width;
 
         this.keyboardIndex = this.primaryIndex;
     }

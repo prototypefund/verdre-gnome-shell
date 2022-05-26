@@ -231,3 +231,34 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
     padding-right: $base_padding * 2;
   }
 }
+
+#bottomPanelBox {
+  //background-color: $panel_bg_color;
+  background-color: #fafafa;
+  height: 18px;
+
+  #bottomPanelLine {
+    width: 100px;
+    height: 3px;
+    border-radius: 9999px;
+ //   background-color: white;
+    background-color: $panel_bg_color
+
+  }
+
+  &.dark-mode-enabled {
+    background-color: #242424;
+
+    #bottomPanelLine {
+      background-color: white;
+    }
+  }
+
+  // transparent panel on lock & login screens
+  &:overview {
+    background-color: transparent;
+    #bottomPanelLine {
+      background-color: $panel_bg_color
+    }
+  }
+}

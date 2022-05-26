@@ -46,6 +46,7 @@ const _modes = {
             right: [],
         },
         panelStyle: null,
+        hasBottomPanel: false,
     },
 
     'gdm': {
@@ -62,6 +63,7 @@ const _modes = {
             right: ['dwellClick', 'a11y', 'keyboard', 'quickSettings'],
         },
         panelStyle: 'login-screen',
+        hasBottomPanel: false,
     },
 
     'unlock-dialog': {
@@ -74,6 +76,7 @@ const _modes = {
             right: ['dwellClick', 'a11y', 'keyboard', 'quickSettings'],
         },
         panelStyle: 'unlock-screen',
+        hasBottomPanel: false,
     },
 
     'user': {
@@ -96,6 +99,7 @@ const _modes = {
             center: ['dateMenu'],
             right: ['screenRecording', 'screenSharing', 'dwellClick', 'a11y', 'keyboard', 'quickSettings'],
         },
+        hasBottomPanel: true,
     },
 };
 
