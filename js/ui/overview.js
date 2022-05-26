@@ -9,6 +9,7 @@ const Signals = imports.misc.signals;
 var ANIMATION_TIME = 250;
 
 const DND = imports.ui.dnd;
+const EdgeDragAction = imports.ui.edgeDragAction;
 const LayoutManager = imports.ui.layout;
 const Main = imports.ui.main;
 const MessageTray = imports.ui.messageTray;
@@ -256,9 +257,10 @@ var Overview = class extends Signals.EventEmitter {
 
         this._threeFingerOverviewGesture.make2d(this._threeFingerWorkspacesGesture);
 
-        const singleFingerOverviewGesture = new SwipeTracker.SwipeTracker(
+        const singleFingerOverviewGesture = new EdgeDragAction.EdgeSwipeTracker(
+            St.Side.BOTTOM,
             Clutter.Orientation.VERTICAL,
-            Shell.ActionMode.OVERVIEW,
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             { allowScroll: false });
         singleFingerOverviewGesture.connect('begin', this._overviewGestureBegin.bind(this));
         singleFingerOverviewGesture.connect('update', this._overviewGestureUpdate.bind(this));
@@ -267,10 +269,10 @@ var Overview = class extends Signals.EventEmitter {
             Clutter.EventPhase.BUBBLE, singleFingerOverviewGesture);
         this._singleFingerOverviewGesture = singleFingerOverviewGesture;
 
-        const singleFingerWorkspacesGesture = new SwipeTracker.SwipeTracker(
+        const singleFingerWorkspacesGesture = new EdgeDragAction.EdgeSwipeTracker(
+            St.Side.BOTTOM,
             Clutter.Orientation.HORIZONTAL,
-            Shell.ActionMode.OVERVIEW);
-        singleFingerWorkspacesGesture.allowLongSwipes = true;
+            Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW);
         singleFingerWorkspacesGesture.connect('begin', this._workspacesGestureBegin.bind(this));
         singleFingerWorkspacesGesture.connect('update', this._workspacesGestureUpdate.bind(this));
         singleFingerWorkspacesGesture.connect('end', this._workspacesGestureEnd.bind(this));
@@ -710,7 +712,10 @@ var Overview = class extends Signals.EventEmitter {
         if (!this._syncGrab())
             return;
 
+        this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
+        this._singleFingerWorkspacesGesture.enabled = false;
+        this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
     }
 
     // hide:
@@ -759,6 +764,8 @@ var Overview = class extends Signals.EventEmitter {
         Meta.enable_unredirect_for_display(global.display);
 
         this._threeFingerWorkspacesGesture.allowLongSwipes = false;
+        this._singleFingerWorkspacesGesture.enabled = true;
+        this._singleFingerOverviewGesture.allowSwipeAnywhere = false;
 
         this._coverPane.hide();
 
