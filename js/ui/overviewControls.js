@@ -763,12 +763,21 @@ class ControlsManager extends St.Widget {
 
     overviewGestureBegin(tracker) {
         const baseDistance = global.screen_height;
-        const progress = this._stateAdjustment.value;
-        const points = [
+        let progress = this._stateAdjustment.value;
+     /*   const points = [
             ControlsState.HIDDEN,
             ControlsState.WINDOW_PICKER,
             ControlsState.APP_GRID,
         ];
+*/
+        const hiddenBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.HIDDEN);
+        const windowPickerBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.WINDOW_PICKER);
+        const appGridBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.APP_GRID);
+
+        const distanceHiddenToWindowPicker = Math.abs(hiddenBox.y2 - windowPickerBox.y2);
+        const distanceWindowPickerToAppGrid = Math.abs(windowPickerBox.y2 - appGridBox.y2);
+
+        this._distanceRatio = distanceWindowPickerToAppGrid / distanceHiddenToWindowPicker;
 
         let wasEasingTo = null;
         let cancelProgress = Math.round(progress);
@@ -776,19 +785,42 @@ class ControlsManager extends St.Widget {
         if (transition) {
             wasEasingTo = cancelProgress = transition.get_interval().peek_final_value();
             this._stateAdjustment.remove_transition('value');
+
+            if (wasEasingTo > ControlsState.WINDOW_PICKER)
+                wasEasingTo = ControlsState.WINDOW_PICKER + ((wasEasingTo - ControlsState.WINDOW_PICKER) * this._distanceRatio);
         }
 
-        tracker.confirmSwipe(baseDistance, points, progress, cancelProgress, wasEasingTo);
+        const points = [
+            ControlsState.HIDDEN,
+            ControlsState.WINDOW_PICKER,
+            ControlsState.WINDOW_PICKER + this._distanceRatio,
+        ];
+
+        if (progress > ControlsState.WINDOW_PICKER)
+            progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) * this._distanceRatio);
+
+        if (cancelProgress > ControlsState.WINDOW_PICKER)
+            cancelProgress = ControlsState.WINDOW_PICKER + ((cancelProgress - ControlsState.WINDOW_PICKER) * this._distanceRatio);
+
+        tracker.confirmSwipe(distanceHiddenToWindowPicker, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
         this._searchController.prepareToEnterOverview();
         this._stateAdjustment.gestureInProgress = true;
     }
 
     overviewGestureProgress(progress) {
+log("moving to prog: " + progress);
+        if (progress > ControlsState.WINDOW_PICKER)
+            progress = ControlsState.WINDOW_PICKER + ((progress - ControlsState.WINDOW_PICKER) / this._distanceRatio);
+
+log("normalized prog: " + progress);
         this._stateAdjustment.value = progress;
     }
 
     overviewGestureEnd(target, duration, onStopped) {
+        if (target > ControlsState.WINDOW_PICKER)
+            target = ControlsState.WINDOW_PICKER + ((target - ControlsState.WINDOW_PICKER) / this._distanceRatio);
+
         if (target === ControlsState.HIDDEN)
             this._workspacesDisplay.prepareToLeaveOverview();
 
