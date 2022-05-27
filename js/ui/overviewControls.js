@@ -762,7 +762,6 @@ class ControlsManager extends St.Widget {
     }
 
     overviewGestureBegin(tracker) {
-        const baseDistance = global.screen_height;
         const progress = this._stateAdjustment.value;
         const points = [
             ControlsState.HIDDEN,
@@ -778,13 +777,40 @@ class ControlsManager extends St.Widget {
             this._stateAdjustment.remove_transition('value');
         }
 
-        tracker.confirmSwipe(baseDistance, points, progress, cancelProgress, wasEasingTo);
+        const hiddenBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.HIDDEN);
+        const windowPickerBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.WINDOW_PICKER);
+        const appGridBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.APP_GRID);
+
+        const distanceHiddenToWindowPicker = Math.abs(hiddenBox.y2 - windowPickerBox.y2);
+        const distanceWindowPickerToAppGrid = Math.abs(windowPickerBox.y2 - appGridBox.y2);
+
+        const distance = progress > ControlsState.WINDOW_PICKER
+            ? distanceWindowPickerToAppGrid : distanceHiddenToWindowPicker;
+
+        tracker.confirmSwipe(distance, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
         this._searchController.prepareToEnterOverview();
         this._stateAdjustment.gestureInProgress = true;
     }
 
-    overviewGestureProgress(progress) {
+    overviewGestureProgress(tracker, progress) {
+        const oldProgress = this._stateAdjustment.value;
+
+        if ((oldProgress >= ControlsState.WINDOW_PICKER &&
+             progress < ControlsState.WINDOW_PICKER) ||
+             oldProgress <= ControlsState.WINDOW_PICKER &&
+             progress > ControlsState.WINDOW_PICKER) {
+            const hiddenBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.HIDDEN);
+            const windowPickerBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.WINDOW_PICKER);
+            const appGridBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.APP_GRID);
+
+            const distanceHiddenToWindowPicker = Math.abs(hiddenBox.y2 - windowPickerBox.y2);
+            const distanceWindowPickerToAppGrid = Math.abs(windowPickerBox.y2 - appGridBox.y2);
+
+            tracker.distance = progress > ControlsState.WINDOW_PICKER
+                ? distanceWindowPickerToAppGrid : distanceHiddenToWindowPicker;
+        }
+
         this._stateAdjustment.value = progress;
     }
 
