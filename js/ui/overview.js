@@ -431,7 +431,7 @@ var Overview = class extends Signals.EventEmitter {
     }
 
     _overviewGestureUpdate(tracker, progress) {
-        this._overview.controls.overviewGestureProgress(progress);
+        this._overview.controls.overviewGestureProgress(tracker, progress);
     }
 
     _overviewGestureEnd(tracker, duration, endProgress, endCb) {
