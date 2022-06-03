@@ -688,7 +688,35 @@ log("WS: alright now is later");
                         return GLib.SOURCE_REMOVE;
                     });
             } else {
-log("WS: we have 0, removing now");
+log("WS: we have 0, removing");
+
+                if (window._content && !Main.overview.visible) {
+                    let actorClone = new St.Widget({ content: window._content, });
+            //        actorClone.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+                    actorClone.set_position(window._rect.x, window._rect.y);
+                    actorClone.set_size(window._rect.width, window._rect.height);
+                    actorClone.set_pivot_point(0.5, 0.5);
+
+                    Main.uiGroup.add_child(actorClone);
+                    Main.uiGroup.set_child_above_sibling(actorClone, Main.layoutManager.overviewGroup);
+                 /*   actorClone.ease({
+                        scale_x: 0.8,
+                        scale_y: 0.8,
+                        duration: 200,
+                        mode: Clutter.AnimationMode.EASE_IN_QUAD,
+                        onStopped: () => {
+                            actorClone.destroy();
+                        },
+                    });
+            */
+                    actorClone.ease({
+                        delay: 0,
+                        opacity: 0,
+                        duration: 230,
+                        mode: Clutter.AnimationMode.LINEAR,
+                    });
+                }
+
                 this._maybeRemoveWorkspace(workspace);
             }
         }
@@ -2003,13 +2031,6 @@ log("WS: NORMAL Window wants to animate");
             Meta.WindowType.DIALOG,
             Meta.WindowType.MODAL_DIALOG,
         ];
-        if (!this._shouldAnimateActor(actor, types)) {
-            shellwm.completed_destroy(actor);
-            return;
-        }
-
-        switch (actor.meta_window.window_type) {
-        case Meta.WindowType.NORMAL:
             if (this.workspaceTracker.singleWindowWorkspaces) {
 window._rect = window.get_frame_rect();
 window._content = actor.paint_to_content(window._rect);
@@ -2017,6 +2038,15 @@ window._content = actor.paint_to_content(window._rect);
                 shellwm.completed_destroy(actor);
                return;
             }
+
+        if (!this._shouldAnimateActor(actor, types)) {
+            shellwm.completed_destroy(actor);
+            return;
+        }
+
+        switch (actor.meta_window.window_type) {
+        case Meta.WindowType.NORMAL:
+
 
             actor.set_pivot_point(0.5, 0.5);
             this._destroying.add(actor);
