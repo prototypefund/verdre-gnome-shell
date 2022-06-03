@@ -1006,7 +1006,7 @@ var WindowManager = class {
         this._windowMenuManager = new WindowMenu.WindowMenuManager();
 
         if (Main.sessionMode.hasWorkspaces)
-            this._workspaceTracker = new WorkspaceTracker();
+            this.workspaceTracker = new WorkspaceTracker();
 
         let appSwitchAction = new AppSwitchAction();
         appSwitchAction.connect('activated', this._switchApp.bind(this));
@@ -1847,10 +1847,10 @@ var WindowManager = class {
 
         if (!Main.overview.visible) {
             if (this._workspaceSwitcherPopup == null) {
-                this._workspaceTracker.blockUpdates();
+                this.workspaceTracker.blockUpdates();
                 this._workspaceSwitcherPopup = new WorkspaceSwitcherPopup.WorkspaceSwitcherPopup();
                 this._workspaceSwitcherPopup.connect('destroy', () => {
-                    this._workspaceTracker.unblockUpdates();
+                    this.workspaceTracker.unblockUpdates();
                     this._workspaceSwitcherPopup = null;
                     this._isWorkspacePrepended = false;
                 });
