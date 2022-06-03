@@ -1042,6 +1042,10 @@ class Workspace extends St.Widget {
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
         this.add_child(this._background);
 
+        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
+            this._background, 'visible',
+            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
+
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
