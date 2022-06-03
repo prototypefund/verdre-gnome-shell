@@ -51,6 +51,7 @@ var WindowPreview = GObject.registerClass({
             can_focus: true,
             accessible_role: Atk.Role.PUSH_BUTTON,
             offscreen_redirect: Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY,
+            style_class: 'window-preview',
         });
 
         const windowContainer = new Clutter.Actor({
