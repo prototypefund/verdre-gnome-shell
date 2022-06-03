@@ -4,6 +4,7 @@
 const { Clutter, Gio, GLib, GObject, Meta, Shell, St } = imports.gi;
 
 const AppDisplay = imports.ui.appDisplay;
+const Background = imports.ui.background;
 const Dash = imports.ui.dash;
 const Layout = imports.ui.layout;
 const Main = imports.ui.main;
@@ -30,7 +31,7 @@ var ControlsState = {
 var ControlsManagerLayout = GObject.registerClass(
 class ControlsManagerLayout extends Clutter.BoxLayout {
     _init(searchEntry, appDisplay, workspacesDisplay, workspacesThumbnails,
-        searchController, dash, stateAdjustment) {
+        searchController, dash, stateAdjustment, background) {
         super._init({ orientation: Clutter.Orientation.VERTICAL });
 
         this._appDisplay = appDisplay;
@@ -40,6 +41,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         this._searchEntry = searchEntry;
         this._searchController = searchController;
         this._dash = dash;
+        this._background = background;
 
         this._cachedWorkspaceBoxes = new Map();
         this._postAllocationCallbacks = [];
@@ -238,6 +240,9 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
 
         this._searchController.allocate(childBox);
 
+        box.y1 -= startY;
+        this._background.allocate(box);
+
         this._runPostAllocation();
     }
 
@@ -378,6 +383,24 @@ class ControlsManager extends St.Widget {
             this._stateAdjustment);
         this._appDisplay = new AppDisplay.AppDisplay();
 
+        let monitor = Main.layoutManager.monitors[Main.layoutManager.primaryIndex];
+        const wallpaper = new St.Widget({
+            x: monitor.x,
+            y: monitor.y,
+            width: monitor.width,
+            height: monitor.height,
+        });
+        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
+            wallpaper, 'visible',
+            GObject.BindingFlags.SYNC_CREATE);
+
+        const bgManager = new Background.BackgroundManager({
+            container: wallpaper,
+            monitorIndex: Main.layoutManager.primaryIndex,
+            controlPosition: false,
+        });
+
+        this.add_child(wallpaper);
         this.add_child(this._searchEntryBin);
         this.add_child(this._appDisplay);
         this.add_child(this.dash);
@@ -392,7 +415,8 @@ class ControlsManager extends St.Widget {
             this._thumbnailsBox,
             this._searchController,
             this.dash,
-            this._stateAdjustment);
+            this._stateAdjustment,
+            wallpaper);
 
         this.dash.showAppsButton.connect('notify::checked',
             this._onShowAppsButtonToggled.bind(this));
