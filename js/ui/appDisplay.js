@@ -3147,12 +3147,12 @@ var AppIcon = GObject.registerClass({
 
         let workspaceIndex = -1;
         if (this.app.state == Shell.AppState.STOPPED || openNewWindow) {
-            this.animateLaunch();
-
-            const workspace = Main.wm.workspaceTracker.maybeCreateWorkspaceForWindow(event.get_time());
+            const workspace = Main.wm.workspaceTracker.maybeCreateWorkspaceForWindow(event.get_time(), this.app, this.icon.icon);
             if (workspace) {
                 workspace.activate(event.get_time());
                 workspaceIndex = workspace.workspace_index;
+            } else {
+                this.animateLaunch();
             }
         }
 log("OPENING NEW WIN ON WS: " + workspaceIndex);

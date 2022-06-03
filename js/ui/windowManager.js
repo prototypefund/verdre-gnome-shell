@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported WindowManager */
 
-const { Clutter, Gio, GLib, GObject, Meta, Shell, St } = imports.gi;
+const { Clutter, Gio, GLib, GObject, Graphene, Meta, Shell, St } = imports.gi;
 
 const AltTab = imports.ui.altTab;
 const AppFavorites = imports.ui.appFavorites;
@@ -11,6 +11,7 @@ const InhibitShortcutsDialog = imports.ui.inhibitShortcutsDialog;
 const Main = imports.ui.main;
 const ModalDialog = imports.ui.modalDialog;
 const WindowMenu = imports.ui.windowMenu;
+const Overview = imports.ui.overview;
 const PadOsd = imports.ui.padOsd;
 const EdgeDragAction = imports.ui.edgeDragAction;
 const CloseDialog = imports.ui.closeDialog;
@@ -164,6 +165,117 @@ function getWindowDimmer(actor) {
     return effect;
 }
 
+var AppStartupAnimation = GObject.registerClass(
+class AppStartupAnimation extends St.Widget {
+    _init(app, workspace) {
+        super._init({
+            style_class: 'tmp-overlay',
+            width: 0,
+            height: 0,
+x_expand:true, y_expand: true,
+        });
+
+        this._forceVisible = false;
+        this._workspace = workspace;
+
+        this._appIcon = app.create_icon_texture(128);
+        this._appIcon.add_style_class_name('icon-dropshadow');
+        this._appIcon.opacity = 255;
+        this._appIcon.set_pivot_point(0.5, 0.5);
+
+        this.add_child(this._appIcon);
+
+        this._appIcon.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.X_AXIS,
+            factor: 0.5,
+        }));
+        this._appIcon.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            factor: 0.5,
+        }));
+
+        const wmId = global.window_manager.connect('switch-workspace', () => {
+            if (this._forceVisible)
+                return;
+
+            this.visible = global.workspace_manager.get_active_workspace() === workspace;
+        });
+
+        this.connect('destroy', () => {
+            global.window_manager.disconnect(wmId);
+        });
+    }
+
+    set forceVisible(force) {
+        this._forceVisible = force;
+
+        if (force)
+            this.show();
+        else
+            this.visible = global.workspace_manager.get_active_workspace() === this._workspace;
+    }
+
+    animateIn(existingAppIcon) {
+        const iconExtents = existingAppIcon.get_transformed_extents();
+        existingAppIcon.opacity = 0;
+
+        this._appIcon.scale_x = iconExtents.size.width / 128;
+        this._appIcon.scale_y = iconExtents.size.height / 128;
+
+        this.set_position(iconExtents.origin.x + iconExtents.size.width / 2,
+            iconExtents.origin.y + iconExtents.size.height / 2);
+
+        this._appIcon.ease({
+            scale_x: 1,
+            scale_y: 1,
+            duration: 400,
+            mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+        });
+
+        const workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor)
+        this.ease({
+            width: workArea.width,
+            height: workArea.height,
+            x: workArea.x,
+            y: workArea.y,
+            mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+            duration: 400,
+            onStopped: () => {
+                existingAppIcon.opacity = 255;
+            },
+        });
+    }
+
+    _fadeOutAndDestroy() {
+        if (this._clone) {
+            this._clone.ease({
+                opacity: 0,
+                duration: 350,
+                onStopped: () => this.destroy(),
+            });
+        } else {
+            this.ease({
+                opacity: 0,
+                duration: 350,
+                onStopped: () => this.destroy(),
+            });
+        }
+    }
+
+    animateOut() {
+        const existingTransition = this.get_transition('width');
+        if (existingTransition) {
+            existingTransition.connect('stopped', (finished) => {
+                this._fadeOutAndDestroy();
+            });
+        } else {
+            this._fadeOutAndDestroy();
+        }
+    }
+});
+
 var SPLASHSCREEN_GRACE_TIME_MS = 1000;
 
 var WorkspaceTracker = GObject.registerClass({
@@ -307,16 +419,21 @@ log("WS: nope, its occupied");
                 return;
     }
 
+            if (workspace._appOpeningOverlay) {
+                workspace._appOpeningOverlay.destroy(),
+                delete workspace._appOpeningOverlay;
+            }
+
             if (workspace.active)
                 Main.overview.show(2);
 
             /* There must always be a default workspace, don't remove that one */
-            if (this._workspaces.length === 1) {
+            if (this._workspaces.length > 1)
+                workspaceManager.remove_workspace(workspace, 0);
+else
 log("WS: nope, it's the default one");
-                return;
-}
 
-            workspaceManager.remove_workspace(workspace, 0);
+
         } else {
             if (workspace.active ||
                 this._workspaces.length === MIN_NUM_WORKSPACES)
@@ -396,7 +513,7 @@ log("WS:  updated should have own workspaces: " + this._windowData.get(window).s
 log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " delaying " + window.title);
             /* Give newly opened windows some time to sort things out. If we
              * passed a specific workspace the window should open on, it only
-             * gets moved to this workspace after this signal got emitted, we
+             * gets moved to this workspace after 'window-added' got emitted, we
              * want to wait until that happened.
              */
             window._addedLater = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
@@ -445,9 +562,15 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                     }),
                     window.connect('size-changed', () => {
     log("WS: siye change");
+                        if (((window.maximized_vertically && window.maximized_horizontally) || window.fullscreen) && workspace._appOpeningOverlay) {
+                            workspace._appOpeningOverlay.animateOut();
+                            delete workspace._appOpeningOverlay;
+                        }
+
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
+
                 /*    window.connect('notify::on-all-workspaces', () => {
     log("WS: on-all-ws change");
                         if (this._useSingleWindowWorkspaces)
@@ -456,6 +579,12 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                     window.connect('unmanaged', () => {
                         this._windowData.delete(window);
                     }),
+                    window.connect('shown', () => {
+        if (!window._waitForSizeChange && workspace._appOpeningOverlay) {
+            workspace._appOpeningOverlay.animateOut();
+            delete workspace._appOpeningOverlay;
+        }
+                    }),
                 ],
             });
 
@@ -463,6 +592,7 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
         }
 
         windowData.shouldHaveOwnWorkspace = this._windowShouldHaveOwnWorkspace(window);
+
 
         if (!Meta.prefs_get_dynamic_workspaces())
             return;
@@ -485,14 +615,25 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
                 delete workspace._newTilingWorkspaceTimeoutId;
             }
 
-            this._maybeMoveToOwnWorkspace(window);
+            if (this._maybeMoveToOwnWorkspace(window))
+                return; // let the new workspaces 'window-added' handler maximize the window
 
-            /* FIXME: still have to figure out when to auto-maximize and when not to */
-            if (windowData.shouldHaveOwnWorkspace) {
-                if (window.can_maximize())
-                    window.maximize(Meta.MaximizeFlags.BOTH);
-                else
-                    window.maximize(Meta.MaximizeFlags.VERTICAL); // this is a hack and should have an own can_max_vert() func
+            const shouldMaximize = windowData.shouldHaveOwnWorkspace &&
+                window.can_maximize() &&
+                !(window.maximized_vertically && window.maximized_horizontally);
+
+            if (shouldMaximize) {
+log("WS: telling window to maxi");
+                window.maximize(Meta.MaximizeFlags.BOTH);
+window._waitForSizeChange = true;
+                /* Wait for the size-change to finish before animating out the
+                 * app opening overlay.
+                 */
+            } else if (window.get_compositor_private()?.visible) {
+        if (workspace._appOpeningOverlay) {
+            workspace._appOpeningOverlay.animateOut();
+            delete workspace._appOpeningOverlay;
+        }
             }
 
             window.set_can_grab(this._windowShouldBeGrabbable(window));
@@ -553,7 +694,7 @@ log("WS: we have 0, removing now");
         }
     }
 
-    maybeCreateWorkspaceForWindow(time) {
+    maybeCreateWorkspaceForWindow(time, app, existingIcon) {
         if (!this._useSingleWindowWorkspaces)
             return null;
 
@@ -596,6 +737,14 @@ log("WS: created app workspace index " + newWorkspaceIndex);
                 return GLib.SOURCE_REMOVE;
             });
 
+        const animationActor = new AppStartupAnimation(app, newWorkspace);
+        Main.uiGroup.add_child(animationActor);
+        Main.uiGroup.set_child_above_sibling(animationActor, Main.layoutManager.overviewGroup);
+
+        animationActor.animateIn(existingIcon);
+
+        newWorkspace._appOpeningOverlay = animationActor;
+
         return newWorkspace;
     }
 
@@ -622,6 +771,9 @@ log("WS: removed " + index);
             throw new Error();
 
         if (this._workspaces[index]._newTilingWorkspaceTimeoutId)
+            throw new Error();
+
+        if (this._workspaces[index]._appOpeningOverlay)
             throw new Error();
 
         this._workspaces.splice(index, 1);
@@ -1562,6 +1714,7 @@ var WindowManager = class {
     _sizeChangeWindow(shellwm, actor, whichChange, oldFrameRect, _oldBufferRect) {
         const types = [Meta.WindowType.NORMAL];
         const shouldAnimate =
+            !this.workspaceTracker.singleWindowWorkspaces &&
             this._shouldAnimateActor(actor, types) &&
             oldFrameRect.width > 0 &&
             oldFrameRect.height > 0;
@@ -1757,6 +1910,8 @@ var WindowManager = class {
         if (actor.meta_window.is_attached_dialog())
             this._checkDimming(actor.get_meta_window().get_transient_for());
 
+
+
         const types = [
             Meta.WindowType.NORMAL,
             Meta.WindowType.DIALOG,
@@ -1767,8 +1922,18 @@ var WindowManager = class {
             return;
         }
 
+
+
+
         switch (actor._windowType) {
         case Meta.WindowType.NORMAL:
+            if (this.workspaceTracker.singleWindowWorkspaces) {
+log("WS: NORMAL Window wants to animate");
+                shellwm.completed_map(actor);
+
+                return;
+    }
+
             actor.set_pivot_point(0.5, 1.0);
             actor.scale_x = 0.01;
             actor.scale_y = 0.05;
@@ -1845,6 +2010,14 @@ var WindowManager = class {
 
         switch (actor.meta_window.window_type) {
         case Meta.WindowType.NORMAL:
+            if (this.workspaceTracker.singleWindowWorkspaces) {
+window._rect = window.get_frame_rect();
+window._content = actor.paint_to_content(window._rect);
+
+                shellwm.completed_destroy(actor);
+               return;
+            }
+
             actor.set_pivot_point(0.5, 0.5);
             this._destroying.add(actor);
 
