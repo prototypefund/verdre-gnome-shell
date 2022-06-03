@@ -124,7 +124,7 @@ class BaseIcon extends Shell.SquareBin {
             this.icon.destroy();
         this.iconSize = size;
         this.icon = this.createIcon(this.iconSize);
-
+this.icon.add_style_class_name('icon-dropshadow');
         this._iconBin.child = this.icon;
     }
 
