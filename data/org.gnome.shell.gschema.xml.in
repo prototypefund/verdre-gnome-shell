@@ -138,6 +138,43 @@
           • “position”: the position of the application icon in the page
       </description>
     </key>
+    <key name="app-picker-layout-mobile" type="aa{sv}">
+      <default><![CDATA[
+        [{
+          'org.gnome.Geary.desktop': <{'position': <0>}>,
+          'org.gnome.Contacts.desktop': <{'position': <1>}>,
+          'org.gnome.Weather.desktop': <{'position': <2>}>,
+          'org.gnome.clocks.desktop': <{'position': <3>}>,
+          'org.gnome.Maps.desktop': <{'position': <4>}>,
+          'org.gnome.Books.desktop': <{'position': <5>}>,
+          'org.gnome.Photos.desktop': <{'position': <6>}>,
+          'org.gnome.Totem.desktop': <{'position': <7>}>,
+          'org.gnome.Calculator.desktop': <{'position': <8>}>,
+          'org.gnome.gedit.desktop': <{'position': <9>}>,
+          'simple-scan.desktop': <{'position': <10>}>,
+          'org.gnome.Settings.desktop': <{'position': <11>}>,
+          'gnome-system-monitor.desktop': <{'position': <12>}>,
+          'org.gnome.Boxes.desktop': <{'position': <13>}>,
+          'org.gnome.Terminal.desktop': <{'position': <14>}>,
+          'Utilities': <{'position': <15>}>
+         },
+         {
+          'org.gnome.Characters.desktop': <{'position': <0>}>,
+          'yelp.desktop': <{'position': <1>}>,
+          'org.gnome.Screenshot.desktop': <{'position': <2>}>,
+          'org.gnome.Cheese.desktop': <{'position': <3>}>,
+          'org.gnome.font-viewer.desktop': <{'position': <4>}>
+        }]
+      ]]></default>
+      <summary>Layout of the app picker on mobile devices</summary>
+      <description>
+        Layout of the app picker used on mobile devices like phones.
+        Each entry in the array is a page. Pages are stored in the order they
+        appear in GNOME Shell. Each page contains an “application id” → 'data'
+        pair. Currently, the following values are stored as 'data':
+          • “position”: the position of the application icon in the page
+      </description>
+    </key>
     <child name="keybindings" schema="org.gnome.shell.keybindings"/>
   </schema>
 
