@@ -661,7 +661,27 @@ var BaseAppView = GObject.registerClass({
     }
 
     _createGrid() {
-        return new AppGrid({allow_incomplete_pages: true});
+        const appGrid = new AppGrid({allow_incomplete_pages: true});
+
+const phoneGridModes = [
+    {
+        rows: 4,
+        columns: 4,
+    },
+    {
+        rows: 3,
+        columns: 6,
+    },
+    {
+        rows: 2,
+        columns: 8,
+    },
+];
+
+        if (Main.layoutManager.isPhone)
+            appGrid.setGridModes(phoneGridModes);
+
+        return appGrid;
     }
 
     _onScroll(actor, event) {
@@ -1248,15 +1268,24 @@ var PageManager = GObject.registerClass({
     _init() {
         super._init();
 
+        this._settingsKey = Main.layoutManager.isPhone
+            ? 'app-picker-layout-mobile' : 'app-picker-layout';
+
+        Main.layoutManager.connect('notify::is-phone', () => {
+            this._settingsKey = Main.layoutManager.isPhone
+                ? 'app-picker-layout-mobile' : 'app-picker-layout';
+            this._loadPages();
+        });
+
         this._updatingPages = false;
         this._loadPages();
 
-        global.settings.connect('changed::app-picker-layout',
+        global.settings.connect(`changed::${this._settingsKey}`,
             this._loadPages.bind(this));
     }
 
     _loadPages() {
-        const layout = global.settings.get_value('app-picker-layout');
+        const layout = global.settings.get_value(this._settingsKey);
         this._pages = layout.recursiveUnpack();
         if (!this._updatingPages)
             this.emit('layout-changed');
@@ -1293,7 +1322,7 @@ var PageManager = GObject.registerClass({
         this._updatingPages = true;
 
         const variant = new GLib.Variant('aa{sv}', packedPages);
-        global.settings.set_value('app-picker-layout', variant);
+        global.settings.set_value(this._settingsKey, variant);
 
         this._updatingPages = false;
     }
