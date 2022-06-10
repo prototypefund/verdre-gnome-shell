@@ -124,6 +124,7 @@ class BaseIcon extends Shell.SquareBin {
             this.icon.destroy();
         this.iconSize = size;
         this.icon = this.createIcon(this.iconSize);
+        this.icon.set_pivot_point(0.5, 0.5);
 
         this._iconBin.child = this.icon;
     }

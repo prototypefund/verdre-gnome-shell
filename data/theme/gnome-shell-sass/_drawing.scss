@@ -259,26 +259,23 @@
 @mixin overview_icon($color, $flat: true) {
   transition-duration: 400ms;
   .overview-icon { @extend %tile; }
+
+  border: none;
+
   @if $flat {
     .overview-icon { background-color: transparent;}
   } @else {
     .overview-icon { background-color: transparentize($color, .81);}
   }
-  &:hover .overview-icon { background-color: transparentize($color, .9);}
 
   &:selected .overview-icon,
-  &:focus .overview-icon {
-    background-color: transparentize($color, .87);
-    &:hover .overview-icon { background-color: transparentize($color, .84);}
-    &:active .overview-icon { background-color: transparentize($color, .87);}
-  }
+  &:focus .overview-icon { background-color: transparentize($color, .87); }
+
   &:active .overview-icon { background-color: transparentize($color, .84);}
+
   &:outlined .overview-icon,
-  &:checked .overview-icon {
-    background-color: transparentize($color, .81);
-    &:active .overview-icon { background-color: transparentize($color, .78);}
-    &:hover .overview-icon { background-color: transparentize($color, .75);}
-  }
+  &:checked .overview-icon { background-color: transparentize($color, .81); }
+
   &:drop .overview-icon {
     border: 2px solid transparentize($selected_bg_color, .2); //already 2px transparent so no jumping
     background-color: transparentize($selected_bg_color, .8);
