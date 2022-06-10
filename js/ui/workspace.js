@@ -770,6 +770,7 @@ var WorkspaceLayout = GObject.registerClass({
     _syncOverlay(preview) {
         const active = this._metaWorkspace?.active ?? true;
         preview.overlayHidden = !active || this._stateAdjustment.value !== 1;
+        preview.overlayEnabled = !Main.layoutManager.is_phone;
     }
 
     /**
