@@ -44,6 +44,8 @@
 .grid-search-results {
   spacing: $base_padding*5;
   margin:0 $base_margin*3;
+
+  margin-top: 5px; // items scale up 5px in each direction on hover
 }
 
 // Search results with icons
