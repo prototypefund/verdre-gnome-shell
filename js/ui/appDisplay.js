@@ -2348,12 +2348,19 @@ var FolderIcon = GObject.registerClass({
             path,
         });
 
+        this._iconContainer = new St.Widget({
+            layout_manager: new Clutter.BinLayout(),
+            x_expand: true,
+            y_expand: true,
+        });
+
         this.icon = new IconGrid.BaseIcon('', {
             createIcon: this._createIcon.bind(this),
             setSizeManually: true,
         });
-        this.set_child(this.icon);
-        this.label_actor = this.icon.label;
+        this._iconContainer.add_child(this.icon);
+
+        this.set_child(this._iconContainer);
 
         this.view = new FolderView(this._folder, id, parentView);
 
