@@ -242,10 +242,13 @@ class ShowAppsIcon extends AppDisplay.AppViewItem {
         if (this._iconActor)
             this._iconActor.set_hover(canRemove);
 
-        if (canRemove)
+        if (canRemove) {
             this._container.setLabelText(_('Unpin'));
-        else
-            this._container.setLabelText(_("Show Applications"));
+            this.add_style_class_name('app-unpin-hovering');
+        } else {
+            this._container.setLabelText(_('Show Applications'));
+            this.remove_style_class_name('app-unpin-hovering');
+        }
     }
 
     handleDragOver(source, _actor, _x, _y, _time) {

@@ -50,6 +50,9 @@ $dash_border_radius: $modal_radius + $dash_padding;
 
   // show apps button
   .show-apps { @include overview_icon($osd_fg_color);}
+  .show-apps.app-unpin-hovering .overview-icon {
+    background-color: transparentize($osd_fg_color, .87);
+  }
 
   .show-apps, .app-well-app {
     padding-bottom: $dash_padding;
