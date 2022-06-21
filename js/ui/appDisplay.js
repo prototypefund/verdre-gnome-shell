@@ -2093,8 +2093,8 @@ class FolderGrid extends AppGrid {
             allow_incomplete_pages: false,
             columns_per_page: 3,
             rows_per_page: 3,
-            page_halign: Clutter.ActorAlign.CENTER,
-            page_valign: Clutter.ActorAlign.CENTER,
+            page_halign: Clutter.ActorAlign.FILL,
+            page_valign: Clutter.ActorAlign.FILL,
         });
 
         this.setGridModes([
@@ -2559,6 +2559,9 @@ var AppFolderDialog = GObject.registerClass({
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
+
+        if (Main.layoutManager.isPhone)
+            this.child.add_style_class_name('mobile');
 
         this._addFolderNameEntry();
         this._viewBox.add_child(this._view);
