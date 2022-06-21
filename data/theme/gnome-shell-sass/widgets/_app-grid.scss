@@ -29,6 +29,8 @@ $app_icon_size: 96px;
     > StBoxLayout {
       spacing: 2px;
     }
+
+    StLabel { @extend %caption; }
   }
 }
 
