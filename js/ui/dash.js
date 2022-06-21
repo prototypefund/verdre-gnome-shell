@@ -191,29 +191,26 @@ class DashItemContainer extends St.Widget {
 });
 
 var ShowAppsIcon = GObject.registerClass(
-class ShowAppsIcon extends DashItemContainer {
-    _init() {
-        super._init();
-
-        this.toggleButton = new St.Button({
+class ShowAppsIcon extends AppDisplay.AppViewItem {
+    _init(container) {
+        super._init({
             style_class: 'show-apps',
             track_hover: true,
             can_focus: true,
             toggle_mode: true,
-        });
+        }, false);
         this._iconActor = null;
+
+        this._delegate = this;
+        this._container = container;
+
         this.icon = new IconGrid.BaseIcon(_('Show Applications'), {
             setSizeManually: true,
             showLabel: false,
             createIcon: this._createIcon.bind(this),
         });
         this.icon.y_align = Clutter.ActorAlign.CENTER;
-
-        this.toggleButton.add_actor(this.icon);
-        this.toggleButton._delegate = this;
-
-        this.setChild(this.toggleButton);
-        this.setDragApp(null);
+        this.set_child(this.icon);
     }
 
     _createIcon(size) {
@@ -241,14 +238,14 @@ class ShowAppsIcon extends DashItemContainer {
     setDragApp(app) {
         let canRemove = this._canRemoveApp(app);
 
-        this.toggleButton.set_hover(canRemove);
+        this.set_hover(canRemove);
         if (this._iconActor)
             this._iconActor.set_hover(canRemove);
 
         if (canRemove)
-            this.setLabelText(_('Unpin'));
+            this._container.setLabelText(_('Unpin'));
         else
-            this.setLabelText(_("Show Applications"));
+            this._container.setLabelText(_("Show Applications"));
     }
 
     handleDragOver(source, _actor, _x, _y, _time) {
@@ -343,13 +340,19 @@ var Dash = GObject.registerClass({
 
         this._dashContainer.add_child(this._box);
 
-        this._showAppsIcon = new ShowAppsIcon();
-        this._showAppsIcon.show(false);
-        this._showAppsIcon.icon.setIconSize(this.iconSize);
-        this._hookUpLabel(this._showAppsIcon);
-        this._dashContainer.add_child(this._showAppsIcon);
+        this._showAppsIconContainer = new DashItemContainer();
 
-        this.showAppsButton = this._showAppsIcon.toggleButton;
+        this._showAppsIcon = new ShowAppsIcon(this._showAppsIconContainer);
+        this._showAppsIcon.icon.setIconSize(this.iconSize);
+        this._showAppsIconContainer.setChild(this._showAppsIcon);
+        this._showAppsIconContainer.show(false);
+        this._hookUpLabel(this._showAppsIconContainer);
+
+        this._showAppsIcon.setDragApp(null);
+
+        this._dashContainer.add_child(this._showAppsIconContainer);
+
+        this.showAppsButton = this._showAppsIcon;
 
         this._background = new St.Widget({
             style_class: 'dash-background',
@@ -582,7 +585,7 @@ var Dash = GObject.registerClass({
                    !actor.animatingOut;
         });
 
-        iconChildren.push(this._showAppsIcon);
+        iconChildren.push(this._showAppsIconContainer);
 
         if (this._maxWidth === -1 || this._maxHeight === -1)
             return;
