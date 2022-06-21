@@ -55,7 +55,7 @@ var DragLocation = {
 };
 
 var BaseIcon = GObject.registerClass(
-class BaseIcon extends Shell.SquareBin {
+class BaseIcon extends St.BoxLayout {
     _init(label, params) {
         params = Params.parse(params, {
             createIcon: null,
@@ -67,19 +67,15 @@ class BaseIcon extends Shell.SquareBin {
         if (params.showLabel)
             styleClass += ' overview-icon-with-label';
 
-        super._init({ style_class: styleClass });
-
-        this._box = new St.BoxLayout({
+        super._init({
+            style_class: styleClass,
             vertical: true,
-            x_expand: true,
-            y_expand: true,
         });
-        this.set_child(this._box);
 
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
 
-        this._box.add_actor(this._iconBin);
+        this.add_child(this._iconBin);
 
         if (params.showLabel) {
             this.label = new St.Label({ text: label });
@@ -87,7 +83,7 @@ class BaseIcon extends Shell.SquareBin {
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            this._box.add_actor(this.label);
+            this.add_child(this.label);
         } else {
             this.label = null;
         }
@@ -101,6 +97,31 @@ class BaseIcon extends Shell.SquareBin {
         let cache = St.TextureCache.get_default();
         cache.connectObject(
             'icon-theme-changed', this._onIconThemeChanged.bind(this), this);
+
+        this._updateSquareLayout();
+        Main.layoutManager.connect('notify::is-phone', () => this._updateSquareLayout());
+    }
+
+    vfunc_get_preferred_width(forHeight) {
+        if (Main.layoutManager.isPhone)
+            return super.vfunc_get_preferred_width(forHeight);
+
+        return super.vfunc_get_preferred_height(-1);
+    }
+
+    _updateSquareLayout() {
+        if (Main.layoutManager.isPhone) {
+            if (this.label) {
+                this._const = new Clutter.BindConstraint({
+                    source: this._iconBin,
+                    coordinate: Clutter.BindCoordinate.WIDTH,
+                });
+                this.label.add_constraint(this._const);
+            }
+        } else {
+            if (this.label && this._const)
+              this.label.remove_constraint(this._const);
+        }
     }
 
     // This can be overridden by a subclass, or by the createIcon
@@ -157,11 +178,11 @@ class BaseIcon extends Shell.SquareBin {
         // Animate only the child instead of the entire actor, so the
         // styles like hover and running are not applied while
         // animating.
-        zoomOutActor(this.child);
+        zoomOutActor(this);
     }
 
     animateZoomOutAtPos(x, y) {
-        zoomOutActorAtPos(this.child, x, y);
+        zoomOutActorAtPos(this, x, y);
     }
 
     update() {
