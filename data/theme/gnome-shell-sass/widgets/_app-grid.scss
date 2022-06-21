@@ -45,7 +45,7 @@ $app_icon_size: 96px;
   background-color: $dash_background_color;
 
   & .folder-name-container {
-    padding: 24px 36px 0;
+    padding: 12px 42px 0;
     spacing: 12px;
 
     & .folder-name-label,
@@ -53,7 +53,7 @@ $app_icon_size: 96px;
       @extend %title_1;
     }
 
-    & .folder-name-entry { width: 300px }
+   // & .folder-name-entry { width: 300px }
 
     /* FIXME: this is to keep the label in sync with the entry */
     & .folder-name-label { padding: 5px 7px; color: $osd_fg_color; }
@@ -69,8 +69,8 @@ $app_icon_size: 96px;
   }
 
   & .icon-grid {
-    row-spacing: $base_padding * 2;
-    column-spacing: $base_padding * 5;
+   // row-spacing: $base_padding * 2;
+   // column-spacing: $base_padding * 5;
     page-padding-top: 0;
     page-padding-bottom: 0;
     page-padding-left: 0;
@@ -83,9 +83,15 @@ $app_icon_size: 96px;
 }
 
 .app-folder-dialog-container {
-  padding: $base_padding*2;
-  width: 720px;
-  height: 720px;
+  margin: $base_margin*6;
+
+  width: 640px;
+  height: 640px;
+
+  &.mobile {
+    width: 360px;
+    height: 430px;
+  }
 }
 
 // Running app indicator (also shown in dash)
