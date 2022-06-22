@@ -3262,6 +3262,16 @@ var AppIcon = GObject.registerClass({
     }
 
     _showFolderPreview() {
+        const iconSize = this.icon.icon.icon_size;
+        const subSize = Math.floor(FOLDER_SUBICON_FRACTION * iconSize);
+        const subScale = subSize / iconSize;
+
+        // Previews are 3x3 grids, so 1 - subScale * 3 gives us the leftover space.
+        // Divide leftover space by 2 (two paddings per icon) * 3 (three icons) = 6
+        // to get the new icon position including the spacing.
+        const pivotPoint = (1 - (subScale * 3)) / 6;
+        this.icon.icon.set_pivot_point(pivotPoint, pivotPoint);
+
         this.icon.label.ease({
             duration: 250,
             opacity: 0,
@@ -3269,8 +3279,8 @@ var AppIcon = GObject.registerClass({
         });
         this.icon.icon.ease({
             duration: 250,
-            scale_x: FOLDER_SUBICON_FRACTION,
-            scale_y: FOLDER_SUBICON_FRACTION,
+            scale_x: subScale,
+            scale_y: subScale,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
     }
