@@ -14,7 +14,7 @@ const WindowManager = imports.ui.windowManager;
 const WorkspaceThumbnail = imports.ui.workspaceThumbnail;
 const WorkspacesView = imports.ui.workspacesView;
 
-const SMALL_WORKSPACE_RATIO = 0.15;
+const SMALL_WORKSPACE_RATIO = 0.25;
 const DASH_MAX_HEIGHT_RATIO = 0.15;
 
 const A11Y_SCHEMA = 'org.gnome.desktop.a11y.keyboard';
