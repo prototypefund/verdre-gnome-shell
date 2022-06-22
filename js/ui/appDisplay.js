@@ -24,7 +24,7 @@ const SystemActions = imports.misc.systemActions;
 var MENU_POPUP_TIMEOUT = 600;
 var POPDOWN_DIALOG_TIMEOUT = 500;
 
-var FOLDER_SUBICON_FRACTION = .4;
+var FOLDER_SUBICON_FRACTION = .3;
 
 var VIEWS_SWITCH_TIME = 400;
 var VIEWS_SWITCH_ANIMATION_DELAY = 100;
@@ -2307,12 +2307,12 @@ class FolderView extends BaseAppView {
 
         let numItems = this._orderedItems.length;
         let rtl = icon.get_text_direction() == Clutter.TextDirection.RTL;
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < 9; i++) {
             const style = `width: ${subSize}px; height: ${subSize}px;`;
             let bin = new St.Bin({ style });
             if (i < numItems)
                 bin.child = this._orderedItems[i].app.create_icon_texture(subSize);
-            layout.attach(bin, rtl ? (i + 1) % 2 : i % 2, Math.floor(i / 2), 1, 1);
+            layout.attach(bin, rtl ? (i + 1) % 3 : i % 3, Math.floor(i / 3), 1, 1);
         }
 
         return icon;
