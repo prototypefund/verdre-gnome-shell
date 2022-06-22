@@ -3262,18 +3262,30 @@ var AppIcon = GObject.registerClass({
     }
 
     _showFolderPreview() {
-        this.icon.label.opacity = 0;
+        this.icon.label.ease({
+            duration: 250,
+            opacity: 0,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
         this.icon.icon.ease({
+            duration: 250,
             scale_x: FOLDER_SUBICON_FRACTION,
             scale_y: FOLDER_SUBICON_FRACTION,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
     }
 
     _hideFolderPreview() {
-        this.icon.label.opacity = 255;
+        this.icon.label.ease({
+            duration: 250,
+            opacity: 255,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
         this.icon.icon.ease({
+            duration: 250,
             scale_x: 1.0,
             scale_y: 1.0,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
     }
 
