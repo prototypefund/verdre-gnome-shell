@@ -283,7 +283,25 @@ background-color: transparentize(#cccccc, 0.7);
 // overview icon, dash, app grid
 @mixin overview_icon($color, $flat: true) {
   transition-duration: 400ms;
-  .overview-icon { @extend %tile; }
+  .overview-icon {
+    @extend %tile;
+
+    border: 0;
+
+    // shift %tile padding from container to folder icon
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
+    padding-bottom: 0px;
+    spacing: 2px;
+
+    .base-icon-icon-container  {
+    border: 2px solid transparent;
+      padding: 3px;
+      border-radius: 12px;
+    }
+
+  }
   @if $flat {
     .overview-icon { background-color: transparent;}
   } @else {
@@ -304,7 +322,8 @@ background-color: transparentize(#cccccc, 0.7);
     &:active .overview-icon { background-color: transparentize($color, .78);}
     &:hover .overview-icon { background-color: transparentize($color, .75);}
   }
-  &:drop .overview-icon {
+  &:drop .overview-icon .base-icon-icon-container {
+  transition-duration: 200ms;
     border: 2px solid transparentize($selected_bg_color, .2); //already 2px transparent so no jumping
     background-color: transparentize($selected_bg_color, .8);
   }
