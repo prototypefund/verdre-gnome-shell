@@ -880,10 +880,8 @@ const phoneGridModes = [
         const [gridWidth, gridHeight] = this.get_transformed_size();
 
         const vertical = this._orientation === Clutter.Orientation.VERTICAL;
-        const gridStart = vertical ? gridY : gridX;
-        const gridEnd = vertical
-            ? gridY + gridHeight - OVERSHOOT_THRESHOLD
-            : gridX + gridWidth - OVERSHOOT_THRESHOLD;
+        const gridStart = (vertical ? gridY : gridX) + OVERSHOOT_THRESHOLD;
+        const gridEnd = (vertical ? gridY + gridHeight : gridX + gridWidth) - OVERSHOOT_THRESHOLD;
 
         // Already animating
         if (this._adjustment.get_transition('value') !== null)
