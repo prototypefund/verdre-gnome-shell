@@ -975,6 +975,10 @@ const phoneGridModes = [
     }
 
     _canAccept(source) {
+        if (source instanceof imports.ui.dash.DashIcon &&
+            !this._appFavorites.isFavorite(source.app.get_id()))
+            return false;
+
         return source instanceof AppViewItem;
     }
 
@@ -2384,6 +2388,10 @@ var FolderIcon = GObject.registerClass({
         if (this._folder.get_strv('apps').includes(source.id))
             return false;
 
+        if (source instanceof imports.ui.dash.DashIcon &&
+            !AppFavorites.getAppFavorites().isFavorite(source.app.get_id()))
+            return false;
+
         return true;
     }
 
@@ -3163,6 +3171,10 @@ var AppIcon = GObject.registerClass({
 
     _canAccept(source) {
         let view = _getViewFromIcon(source);
+
+        if (source instanceof imports.ui.dash.DashIcon &&
+            !AppFavorites.getAppFavorites().isFavorite(source.app.get_id()))
+            return false;
 
         return source != this &&
                (source instanceof this.constructor) &&
