@@ -797,6 +797,19 @@ var IconGridLayout = GObject.registerClass({
         this._shouldEaseItems = false;
     }
 
+    _findBestPageToAppend(startPage) {
+        const itemsPerPage = this.columnsPerPage * this.rowsPerPage;
+
+        for (let i = startPage; i < this._pages.length; i++) {
+            const visibleItems = this._pages[i].visibleChildren;
+
+            if (visibleItems.length < itemsPerPage)
+                return i;
+        }
+
+        return this._pages.length;
+    }
+
     /**
      * addItem:
      * @param {Clutter.Actor} item: item to append to the grid
@@ -820,6 +833,9 @@ var IconGridLayout = GObject.registerClass({
 
         if (!this._container)
             return;
+
+        if (page !== -1 && index === -1)
+            page = this._findBestPageToAppend(page);
 
         this._shouldEaseItems = true;
 
@@ -852,6 +868,10 @@ var IconGridLayout = GObject.registerClass({
         this._shouldEaseItems = true;
 
         this._removeItemData(item);
+
+        if (newPage !== -1 && newPosition === -1)
+            newPage = this._findBestPageToAppend(newPage);
+
         this._addItemToPage(item, newPage, newPosition);
     }
 
