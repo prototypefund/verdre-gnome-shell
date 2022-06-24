@@ -1147,6 +1147,16 @@ const phoneGridModes = [
         const [sourcePage, sourcePosition] = this._grid.getItemPosition(source);
         let [targetPage, targetPosition, dragLocation] = this._grid.getDropTarget(x, y);
 
+        let reflowDirection = 'right';
+
+        if (sourcePosition === targetPosition)
+            reflowDirection = 'none';
+
+        if (sourcePage === targetPage && sourcePosition < targetPosition)
+            reflowDirection = 'left';
+        if (!this._grid.layout_manager.allow_incomplete_pages && sourcePage < targetPage)
+            reflowDirection = 'left';
+
         // In case we're hovering over the edge of an item but the
         // reflow will happen in the opposite direction (the drag
         // can't "naturally push the item away"), we instead set the
@@ -1156,9 +1166,7 @@ const phoneGridModes = [
         // We must avoid doing that if we're hovering over the first
         // or last column though, in that case there is no adjacent
         // icon we could push away.
-        if (dragLocation === IconGrid.DragLocation.START_EDGE &&
-            targetPosition > sourcePosition &&
-            targetPage === sourcePage) {
+        if (dragLocation === IconGrid.DragLocation.START_EDGE && reflowDirection === 'left') {
             const nColumns = this._grid.layout_manager.columns_per_page;
             const targetColumn = targetPosition % nColumns;
 
@@ -1166,9 +1174,7 @@ const phoneGridModes = [
                 targetPosition -= 1;
                 dragLocation = IconGrid.DragLocation.END_EDGE;
             }
-        } else if (dragLocation === IconGrid.DragLocation.END_EDGE &&
-            (targetPosition < sourcePosition ||
-             targetPage !== sourcePage)) {
+        } else if (dragLocation === IconGrid.DragLocation.END_EDGE && reflowDirection === 'right') {
             const nColumns = this._grid.layout_manager.columns_per_page;
             const targetColumn = targetPosition % nColumns;
 
