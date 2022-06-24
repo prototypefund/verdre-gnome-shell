@@ -980,11 +980,14 @@ var BaseAppView = GObject.registerClass({
         if (dropTarget === this._prevPageIndicator ||
             dropTarget === this._nextPageIndicator) {
             const increment = dropTarget === this._prevPageIndicator ? -1 : 1;
-            const { currentPage, nPages } = this._grid;
+            const { currentPage, nPages, itemsPerPage } = this._grid;
             const page = Math.min(currentPage + increment, nPages);
-            const position = page < nPages ? -1 : 0;
 
-            this._moveItem(source, page, position);
+            if (page < nPages &&
+                this._grid.getItemsAtPage(page).filter(c => c.visible).length === itemsPerPage)
+                return false;
+
+            this._moveItem(source, page, -1);
             this.goToPage(page);
         } else if (this._delayedMoveData) {
             // Dropped before the icon was moved
