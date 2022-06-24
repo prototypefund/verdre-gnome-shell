@@ -816,7 +816,6 @@ leftEmptySpace += hSpacing;
         const pageHeight = this._pageHeight;
         const pageSizeChanged = this._pageSizeChanged;
         const lastRowAlign = this.lastRowAlign;
-        const shouldEaseItems = this._shouldEaseItems;
 
         this._pages.forEach((page, pageIndex) => {
             if (isRtl && orientation === Clutter.Orientation.HORIZONTAL)
@@ -853,7 +852,7 @@ leftEmptySpace += hSpacing;
                     Math.max(childWidth, naturalWidth),
                     Math.max(childHeight, naturalHeight));
 
-                if (!shouldEaseItems || pageSizeChanged)
+                if (pageSizeChanged)
                     item.allocate(childBox);
                 else if (animateIconPosition(item, childBox, nChangedIcons))
                     nChangedIcons++;
@@ -861,7 +860,6 @@ leftEmptySpace += hSpacing;
         });
 
         this._pageSizeChanged = false;
-        this._shouldEaseItems = false;
     }
 
     _findBestPageToAppend(startPage) {
@@ -904,8 +902,6 @@ leftEmptySpace += hSpacing;
         if (page !== -1 && index === -1)
             page = this._findBestPageToAppend(page);
 
-        this._shouldEaseItems = true;
-
         this._container.add_child(item);
         this._addItemToPage(item, page, index);
     }
@@ -931,8 +927,6 @@ leftEmptySpace += hSpacing;
     moveItem(item, newPage, newPosition, resetPreviousRelocations) {
         if (!this._items.has(item))
             throw new Error(`Item ${item} is not part of the IconGridLayout`);
-
-        this._shouldEaseItems = true;
 
         this._removeItemData(item);
 
@@ -960,8 +954,6 @@ leftEmptySpace += hSpacing;
 
         if (!this._container)
             return;
-
-        this._shouldEaseItems = true;
 
         this._container.remove_child(item);
         this._removeItemData(item);
