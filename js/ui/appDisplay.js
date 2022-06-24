@@ -1044,11 +1044,6 @@ const phoneGridModes = [
     }
 
     _addItem(item, page, position) {
-        // Append icons to the first page with empty slot, starting from
-        // the second page
-        if (this._grid.nPages > 1 && page === -1 && position === -1)
-            page = this._findBestPageToAppend();
-
         this._items.set(item.id, item);
         this._grid.addItem(item, page, position);
 
@@ -1095,10 +1090,18 @@ const phoneGridModes = [
         // Add new app icons, or move existing ones
         newApps.forEach(icon => {
             const [page, position] = this._getItemPosition(icon);
-            if (addedApps.includes(icon))
-                this._addItem(icon, page, position);
-            else if (page !== -1 && position !== -1)
+            if (addedApps.includes(icon)) {
+                // If there's two pages, newly installed apps should not appear
+                // on page 0
+                if (page === -1 && position === -1 && this._grid.nPages > 1)
+                    this._addItem(icon, 1, -1);
+                else
+                    this._addItem(icon, page, position);
+            } else if (page !== -1 && position !== -1) {
                 this._moveItem(icon, page, position);
+            } else {
+                // App is part of a folder
+            }
         });
 
         this.emit('view-loaded');
@@ -1451,7 +1454,7 @@ class AppDisplay extends BaseAppView {
             let [page, position] = this._grid.getItemPosition(item);
 
             if (page === -1)
-                page = this._findBestPageToAppend(this._grid.currentPage);
+                page = this._grid.currentPage;
 
             return [page, position];
         }
