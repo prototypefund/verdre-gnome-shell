@@ -115,9 +115,7 @@ function _getViewFromIcon(icon) {
     return null;
 }
 
-function _findBestFolderName(apps) {
-    let appInfos = apps.map(app => app.get_app_info());
-
+function _findBestFolderName(appInfos) {
     let categoryCounter = {};
     let commonCategories = [];
 
@@ -639,17 +637,25 @@ var BaseAppView = GObject.registerClass({
 
         // Don't duplicate favorites
         this._appFavorites = AppFavorites.getAppFavorites();
-        this._appFavorites.connectObject('changed',
-            () => this._redisplay(), this);
+        this._appFavorites.connectObject('changed', () => {
+log("DASH CHANGE");
+            if (this._dragMonitor) {
+                this._redisplayAfterDrag = true;
+                return;
+            }
+
+            this._redisplay();
+        }, this);
 
         // Drag n' Drop
+        this._placeholders = new Map();
+
+        this._overshootTimeoutId = 0;
         this._lastOvershoot = -1;
         this._lastOvershootTimeoutId = 0;
         this._delayedMoveData = null;
 
-        this._dragBeginId = 0;
-        this._dragEndId = 0;
-        this._dragCancelledId = 0;
+        this._connectDnD();
 
         this.connect('destroy', this._onDestroy.bind(this));
 
@@ -808,6 +814,21 @@ const phoneGridModes = [
         }
     }
 
+    _createPlaceholder(source) {
+        const appSys = Shell.AppSystem.get_default();
+        const app = appSys.lookup_app(source.id);
+
+        const isDraggable =
+            global.settings.is_writable('favorite-apps') ||
+            global.settings.is_writable('app-picker-layout');
+
+        const placeholder = new AppIcon(app, { isDraggable });
+
+        this._placeholders.set(source, placeholder);
+
+        return placeholder;
+    }
+
     _maybeMoveItem(dragEvent) {
         const [success, x, y] =
             this._grid.transform_stage_point(dragEvent.x, dragEvent.y);
@@ -844,7 +865,7 @@ const phoneGridModes = [
                 destroyId: source.connect('destroy', () => this._removeDelayedMove()),
                 timeoutId: GLib.timeout_add(GLib.PRIORITY_DEFAULT,
                     DELAYED_MOVE_TIMEOUT, () => {
-                        this._moveItem(source, page, position);
+                        this._moveItem(source, page, position, true);
                         this._delayedMoveData.timeoutId = 0;
                         this._removeDelayedMove();
                         return GLib.SOURCE_REMOVE;
@@ -924,40 +945,113 @@ const phoneGridModes = [
             '[gnome-shell] this._lastOvershootTimeoutId');
     }
 
-    _onDragBegin() {
+    _onDragBegin(overview, source) {
         this._dragMonitor = {
             dragMotion: this._onDragMotion.bind(this),
-            dragDrop: this._onDragDrop.bind(this),
         };
         DND.addDragMonitor(this._dragMonitor);
         this._appGridLayout.showPageIndicators();
+
+        if (!this._canAccept(source))
+            return;
+
+        const ownItem = this._items.get(source.id);
+        if (ownItem && ownItem !== source) {
+            log(`${this}: Item with id "${source.id}" already exists in grid.`);
+            return;
+        }
+
+        if (this._orderedItems.includes(source)) {
+            // its our icon, create a placeholder object but don't actually
+            log(this + " BEGAN DRAG WITH OUR ICON, keeping the icon " + source + " v2" + this._orderedItems.indexOf(source));
+
+            this._placeholders.set(source, source);
+            source.reactive = false;
+            source.opacity = 0;
+        } else {
+            // icon from somebody else, create real pl
+         //   log(this + " BEGAN DRAG WITH FOREIGN ICON, creating placeholder");
+
+            const pl = this._createPlaceholder(source);
+
+            this._addItem(pl, this._grid.currentPage, -1);
+
+            pl.reactive = false;
+            pl.opacity = 0;
+        }
     }
 
     _onDragMotion(dragEvent) {
         if (!(dragEvent.source instanceof AppViewItem))
             return DND.DragMotionResult.CONTINUE;
 
-        const appIcon = dragEvent.source;
+if (!this.mapped)
+            return DND.DragMotionResult.CONTINUE;
+
+        const placeholder = this._placeholders.get(dragEvent.source);
+        if (!placeholder)
+            return DND.DragMotionResult.CONTINUE;
+
+        const clonedEvent = {
+            ...dragEvent,
+            source: placeholder,
+        };
+
+        const [success, x, y] =
+            this._grid.transform_stage_point(dragEvent.x, dragEvent.y);
+
+        if (!success)
+            return DND.DragMotionResult.CONTINUE;
 
         // Handle the drag overshoot. When dragging to above the
         // icon grid, move to the page above; when dragging below,
         // move to the page below.
-        if (appIcon instanceof AppViewItem)
-            this._handleDragOvershoot(dragEvent);
+        if (placeholder instanceof AppViewItem)
+            this._handleDragOvershoot(clonedEvent);
 
-        this._maybeMoveItem(dragEvent);
+        this._maybeMoveItem(clonedEvent);
 
         return DND.DragMotionResult.CONTINUE;
     }
 
-    _onDragDrop(dropEvent) {
-        // Because acceptDrop() does not receive the target actor, store it
-        // here and use this value in the acceptDrop() implementation below.
-        this._dropTarget = dropEvent.targetActor;
-        return DND.DragMotionResult.CONTINUE;
+    _itemDraggedOut(item) {
+   //     log("removed item belonged to us, saving the current layout");
+
+        this._saveCurrentLayout();
+        this.emit('view-loaded');
     }
 
-    _onDragEnd() {
+    _clearPlaceholders(source) {
+        /* DND sadly has no droppedSomewhereElse() thing */
+        if (this._placeholders.has(source)) {
+            const pl = this._placeholders.get(source);
+            this._placeholders.delete(source);
+
+            if (this._dragCancelled) {
+                delete this._dragCancelled;
+
+                if (pl === source) {
+                    // At this point, the positions aren't stored yet, thus _redisplay()
+                    // will move all items to their original positions
+                    this._redisplayAfterDrag = true;
+                    return;
+                }
+            }
+
+            // we still have a placeholder, which means we didn't accept the drag ---> the item is gone
+log(this + " removing placeholder");
+            this._removeItem(pl);
+
+           // this._grid.layout_manager.resetOverflowRelocations();
+
+            if (source === pl)
+                this._itemDraggedOut(source);
+
+            pl.destroy();
+        }
+    }
+
+    _onDragEnd(overview, source) {
         if (this._dragMonitor) {
             DND.removeDragMonitor(this._dragMonitor);
             this._dragMonitor = null;
@@ -965,12 +1059,26 @@ const phoneGridModes = [
 
         this._resetOvershoot();
         this._appGridLayout.hidePageIndicators();
+
+    //    log(this + " _onDragEnd, n placeholders " + this._placeholders.size);
+
+        this._clearPlaceholders(source);
+
+        if (this._redisplayAfterDrag) {
+            this._updateFoldersIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._redisplay();
+
+                delete this._updateFoldersIdle;
+                return GLib.SOURCE_REMOVE;
+            });
+
+            delete this._redisplayAfterDrag;
+        }
     }
 
-    _onDragCancelled() {
-        // At this point, the positions aren't stored yet, thus _redisplay()
-        // will move all items to their original positions
-        this._redisplay();
+    _onDragCancelled(overview, source) {
+        this._dragCancelled = true;
+
         this._appGridLayout.hidePageIndicators();
     }
 
@@ -979,7 +1087,10 @@ const phoneGridModes = [
             !this._appFavorites.isFavorite(source.app.get_id()))
             return false;
 
-        return source instanceof AppViewItem;
+        if (!(source instanceof AppViewItem))
+            return false;
+
+        return true;
     }
 
     handleDragOver(source) {
@@ -996,6 +1107,15 @@ const phoneGridModes = [
         if (!this._canAccept(source))
             return false;
 
+        const pl = this._placeholders.get(source);
+        if (!pl) {
+            throw new Error('No placeholder item found for drag source');
+            return false;
+        }
+
+        if (AppFavorites.getAppFavorites().isFavorite(source.id))
+            AppFavorites.getAppFavorites().removeFavorite(source.id);
+
         if (dropTarget === this._prevPageIndicator ||
             dropTarget === this._nextPageIndicator) {
             const increment = dropTarget === this._prevPageIndicator ? -1 : 1;
@@ -1006,29 +1126,27 @@ const phoneGridModes = [
                 this._grid.getItemsAtPage(page).filter(c => c.visible).length === itemsPerPage)
                 return false;
 
-            this._moveItem(source, page, -1);
+            this._moveItem(pl, page, -1, true);
             this.goToPage(page);
         } else if (this._delayedMoveData) {
             // Dropped before the icon was moved
             const { page, position } = this._delayedMoveData;
 
-            this._moveItem(source, page, position);
+            this._moveItem(pl, page, position);
             this._removeDelayedMove();
         }
 
+    //    this._grid.layout_manager.storeRelocations();
+log(this + " accepting drop, deleting placeholder: " + this._placeholders.get(source));
+        pl.undoScaleAndFade();
+        this._placeholders.delete(source); // this magically makes the placeholder a "normal" icon
+
+     //   log("now saving the current layout");
+        this._saveCurrentLayout();
+        this.emit('view-loaded');
+
+
         return true;
-    }
-
-    _findBestPageToAppend(startPage = 1) {
-        for (let i = startPage; i < this._grid.nPages; i++) {
-            const pageItems =
-                this._grid.getItemsAtPage(i).filter(c => c.visible);
-
-            if (pageItems.length < this._grid.itemsPerPage)
-                return i;
-        }
-
-        return -1;
     }
 
     _getLinearPosition(item) {
@@ -1046,6 +1164,9 @@ const phoneGridModes = [
         }
 
         return itemIndex;
+    }
+
+    _saveCurrentLayout() {
     }
 
     _addItem(item, page, position) {
@@ -1109,11 +1230,23 @@ const phoneGridModes = [
             }
         });
 
+        const viewChanged = addedApps.length > 0 || removedApps.length > 0;
+
         this.emit('view-loaded');
     }
 
     getAllItems() {
-        return this._orderedItems;
+        const items = this._orderedItems;
+
+        if (this._placeholders.size > 0) {
+            for (const [source, pl] of this._placeholders.entries()) {
+                if (source === pl)
+                    continue;
+                items.splice(items.indexOf(pl), 1);
+            }
+        }
+
+        return items;
     }
 
     _compareItems(a, b) {
@@ -1195,8 +1328,8 @@ const phoneGridModes = [
         return [targetPage, targetPosition, dragLocation];
     }
 
-    _moveItem(item, newPage, newPosition) {
-        this._grid.moveItem(item, newPage, newPosition);
+    _moveItem(item, newPage, newPosition, relo = false) {
+        this._grid.moveItem(item, newPage, newPosition, relo);
 
         // Update the _orderedItems array
         this._orderedItems.splice(this._orderedItems.indexOf(item), 1);
@@ -1205,13 +1338,11 @@ const phoneGridModes = [
 
     vfunc_map() {
         this._swipeTracker.enabled = true;
-        this._connectDnD();
         super.vfunc_map();
     }
 
     vfunc_unmap() {
         this._swipeTracker.enabled = false;
-        this._disconnectDnD();
         super.vfunc_unmap();
     }
 
@@ -1336,20 +1467,34 @@ class AppDisplay extends BaseAppView {
         this._currentDialog = null;
         this._displayingDialog = false;
 
-        this._placeholder = null;
-
         if (!Main.layoutManager.isPhone)
             Main.overview.connect('hidden', () => this.goToPage(0));
 
         this._redisplayWorkId = Main.initializeDeferredWork(this, this._redisplay.bind(this));
 
         Shell.AppSystem.get_default().connect('installed-changed', () => {
-            Main.queueDeferredWork(this._redisplayWorkId);
+//            Main.queueDeferredWork(this._redisplayWorkId);
+
+            if (this._dragMonitor) {
+log("installed change, REDISP after drag");
+                this._redisplayAfterDrag = true;
+                return;
+            }
+log("installed change redisp");
+            this._redisplay();
         });
         this._folderSettings = new Gio.Settings({ schema_id: 'org.gnome.desktop.app-folders' });
         this._ensureDefaultFolders();
         this._folderSettings.connect('changed::folder-children', () => {
-            Main.queueDeferredWork(this._redisplayWorkId);
+            if (this._updatingFolders)
+                return;
+
+            this._updateFoldersIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                this._redisplay();
+
+                delete this._updateFoldersIdle;
+                return GLib.SOURCE_REMOVE;
+            });
         });
     }
 
@@ -1385,7 +1530,7 @@ class AppDisplay extends BaseAppView {
         super._redisplay();
     }
 
-    _savePages() {
+    _saveCurrentLayout() {
         const pages = [];
 
         for (let i = 0; i < this._grid.nPages; i++) {
@@ -1394,6 +1539,9 @@ class AppDisplay extends BaseAppView {
             const pageData = {};
 
             pageItems.forEach((item, index) => {
+                if (Array.from(this._placeholders.values()).includes(item))
+                    throw new Error('Saving layout while placeholders are around');
+
                 pageData[item.id] = {
                     position: GLib.Variant.new_int32(index),
                 };
@@ -1426,44 +1574,11 @@ class AppDisplay extends BaseAppView {
         }
     }
 
-    _ensurePlaceholder(source) {
-        if (this._placeholder)
-            return;
-
-        const appSys = Shell.AppSystem.get_default();
-        const app = appSys.lookup_app(source.id);
-
-        const isDraggable =
-            global.settings.is_writable('favorite-apps') ||
-            global.settings.is_writable('app-picker-layout');
-
-        this._placeholder = new AppIcon(app, { isDraggable });
-        this._placeholder.scaleAndFade();
-        this._redisplay();
-    }
-
-    _removePlaceholder() {
-        if (this._placeholder) {
-            this._placeholder.undoScaleAndFade();
-            this._placeholder = null;
-            this._redisplay();
-        }
-    }
-
     getAppInfos() {
         return this._appInfoList;
     }
 
     _getItemPosition(item) {
-        if (item === this._placeholder) {
-            let [page, position] = this._grid.getItemPosition(item);
-
-            if (page === -1)
-                page = this._grid.currentPage;
-
-            return [page, position];
-        }
-
         return this._pageManager.getAppPosition(item.id);
     }
 
@@ -1510,25 +1625,32 @@ class AppDisplay extends BaseAppView {
         let folders = this._folderSettings.get_strv('folder-children');
         folders.forEach(id => {
             let path = `${this._folderSettings.path}folders/${id}/`;
+            let newlyCreated = false;
+
             let icon = this._items.get(id);
             if (!icon) {
+                newlyCreated = true;
+
+log("creating new folder for id " + id);
                 icon = new FolderIcon(id, path, this);
-                icon.connect('apps-changed', () => {
-                    this._redisplay();
-                    this._savePages();
-                });
             }
 
-            // Don't try to display empty folders
-            if (!icon.visible) {
-                icon.destroy();
+            const folderAppItems = icon.view.getAllItems();
+            if (folderAppItems.length <= 1) {
+log("DESTROYING FOLDER with less than one (" + folderAppItems.length + "): " + id + " have " +this._items.has(id));
+
+                this.deleteFolder(id);
+                if (newlyCreated)
+                    icon.destroy();
                 return;
             }
 
-            appIcons.push(icon);
-            this._folderIcons.push(icon);
+            folderAppItems.forEach(item => {
+                appsInsideFolders.add(item.id);
+            });
 
-            icon.getAppIds().forEach(appId => appsInsideFolders.add(appId));
+            this._folderIcons.push(icon);
+            appIcons.push(icon);
         });
 
         // Allow dragging of the icon only if the Dash would accept a drop to
@@ -1555,9 +1677,6 @@ class AppDisplay extends BaseAppView {
             appIcons.push(icon);
         });
 
-        // At last, if there's a placeholder available, add it
-        if (this._placeholder)
-            appIcons.push(this._placeholder);
 
         return appIcons;
     }
@@ -1633,27 +1752,6 @@ class AppDisplay extends BaseAppView {
         });
     }
 
-    _maybeMoveItem(dragEvent) {
-        const clonedEvent = {
-            ...dragEvent,
-            source: this._placeholder ? this._placeholder : dragEvent.source,
-        };
-
-        super._maybeMoveItem(clonedEvent);
-    }
-
-    _onDragBegin(overview, source) {
-        super._onDragBegin(overview, source);
-
-        // When dragging from a folder dialog, the dragged app icon doesn't
-        // exist in AppDisplay. We work around that by adding a placeholder
-        // icon that is either destroyed on cancel, or becomes the effective
-        // new icon when dropped.
-        if (_getViewFromIcon(source) instanceof FolderView ||
-            this._appFavorites.isFavorite(source.id))
-            this._ensurePlaceholder(source);
-    }
-
     _onDragMotion(dragEvent) {
         if (this._currentDialog)
             return DND.DragMotionResult.CONTINUE;
@@ -1661,46 +1759,21 @@ class AppDisplay extends BaseAppView {
         return super._onDragMotion(dragEvent);
     }
 
-    _onDragEnd() {
-        super._onDragEnd();
-        this._removePlaceholder();
-        this._savePages();
-    }
+    createFolderFromAppItem(appItem, dragSource) {
+        const [folderPage, folderPosition] =
+            this._grid.getItemPosition(appItem);
 
-    _onDragCancelled(overview, source) {
-        const view = _getViewFromIcon(source);
+        if (folderPage === -1 && folderPosition === -1)
+            throw new Error('Unable to find app item for new folder');
 
-        if (view instanceof FolderView)
-            return;
-
-        super._onDragCancelled(overview, source);
-    }
-
-    acceptDrop(source) {
-        if (!super.acceptDrop(source))
-            return false;
-
-        this._savePages();
-
-        let view = _getViewFromIcon(source);
-        if (view instanceof FolderView)
-            view.removeApp(source.app);
-
-        if (this._currentDialog)
-            this._currentDialog.popdown();
-
-        if (this._appFavorites.isFavorite(source.id))
-            this._appFavorites.removeFavorite(source.id);
-
-        return true;
-    }
-
-    createFolder(apps) {
-        let newFolderId = GLib.uuid_string_random();
+        const newFolderId = GLib.uuid_string_random();
+log("MAKING FOLDER " + newFolderId);
 
         let folders = this._folderSettings.get_strv('folder-children');
         folders.push(newFolderId);
+        this._updatingFolders = true;
         this._folderSettings.set_strv('folder-children', folders);
+        this._updatingFolders = false;
 
         // Create the new folder
         let newFolderPath = this._folderSettings.path.concat('folders/', newFolderId, '/');
@@ -1715,38 +1788,98 @@ class AppDisplay extends BaseAppView {
             return false;
         }
 
-        // The hovered AppIcon always passes its own id as the first
-        // one, and this is where we want the folder to be created
-        let [folderPage, folderPosition] =
-            this._grid.getItemPosition(this._items.get(apps[0]));
-
-        // Adjust the final position
-        folderPosition -= apps.reduce((counter, appId) => {
-            const [page, position] =
-                this._grid.getItemPosition(this._items.get(appId));
-            if (page === folderPage && position < folderPosition)
-                counter++;
-            return counter;
-        }, 0);
-
-        let appItems = apps.map(id => this._items.get(id).app);
-        let folderName = _findBestFolderName(appItems);
+        let folderName = _findBestFolderName([appItem.app.get_app_info(), dragSource.app.get_app_info()]);
         if (!folderName)
             folderName = _("Unnamed Folder");
 
         newFolderSettings.delay();
         newFolderSettings.set_string('name', folderName);
-        newFolderSettings.set_strv('apps', apps);
+        newFolderSettings.set_strv('apps', [appItem.id, dragSource.id]);
         newFolderSettings.apply();
 
-        this._redisplay();
+        if (this._appFavorites.isFavorite(dragSource.id))
+            this._appFavorites.removeFavorite(dragSource.id);
 
-        // Move the folder to where the icon target icon was
-        const folderItem = this._items.get(newFolderId);
-        this._moveItem(folderItem, folderPage, folderPosition);
-        this._savePages();
+        const folderItem = new FolderIcon(newFolderId, newFolderPath, this);
+
+        const folderAppItems = folderItem.view.getAllItems();
+        if (folderAppItems.length !== 2) {
+log("make deleting EMPTY FOLDER again, shouldnt happen");
+            this.deleteFolder(newFolderId);
+            folderItem.destroy();
+            return false;
+        }
+
+        // FIXME: might be even cooler to just call acceptDrop on the new view here
+
+        this._removeItem(appItem);
+        appItem.destroy();
+        // leave removal of dragSource to onDragEnd() handler
+
+        this._folderIcons.push(folderItem);
+        this._addItem(folderItem, folderPage, folderPosition);
+
+        // onDragEnd will save current layout in a sec
 
         return true;
+    }
+
+    deleteFolder(folderId, lastApp = null) {
+log("DELETING FOLDER id " + folderId + " app " + lastApp);
+
+        const defaultFolderIds = Object.keys(DEFAULT_FOLDERS);
+
+        // default folders get special treatment, if we were to destroy them,
+        // we'd recreate them again when 0 folders exist
+        if (!defaultFolderIds.includes(folderId)) {
+            const folderPath = this._folderSettings.path.concat('folders/', folderId, '/');
+            const folderSettings = new Gio.Settings({
+                schema_id: 'org.gnome.desktop.app-folders.folder',
+                path: folderPath,
+            });
+
+            // Resetting all keys deletes the relocatable schema
+            const keys = folderSettings.settings_schema.list_keys();
+            for (const key of keys)
+                folderSettings.reset(key);
+
+            const folders = this._folderSettings.get_strv('folder-children');
+            folders.splice(folders.indexOf(folderId), 1);
+            this._updatingFolders = true;
+            this._folderSettings.set_strv('folder-children', folders);
+            this._updatingFolders = false;
+        }
+
+
+        if (!lastApp)
+            return;
+
+        const folderItem = this._items.get(folderId);
+
+        const [folderPage, folderPosition] =
+            this._grid.getItemPosition(folderItem);
+
+        if (folderPage === -1 && folderPosition === -1)
+            throw new Error(`Item of folder "${folderId}" is not in the grid`);
+
+        this._folderIcons.splice(this._folderIcons.indexOf(folderItem), 1);
+        this._removeItem(folderItem);
+
+        folderItem.destroy();
+
+        const isDraggable =
+            global.settings.is_writable('favorite-apps') ||
+            global.settings.is_writable('app-picker-layout');
+
+        const appSys = Shell.AppSystem.get_default();
+        const app = appSys.lookup_app(lastApp.get_id());
+
+        const item = new AppIcon(app, { isDraggable });
+log("additing item mat " + folderPage + " as " + folderPosition);
+
+        this._addItem(item, folderPage, folderPosition);
+
+        this._saveCurrentLayout();
     }
 });
 
@@ -1922,6 +2055,7 @@ class AppViewItem extends St.Button {
         this._dragging = true;
         this.scaleAndFade();
         Main.overview.beginItemDrag(this);
+global.stage.set_key_focus(null); // hack to fix annoying moves when something has key focus
     }
 
     _onDragCancelled() {
@@ -2094,8 +2228,13 @@ class FolderView extends BaseAppView {
 
         this.add_child(this._box);
 
-        this._deletingFolder = false;
         this._apps = [];
+
+        this._folder.connectObject('changed', () => {
+            if (!this._savingLayout)
+                this._redisplay();
+        }, this);
+
         this._redisplay();
     }
 
@@ -2202,78 +2341,53 @@ class FolderView extends BaseAppView {
         return items;
     }
 
-    acceptDrop(source) {
-        if (!super.acceptDrop(source))
+    _canAccept(source) {
+        if (!super._canAccept(source))
             return false;
 
-        const folderApps = this._orderedItems.map(item => item.id);
-        this._folder.set_strv('apps', folderApps);
+        if (source instanceof FolderIcon)
+            return false;
 
         return true;
     }
 
-    addApp(app) {
-        let folderApps = this._folder.get_strv('apps');
-        folderApps.push(app.id);
+    _itemDraggedOut(item) {
+        super._itemDraggedOut(item);
 
-        this._folder.set_strv('apps', folderApps);
+        if (this._orderedItems.length === 1)
+            this._parentView.deleteFolder(this._id, this._orderedItems[0].app);
+        else if (this._orderedItems.length === 0)
+            throw new Error('There should never be a single item in a FolderView');
+    }
 
-        // Also remove from 'excluded-apps' if the app id is listed
-        // there. This is only possible on categories-based folders.
-        let excludedApps = this._folder.get_strv('excluded-apps');
-        let index = excludedApps.indexOf(app.id);
-        if (index >= 0) {
-            excludedApps.splice(index, 1);
+    _saveCurrentLayout() {
+        this._savingLayout = true;
+
+        const newFolderApps = this._orderedItems.map(item => item.id);
+
+        // If this is a categories-based folder, also update the list of excluded apps
+        const categories = this._folder.get_strv('categories');
+        if (categories.length > 0) {
+            const oldFolderApps = this._folder.get_strv('apps');
+            const removedApps =
+                oldFolderApps.filter(appId => !newFolderApps.includes(appId));
+            const addedApps =
+                newFolderApps.filter(appId => !oldFolderApps.includes(appId));
+
+            let excludedApps = this._folder.get_strv('excluded-apps');
+            excludedApps = excludedApps.filter(app => !addedApps.includes(app));
+            excludedApps.push(...removedApps);
             this._folder.set_strv('excluded-apps', excludedApps);
         }
-    }
 
-    removeApp(app) {
-        let folderApps = this._folder.get_strv('apps');
-        let index = folderApps.indexOf(app.id);
-        if (index >= 0)
-            folderApps.splice(index, 1);
+        this._folder.set_strv('apps', newFolderApps);
 
-        // Remove the folder if this is the last app icon; otherwise,
-        // just remove the icon
-        if (folderApps.length == 0) {
-            this._deletingFolder = true;
-
-            // Resetting all keys deletes the relocatable schema
-            let keys = this._folder.settings_schema.list_keys();
-            for (const key of keys)
-                this._folder.reset(key);
-
-            let settings = new Gio.Settings({ schema_id: 'org.gnome.desktop.app-folders' });
-            let folders = settings.get_strv('folder-children');
-            folders.splice(folders.indexOf(this._id), 1);
-            settings.set_strv('folder-children', folders);
-
-            this._deletingFolder = false;
-        } else {
-            // If this is a categories-based folder, also add it to
-            // the list of excluded apps
-            const categories = this._folder.get_strv('categories');
-            if (categories.length > 0) {
-                const excludedApps = this._folder.get_strv('excluded-apps');
-                excludedApps.push(app.id);
-                this._folder.set_strv('excluded-apps', excludedApps);
-            }
-
-            this._folder.set_strv('apps', folderApps);
-        }
-    }
-
-    get deletingFolder() {
-        return this._deletingFolder;
+        delete this._savingLayout;
     }
 });
 
-var FolderIcon = GObject.registerClass({
-    Signals: {
-        'apps-changed': {},
-    },
-}, class FolderIcon extends AppViewItem {
+var FolderIcon = GObject.registerClass(
+class FolderIcon extends AppViewItem {
     _init(id, path, parentView) {
         super._init({
             style_class: 'app-well-app app-folder',
@@ -2305,9 +2419,8 @@ var FolderIcon = GObject.registerClass({
         this.set_child(this._iconContainer);
 
         this.view = new FolderView(this._folder, id, parentView);
-
-        this._folder.connectObject(
-            'changed', this._sync.bind(this), this);
+        this.view.connectObject(
+            'view-loaded', this._sync.bind(this), this);
         this._sync();
     }
 
@@ -2317,7 +2430,7 @@ var FolderIcon = GObject.registerClass({
         if (this._dialog)
             this._dialog.destroy();
         else
-            this.view.destroy();
+            this.view?.destroy();
     }
 
     vfunc_clicked() {
@@ -2335,10 +2448,6 @@ var FolderIcon = GObject.registerClass({
         this._ensureFolderDialog();
         this.view._scrollView.vscroll.adjustment.value = 0;
         this._dialog.popup();
-    }
-
-    getAppIds() {
-        return this.view.getAllItems().map(item => item.id);
     }
 
     _setHoveringByDnd(hovering) {
@@ -2378,28 +2487,17 @@ var FolderIcon = GObject.registerClass({
     }
 
     _canAccept(source) {
-        if (!(source instanceof AppIcon))
+        if (!super._canAccept(source))
             return false;
 
-        if (this._folder.get_strv('apps').includes(source.id))
-            return false;
-
-        if (source instanceof imports.ui.dash.DashIcon &&
-            !AppFavorites.getAppFavorites().isFavorite(source.app.get_id()))
-            return false;
-
-        return true;
+        return this.view._canAccept(source);
     }
 
     acceptDrop(source) {
-        const accepted = super.acceptDrop(source);
-
-        if (!accepted)
+        if (!super.acceptDrop(source))
             return false;
 
-        this.view.addApp(source.app);
-
-        return true;
+        return this.view.acceptDrop(source);
     }
 
     _updateName() {
@@ -2412,12 +2510,7 @@ var FolderIcon = GObject.registerClass({
     }
 
     _sync() {
-        if (this.view.deletingFolder)
-            return;
-
-        this.emit('apps-changed');
         this._updateName();
-        this.visible = this.view.getAllItems().length > 0;
         this.icon.update();
     }
 
@@ -2597,7 +2690,7 @@ var AppFolderDialog = GObject.registerClass({
             coordinate: Clutter.BindCoordinate.SIZE,
         }));
 
-        this._folder.connect('changed::name', () => this._syncFolderName());
+        this._folder.connectObject('changed::name', () => this._syncFolderName(), this);
         this._syncFolderName();
     }
 
@@ -2887,8 +2980,9 @@ var AppFolderDialog = GObject.registerClass({
     acceptDrop(source) {
         const appId = source.id;
 
+        this._appDisplay.acceptDrop(source);
+
         this.popdown(() => {
-            this._view.removeApp(source);
             this._appDisplay.selectApp(appId);
         });
 
@@ -3166,15 +3260,27 @@ var AppIcon = GObject.registerClass({
     }
 
     _canAccept(source) {
-        const view = _getViewFromIcon(this);
+        if (!super._canAccept(source))
+            return false;
 
+        // Don't accept drops in case we're a placeholder item ourself
+        if (!this.reactive)
+            return false;
+
+        // Don't accept running apps from the dash
         if (source instanceof imports.ui.dash.DashIcon &&
             !AppFavorites.getAppFavorites().isFavorite(source.app.get_id()))
             return false;
 
-        return source != this &&
-               (source instanceof this.constructor) &&
-               (view instanceof AppDisplay);
+        // Disallow creating a folder from an existing folder
+        if (source instanceof FolderIcon)
+            return false;
+
+        // And finally disallow creating nested folders
+        if (_getViewFromIcon(this) instanceof FolderView)
+            return false;
+
+        return true;
     }
 
     _setHoveringByDnd(hovering) {
@@ -3210,9 +3316,8 @@ var AppIcon = GObject.registerClass({
             return false;
 
         let view = _getViewFromIcon(this);
-        let apps = [this.id, source.id];
 
-        return view?.createFolder(apps);
+        return view?.createFolderFromAppItem(this, source);
     }
 });
 
