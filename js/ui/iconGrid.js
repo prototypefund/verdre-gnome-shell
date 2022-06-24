@@ -505,6 +505,43 @@ var IconGridLayout = GObject.registerClass({
         }
     }
 
+    storeRelocations() {
+        const nPages = this._pages.length;
+        for (let pageIndex = 0; pageIndex < nPages; pageIndex++) {
+            const page = this._pages[pageIndex];
+            let nVisibleItems = page.visibleChildren.length;
+            for (let itemIndex = 0; itemIndex < nVisibleItems; itemIndex++)
+                delete page.visibleChildren[itemIndex]._relocated;
+        }
+    }
+
+    resetOverflowRelocations(newPage, newPosition) {
+log("GRID: doing reset of relocations");
+        const nPages = this._pages.length;
+        for (let pageIndex = 0; pageIndex < nPages; pageIndex++) {
+            const page = this._pages[pageIndex];
+            let nVisibleItems = page.visibleChildren.length;
+            for (let itemIndex = 0; itemIndex < nVisibleItems; itemIndex++) {
+                const item = page.visibleChildren[itemIndex];
+
+                if (item._relocated) {
+log("GRID: moving back item on page " + pageIndex + " to page " + item._relocated[0] + " pos " + item._relocated[1]);
+                    this._removeItemData(item);
+                    this._addItemToPage(item, item._relocated[0], item._relocated[1]);
+                    delete item._relocated;
+
+itemIndex--;
+nVisibleItems--;
+
+if (newPage === pageIndex && itemIndex <= newPosition)
+    newPosition--;
+                }
+            }
+        }
+
+        return newPosition;
+    }
+
     _removeItemData(item) {
         const itemData = this._items.get(item);
         const pageIndex = itemData.pageIndex;
@@ -541,6 +578,9 @@ var IconGridLayout = GObject.registerClass({
 
             this._removeItemData(overflowItem);
             this._addItemToPage(overflowItem, pageIndex + 1, 0);
+log("GRID: spilling over icon on page " + pageIndex + " i " + overflowIndex);
+//if (!overflowItem._relocated)
+  //  overflowItem._relocated = [pageIndex, overflowIndex - nExtraItems];
         }
     }
 
@@ -899,13 +939,19 @@ leftEmptySpace += hSpacing;
      *
      * Moves @item to the grid. @item must be part of the grid.
      */
-    moveItem(item, newPage, newPosition) {
+    moveItem(item, newPage, newPosition, resetPreviousRelocations) {
         if (!this._items.has(item))
             throw new Error(`Item ${item} is not part of the IconGridLayout`);
 
         this._shouldEaseItems = true;
 
         this._removeItemData(item);
+
+        if (resetPreviousRelocations) {
+            const [prevPage] = this.getItemPosition(item);
+            if (prevPage !== newPage)
+                newPosition = this.resetOverflowRelocations(newPage, newPosition);
+        }
 
         if (newPage !== -1 && newPosition === -1)
             newPage = this._findBestPageToAppend(newPage);
@@ -1337,8 +1383,8 @@ var IconGrid = GObject.registerClass({
      *
      * Moves @item to the grid. @item must be part of the grid.
      */
-    moveItem(item, newPage, newPosition) {
-        this.layout_manager.moveItem(item, newPage, newPosition);
+    moveItem(item, newPage, newPosition, relo) {
+        this.layout_manager.moveItem(item, newPage, newPosition, relo);
         this.queue_relayout();
     }
 

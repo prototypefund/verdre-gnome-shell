@@ -1028,7 +1028,7 @@ if (!this.mapped)
 log(this + " removing placeholder");
             this._removeItem(pl);
 
-           // this._grid.layout_manager.resetOverflowRelocations();
+            this._grid.layout_manager.resetOverflowRelocations();
 
             if (source === pl)
                 this._itemDraggedOut(source);
@@ -1122,7 +1122,7 @@ log(this + " removing placeholder");
             this._removeDelayedMove();
         }
 
-    //    this._grid.layout_manager.storeRelocations();
+        this._grid.layout_manager.storeRelocations();
 log(this + " accepting drop, deleting placeholder: " + this._placeholders.get(source));
         pl.undoScaleAndFade();
         this._placeholders.delete(source); // this magically makes the placeholder a "normal" icon
