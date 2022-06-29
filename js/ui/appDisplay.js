@@ -1362,6 +1362,13 @@ log(this + " accepting drop, deleting placeholder: " + this._placeholders.get(so
         this._appGridLayout.goToPage(pageNumber, animate);
         this._grid.goToPage(pageNumber, animate);
     }
+
+    removeItemById(id) {
+        const item = this._orderedItems.find(i => i.id === id);
+        this._removeItem(item);
+        this._saveCurrentLayout();
+        this.emit('view-loaded');
+    }
 });
 
 var PageManager = GObject.registerClass({
@@ -1637,7 +1644,16 @@ log("creating new folder for id " + id);
                 icon = new FolderIcon(id, path, this);
             }
 
-            const folderAppItems = icon.view.getAllItems();
+            // Remove any duplicate apps in the folders
+            let folderAppItems = icon.view.getAllItems();
+            folderAppItems.forEach(item => {
+                if (appsInsideFolders.has(item.id)) {
+                    log("FOUND DUPE " + item.id)
+                    icon.view.removeItemById(item.id);
+                }
+            });
+
+            folderAppItems = icon.view.getAllItems();
             if (folderAppItems.length <= 1) {
 log("DESTROYING FOLDER with less than one (" + folderAppItems.length + "): " + id + " have " +this._items.has(id));
 
