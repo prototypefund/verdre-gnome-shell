@@ -1125,6 +1125,11 @@ var LayoutManager = GObject.registerClass({
         if (this._isPhone === isPhone)
             return;
 
+        if (isPhone)
+            this.uiGroup.add_style_class_name('mobile');
+        else
+            this.uiGroup.remove_style_class_name('mobile');
+
         this._isPhone = isPhone;
 
         this.notify('is-phone');
