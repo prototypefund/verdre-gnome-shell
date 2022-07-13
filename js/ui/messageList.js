@@ -379,6 +379,23 @@ var Message = GObject.registerClass({
         this._bodyStack.add_actor(this.bodyLabel);
         this.setBody(body);
 
+        this._gestureWasStarted = false;
+
+        this._closeGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.X,
+            max_n_points: 1,
+        });
+        this._closeGesture.set_allowed_device_types([
+            Clutter.InputDeviceType.TOUCHSCREEN_DEVICE,
+            Clutter.InputDeviceType.TABLET_DEVICE,
+        ]);
+        this._closeGesture.connect('may-recognize', () => this.canClose());
+        this._closeGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._closeGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._closeGesture.connect('pan-end', this._panEnd.bind(this));
+        this._closeGesture.connect('pan-cancel', this._panCancel.bind(this));
+        this.add_action(this._closeGesture);
+
         this._closeButton.connect('clicked', this.close.bind(this));
         let actorHoverId = this.connect('notify::hover', this._sync.bind(this));
         this._closeButton.connect('destroy', this.disconnect.bind(this, actorHoverId));
@@ -541,6 +558,53 @@ var Message = GObject.registerClass({
             }
         }
         return super.vfunc_key_press_event(keyEvent);
+    }
+
+    _panBegin(gesture, x, y) {
+        this._gestureWasStarted = true;
+
+        this.remove_transition('translation-x');
+        this.remove_transition('opacity');
+
+        this._panWidth = this.get_transformed_extents().size.width;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        this.translation_x += deltaX;
+        this.opacity = 255 * (1 - Math.min(Math.abs(this.translation_x / (this._panWidth * 0.7)), 1));
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const panDirection = this.translation_x > 0 ? this._panWidth : -this._panWidth;
+        const remainingWidth = Math.abs(panDirection - this.translation_x);
+        const velocity = Math.abs(velocityX);
+log("pan End: " + velocity);
+log("pan travelled: " + remainingWidth + " of " + panDirection);
+
+        if (velocity > 0.9 || (remainingWidth < Math.abs(panDirection / 2) && velocity > 0.5) || this.opacity === 0) {
+            this.ease({
+                translation_x: panDirection,
+                opacity: 0,
+                duration: Math.clamp(velocity / remainingWidth, 100, 350),
+                mode: Clutter.AnimationMode.LINEAR,
+                onComplete: () => this.close(),
+            });
+        } else {
+            this.ease({
+                translation_x: 0,
+                opacity: 255,
+                duration: Math.clamp((1 - (remainingWidth / panDirection)) * 250, 100, 350),
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+    }
+
+    _panCancel(gesture) {
+
+    }
+
+    get interactedWithTouchGesture() {
+        return this._gestureWasStarted;
     }
 });
 
