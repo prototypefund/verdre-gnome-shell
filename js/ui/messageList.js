@@ -300,6 +300,7 @@ var LabelExpanderLayout = GObject.registerClass({
 var Message = GObject.registerClass({
     Signals: {
         'close': {},
+        'hide': {},
         'expanded': {},
         'unexpanded': {},
     },
@@ -395,6 +396,21 @@ var Message = GObject.registerClass({
         this._closeGesture.connect('pan-end', this._panEnd.bind(this));
         this._closeGesture.connect('pan-cancel', this._panCancel.bind(this));
         this.add_action(this._closeGesture);
+
+        this._hideGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._hideGesture.set_allowed_device_types([
+            Clutter.InputDeviceType.TOUCHSCREEN_DEVICE,
+            Clutter.InputDeviceType.TABLET_DEVICE,
+        ]);
+        this._hideGesture.connect('may-recognize', () => this.canHide());
+        this._hideGesture.connect('pan-begin', this._hidePanBegin.bind(this));
+        this._hideGesture.connect('pan-update', this._hidePanUpdate.bind(this));
+        this._hideGesture.connect('pan-end', this._hidePanEnd.bind(this));
+        this._hideGesture.connect('pan-cancel', this._panCancel.bind(this));
+        this.add_action(this._hideGesture);
 
         this._closeButton.connect('clicked', this.close.bind(this));
         let actorHoverId = this.connect('notify::hover', this._sync.bind(this));
@@ -538,6 +554,10 @@ var Message = GObject.registerClass({
         return false;
     }
 
+    canHide() {
+        return false;
+    }
+
     _sync() {
         let visible = this.hover && this.canClose();
         this._closeButton.opacity = visible ? 255 : 0;
@@ -581,7 +601,7 @@ var Message = GObject.registerClass({
 log("pan End: " + velocity);
 log("pan travelled: " + remainingWidth + " of " + panDirection);
 
-        if (velocity > 0.9 || (remainingWidth < Math.abs(panDirection / 2) && velocity > 0.5) || this.opacity === 0) {
+        if (velocity > 0.9 || (remainingWidth < Math.abs(panDirection * 0.5) && velocity > 0.5) || this.opacity === 0) {
             this.ease({
                 translation_x: panDirection,
                 opacity: 0,
@@ -601,6 +621,44 @@ log("pan travelled: " + remainingWidth + " of " + panDirection);
 
     _panCancel(gesture) {
 
+    }
+
+    _hidePanBegin(gesture, x, y) {
+        this._gestureWasStarted = true;
+
+        this.remove_transition('translation-y');
+       // this.remove_transition('opacity');
+
+        this._panHeight = this.get_transformed_extents().size.height;
+    }
+
+    _hidePanUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        if (this.translation_y + deltaY > 0)
+          this.translation_y = 0;
+        else
+          this.translation_y += deltaY;
+    }
+
+    _hidePanEnd(gesture, velocityX, velocityY) {
+        const remainingHeight = this._panHeight - Math.abs(this.translation_y);
+        const velocity = Math.abs(velocityY);
+log("pan End: " + velocity);
+log("pan travelled: " + remainingHeight + " of " + this._panHeight);
+
+        if (velocity > 0.55 || (remainingHeight < this._panHeight * 0.25 && velocity > 0.3)) {
+            this.ease({
+                translation_y: -this._panHeight,
+                duration: Math.clamp(velocity / remainingHeight, 100, 350),
+                mode: Clutter.AnimationMode.LINEAR,
+                onComplete: () => this.emit('hide'),
+            });
+        } else {
+            this.ease({
+                translation_y: 0,
+                duration: Math.clamp((1 - (remainingHeight / this._panHeight)) * 250, 100, 350),
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
     }
 
     get interactedWithTouchGesture() {
