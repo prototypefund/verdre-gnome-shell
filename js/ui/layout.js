@@ -1153,8 +1153,8 @@ this._bottomPanelBox.show();
         const width = this.primaryMonitor.width / scaleFactor;
         const height = this.primaryMonitor.height / scaleFactor;
 
-        if ((width < 500 && height < 1000) ||
-            (height < 500 && width < 1000))
+        if ((width < 730 && height < 1300) ||
+            (height < 730 && width < 1300))
             return true;
 
         return false;
