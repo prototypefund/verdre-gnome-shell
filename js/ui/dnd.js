@@ -40,21 +40,7 @@ var DragDropResult = {
 };
 var dragMonitors = [];
 
-let eventHandlerActor = null;
 let currentDraggable = null;
-
-function _getEventHandlerActor() {
-    if (!eventHandlerActor) {
-        eventHandlerActor = new Clutter.Actor({ width: 0, height: 0, reactive: true });
-        Main.uiGroup.add_actor(eventHandlerActor);
-        // We connect to 'event' rather than 'captured-event' because the capturing phase doesn't happen
-        // when you've grabbed the pointer.
-        eventHandlerActor.connect('event', (actor, event) => {
-            return currentDraggable._onEvent(actor, event);
-        });
-    }
-    return eventHandlerActor;
-}
 
 function _getRealActorScale(actor) {
     let scale = 1.0;
@@ -176,8 +162,11 @@ var _Draggable = class _Draggable extends Signals.EventEmitter {
     }
 
     _grabActor(device, touchSequence) {
+        if (this._onEventId)
+            return;
+
         this._grabDevice(this.actor, device, touchSequence);
-        this._onEventId = this.actor.connect('event',
+        this._onEventId = this.actor.connect('captured-event',
                                              this._onEvent.bind(this));
     }
 
@@ -188,26 +177,6 @@ var _Draggable = class _Draggable extends Signals.EventEmitter {
         this._ungrabDevice();
         this.actor.disconnect(this._onEventId);
         this._onEventId = null;
-    }
-
-    _grabEvents(device, touchSequence) {
-        if (!this._eventsGrab) {
-            let grab = Main.pushModal(_getEventHandlerActor());
-            if ((grab.get_seat_state() & Clutter.GrabState.POINTER) !== 0) {
-                this._grabDevice(_getEventHandlerActor(), device, touchSequence);
-                this._eventsGrab = grab;
-            } else {
-                Main.popModal(grab);
-            }
-        }
-    }
-
-    _ungrabEvents() {
-        if (this._eventsGrab) {
-            this._ungrabDevice();
-            Main.popModal(this._eventsGrab);
-            this._eventsGrab = null;
-        }
     }
 
     _eventIsRelease(event) {
@@ -326,10 +295,8 @@ var _Draggable = class _Draggable extends Signals.EventEmitter {
         }
 
         this.emit('drag-begin', time);
-        if (this._onEventId)
-            this._ungrabActor();
 
-        this._grabEvents(device, sequence);
+        this._grabActor(device, sequence);
         global.display.set_cursor(Meta.Cursor.DND_IN_DRAG);
 
         this._dragX = this._dragStartX = stageX;
@@ -779,7 +746,7 @@ var _Draggable = class _Draggable extends Signals.EventEmitter {
         if (!this._actorDestroyed && this._dragActor)
             Shell.util_set_hidden_from_pick(this._dragActor, false);
 
-        this._ungrabEvents();
+        this._ungrabActor();
 
         if (this._updateHoverId) {
             GLib.source_remove(this._updateHoverId);
