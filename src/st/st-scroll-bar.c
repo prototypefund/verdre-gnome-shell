@@ -53,14 +53,14 @@ struct _StScrollBarPrivate
   gfloat        x_origin;
   gfloat        y_origin;
 
-  ClutterInputDevice *grab_device;
-  ClutterGrab *grab;
-
   ClutterActor *trough;
   ClutterActor *handle;
 
   gfloat        move_x;
   gfloat        move_y;
+
+  ClutterPanGesture *trough_pan_gesture;
+  ClutterPanGesture *handle_pan_gesture;
 
   /* Trough-click handling. */
   enum { NONE, UP, DOWN }  paging_direction;
@@ -95,13 +95,6 @@ enum
 };
 
 static guint signals[LAST_SIGNAL] = { 0, };
-
-static gboolean
-handle_button_press_event_cb (ClutterActor       *actor,
-                              ClutterButtonEvent *event,
-                              StScrollBar        *bar);
-
-static void stop_scrolling (StScrollBar *bar);
 
 static void
 st_scroll_bar_set_vertical (StScrollBar *bar,
@@ -199,9 +192,15 @@ st_scroll_bar_dispose (GObject *gobject)
 static void
 st_scroll_bar_unmap (ClutterActor *actor)
 {
-  CLUTTER_ACTOR_CLASS (st_scroll_bar_parent_class)->unmap (actor);
+  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (ST_SCROLL_BAR (actor));
 
-  stop_scrolling (ST_SCROLL_BAR (actor));
+  if (priv->handle)
+    {
+      clutter_gesture_set_state (CLUTTER_GESTURE (priv->handle_pan_gesture),
+                                 CLUTTER_GESTURE_STATE_CANCELLED);
+    }
+
+  CLUTTER_ACTOR_CLASS (st_scroll_bar_parent_class)->unmap (actor);
 }
 
 static void
@@ -631,85 +630,6 @@ move_slider (StScrollBar *bar,
   st_adjustment_set_value (priv->adjustment, position);
 }
 
-static void
-stop_scrolling (StScrollBar *bar)
-{
-  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (bar);
-  if (!priv->grab_device)
-    return;
-
-  st_widget_remove_style_pseudo_class (ST_WIDGET (priv->handle), "active");
-
-  if (priv->grab)
-    {
-      clutter_grab_dismiss (priv->grab);
-      g_clear_pointer (&priv->grab, clutter_grab_unref);
-    }
-
-  priv->grab_device = NULL;
-  g_signal_emit (bar, signals[SCROLL_STOP], 0);
-}
-
-static gboolean
-handle_motion_event_cb (ClutterActor       *trough,
-                        ClutterMotionEvent *event,
-                        StScrollBar        *bar)
-{
-  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (bar);
-  if (!priv->grab_device)
-    return FALSE;
-
-  move_slider (bar, event->x, event->y);
-  return TRUE;
-}
-
-static gboolean
-handle_button_release_event_cb (ClutterActor       *trough,
-                                ClutterButtonEvent *event,
-                                StScrollBar        *bar)
-{
-  if (event->button != 1)
-    return FALSE;
-
-  stop_scrolling (bar);
-  return TRUE;
-}
-
-static gboolean
-handle_button_press_event_cb (ClutterActor       *actor,
-                              ClutterButtonEvent *event,
-                              StScrollBar        *bar)
-{
-  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (bar);
-  ClutterInputDevice *device = clutter_event_get_device ((ClutterEvent*) event);
-  ClutterActor *stage;
-
-  if (event->button != 1)
-    return FALSE;
-
-  if (!clutter_actor_transform_stage_point (priv->handle,
-                                            event->x,
-                                            event->y,
-                                            &priv->x_origin,
-                                            &priv->y_origin))
-    return FALSE;
-
-  st_widget_add_style_pseudo_class (ST_WIDGET (priv->handle), "active");
-
-  /* Account for the scrollbar-trough-handle nesting. */
-  priv->x_origin += clutter_actor_get_x (priv->trough);
-  priv->y_origin += clutter_actor_get_y (priv->trough);
-
-  g_assert (!priv->grab_device);
-
-  stage = clutter_actor_get_stage (actor);
-  priv->grab = clutter_stage_grab (CLUTTER_STAGE (stage), priv->handle);
-  priv->grab_device = device;
-  g_signal_emit (bar, signals[SCROLL_START], 0);
-
-  return TRUE;
-}
-
 static gboolean
 trough_paging_cb (StScrollBar *self)
 {
@@ -831,59 +751,121 @@ trough_paging_cb (StScrollBar *self)
 }
 
 static gboolean
-trough_button_press_event_cb (ClutterActor       *actor,
-                              ClutterButtonEvent *event,
-                              StScrollBar        *self)
+pan_may_recognize_cb (ClutterPanGesture *gesture,
+                      StScrollBar       *self)
 {
-  StScrollBarPrivate *priv;
+  const ClutterGesturePoint *points =
+    clutter_gesture_get_points (CLUTTER_GESTURE (gesture), NULL);
 
-  g_return_val_if_fail (self, FALSE);
+  if (!points)
+    return TRUE;
 
-  if (event->button != 1)
-    return FALSE;
+  const ClutterEvent *event = points[0].latest_event;
+  if (clutter_event_type (event) == CLUTTER_BUTTON_PRESS)
+    {
+      if (clutter_event_get_button (event) != CLUTTER_BUTTON_PRIMARY)
+        return FALSE;
+    }
 
-  priv = st_scroll_bar_get_instance_private (self);
-  if (priv->adjustment == NULL)
-    return FALSE;
+  return TRUE;
+}
 
-  priv->move_x = event->x;
-  priv->move_y = event->y;
+static void
+trough_pan_begin_cb (ClutterPanGesture *gesture,
+                     float              begin_x,
+                     float              begin_y,
+                     StScrollBar       *self)
+{
+  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
+
+  if (!priv->adjustment)
+    return;
+
+  priv->move_x = begin_x;
+  priv->move_y = begin_y;
   priv->paging_direction = NONE;
   priv->paging_event_no = 0;
   trough_paging_cb (self);
-
-  return TRUE;
 }
 
-static gboolean
-trough_button_release_event_cb (ClutterActor       *actor,
-                                ClutterButtonEvent *event,
-                                StScrollBar        *self)
+static void
+trough_pan_end_cb (ClutterPanGesture *gesture,
+                   float              velocity_x,
+                   float              velocity_y,
+                   StScrollBar       *self)
 {
   StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
-
-  if (event->button != 1)
-    return FALSE;
-
   g_clear_handle_id (&priv->paging_source_id, g_source_remove);
-
-  return TRUE;
 }
 
-static gboolean
-trough_leave_event_cb (ClutterActor *actor,
-                       ClutterEvent *event,
-                       StScrollBar  *self)
+static void
+trough_pan_cancel_cb (ClutterPanGesture *gesture,
+                      StScrollBar       *self)
+{
+  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
+  g_clear_handle_id (&priv->paging_source_id, g_source_remove);
+}
+
+static void
+pan_begin_cb (ClutterPanGesture *gesture,
+              float              begin_x,
+              float              begin_y,
+              StScrollBar       *self)
 {
   StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
 
-  if (priv->paging_source_id)
+  if (!clutter_actor_transform_stage_point (priv->handle,
+                                            begin_x,
+                                            begin_y,
+                                            &priv->x_origin,
+                                            &priv->y_origin))
     {
-      g_clear_handle_id (&priv->paging_source_id, g_source_remove);
-      return TRUE;
+      clutter_gesture_set_state (CLUTTER_GESTURE (gesture), CLUTTER_GESTURE_STATE_CANCELLED);
+      return;
     }
 
-  return FALSE;
+  st_widget_add_style_pseudo_class (ST_WIDGET (priv->handle), "active");
+
+  /* Account for the scrollbar-trough-handle nesting. */
+  priv->x_origin += clutter_actor_get_x (priv->trough);
+  priv->y_origin += clutter_actor_get_y (priv->trough);
+
+  g_signal_emit (self, signals[SCROLL_START], 0);
+}
+
+static void
+pan_update_cb (ClutterPanGesture *gesture,
+               float              delta_x,
+               float              delta_y,
+               float              total_pan_distance,
+               StScrollBar       *self)
+{
+  const ClutterGesturePoint *point =
+    &clutter_gesture_get_points (CLUTTER_GESTURE (gesture), NULL)[0];
+
+  move_slider (self, point->latest_coords.x, point->latest_coords.y);
+}
+
+static void
+pan_end_cb (ClutterPanGesture *gesture,
+            float              velocity_x,
+            float              velocity_y,
+            StScrollBar       *self)
+{
+  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
+
+  st_widget_remove_style_pseudo_class (ST_WIDGET (priv->handle), "active");
+  g_signal_emit (self, signals[SCROLL_STOP], 0);
+}
+
+static void
+pan_cancel_cb (ClutterPanGesture *gesture,
+               StScrollBar       *self)
+{
+  StScrollBarPrivate *priv = st_scroll_bar_get_instance_private (self);
+
+  st_widget_remove_style_pseudo_class (ST_WIDGET (priv->handle), "active");
+  g_signal_emit (self, signals[SCROLL_STOP], 0);
 }
 
 static void
@@ -907,23 +889,45 @@ st_scroll_bar_init (StScrollBar *self)
   clutter_actor_set_name (CLUTTER_ACTOR (priv->trough), "trough");
   clutter_actor_add_child (CLUTTER_ACTOR (self),
                            CLUTTER_ACTOR (priv->trough));
-  g_signal_connect (priv->trough, "button-press-event",
-                    G_CALLBACK (trough_button_press_event_cb), self);
-  g_signal_connect (priv->trough, "button-release-event",
-                    G_CALLBACK (trough_button_release_event_cb), self);
-  g_signal_connect (priv->trough, "leave-event",
-                    G_CALLBACK (trough_leave_event_cb), self);
+
+  priv->trough_pan_gesture = CLUTTER_PAN_GESTURE (clutter_pan_gesture_new ());
+  clutter_pan_gesture_set_begin_threshold (priv->trough_pan_gesture, 0);
+  clutter_actor_meta_set_name (CLUTTER_ACTOR_META (priv->trough_pan_gesture),
+                               "StScrollBar trough pan");
+
+  g_signal_connect (priv->trough_pan_gesture, "may-recognize",
+                    G_CALLBACK (pan_may_recognize_cb), self);
+  g_signal_connect (priv->trough_pan_gesture, "pan-begin",
+                    G_CALLBACK (trough_pan_begin_cb), self);
+  g_signal_connect (priv->trough_pan_gesture, "pan-end",
+                    G_CALLBACK (trough_pan_end_cb), self);
+  g_signal_connect (priv->trough_pan_gesture, "pan-cancel",
+                    G_CALLBACK (trough_pan_cancel_cb), self);
+
+  clutter_actor_add_action (CLUTTER_ACTOR (priv->trough), CLUTTER_ACTION (priv->trough_pan_gesture));
 
   priv->handle = (ClutterActor *) st_button_new ();
   clutter_actor_set_name (CLUTTER_ACTOR (priv->handle), "hhandle");
   clutter_actor_add_child (CLUTTER_ACTOR (self),
                            CLUTTER_ACTOR (priv->handle));
-  g_signal_connect (priv->handle, "button-press-event",
-                    G_CALLBACK (handle_button_press_event_cb), self);
-  g_signal_connect (priv->handle, "button-release-event",
-                    G_CALLBACK (handle_button_release_event_cb), self);
-  g_signal_connect (priv->handle, "motion-event",
-                    G_CALLBACK (handle_motion_event_cb), self);
+
+  priv->handle_pan_gesture = CLUTTER_PAN_GESTURE (clutter_pan_gesture_new ());
+  clutter_pan_gesture_set_begin_threshold (priv->handle_pan_gesture, 0);
+  clutter_actor_meta_set_name (CLUTTER_ACTOR_META (priv->handle_pan_gesture),
+                               "StScrollBar handle pan");
+
+  g_signal_connect (priv->handle_pan_gesture, "may-recognize",
+                    G_CALLBACK (pan_may_recognize_cb), self);
+  g_signal_connect (priv->handle_pan_gesture, "pan-begin",
+                    G_CALLBACK (pan_begin_cb), self);
+  g_signal_connect (priv->handle_pan_gesture, "pan-update",
+                    G_CALLBACK (pan_update_cb), self);
+  g_signal_connect (priv->handle_pan_gesture, "pan-end",
+                    G_CALLBACK (pan_end_cb), self);
+  g_signal_connect (priv->handle_pan_gesture, "pan-cancel",
+                    G_CALLBACK (pan_cancel_cb), self);
+
+  clutter_actor_add_action (CLUTTER_ACTOR (priv->handle), CLUTTER_ACTION (priv->handle_pan_gesture));
 
   clutter_actor_set_reactive (CLUTTER_ACTOR (self), TRUE);
 
