@@ -71,11 +71,11 @@ var SearchController = GObject.registerClass({
         global.stage.connect('notify::key-focus', this._onStageKeyFocusChanged.bind(this));
 
         this._entry.set_primary_icon(new St.Icon({
-            style_class: 'search-entry-icon',
+            style_class: 'search-entry-icon search-icon',
             icon_name: 'edit-find-symbolic',
         }));
         this._clearIcon = new St.Icon({
-            style_class: 'search-entry-icon',
+            style_class: 'search-entry-icon clear-icon',
             icon_name: 'edit-clear-symbolic',
         });
 
