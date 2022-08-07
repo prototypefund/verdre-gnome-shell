@@ -1040,7 +1040,7 @@ class Workspace extends St.Widget {
         super._init({
             style_class: 'window-picker',
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
-            layout_manager: new Clutter.BinLayout(),
+            layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.START }),
         });
 
         const layoutManager = new WorkspaceLayout(metaWorkspace, monitorIndex,
@@ -1069,8 +1069,9 @@ metaWorkspace._appOpeningOverlay.height = -1;
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
-            x_expand: true,
-            y_expand: true,
+           // x_expand: true,
+         //   y_expand: true,
+//background_color: Clutter.color_from_string("red")[1],
         });
         this._container.layout_manager = layoutManager;
         this.add_child(this._container);
@@ -1081,6 +1082,38 @@ metaWorkspace._appOpeningOverlay.height = -1;
 
         this.monitorIndex = monitorIndex;
         this._monitor = Main.layoutManager.monitors[this.monitorIndex];
+
+        this._bottomPanelBox = new St.Bin({
+            name: 'bottomPanelBox',
+            reactive: true,
+            x_expand: true,
+y_expand: true, // standard hack :(
+            y_align: Clutter.ActorAlign.END,
+            pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+        });
+        this._bottomPanelBox.child = new St.Widget({
+            name: 'bottomPanelLine',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+        });
+        this.add_child(this._bottomPanelBox);
+
+        this._bottomPanelBox.visible = this._container.get_n_children() > 0;
+        this._container.connect('actor-added', () => {
+            this._bottomPanelBox.visible = this._container.get_n_children() > 0;
+        });
+        this._container.connect('actor-removed', () => {
+            this._bottomPanelBox.visible = this._container.get_n_children() > 0;
+        });
+
+        this.connect('notify::allocation', () => {
+            const scale = this.allocation.get_width() / this._monitor.width;
+
+            this._bottomPanelBox.scale_y = scale;
+            this._bottomPanelBox.child.scale_x = scale;
+        });
 
         if (monitorIndex != Main.layoutManager.primaryIndex)
             this.add_style_class_name('external-monitor');
@@ -1128,6 +1161,28 @@ metaWorkspace._appOpeningOverlay.height = -1;
 
         // DND requires this to be set
         this._delegate = this;
+    }
+
+    vfunc_get_preferred_width(forHeight) {
+            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
+        if (forHeight === -1)
+            return [0, workarea.width];
+log("FOR height " + forHeight)
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager._bottomPanelBox.height)
+        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
+
+        return [0, widthPreservingAspectRatio];
+    }
+
+    vfunc_get_preferred_height(forWidth) {
+            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
+        if (forWidth === -1)
+            return [0, (workarea.height + Main.layoutManager._bottomPanelBox.height)];
+log("FOR forWidth " + forWidth)
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager._bottomPanelBox.height);
+        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
+
+        return [0, heightPreservingAspectRatio];
     }
 
     _shouldLeaveOverview() {

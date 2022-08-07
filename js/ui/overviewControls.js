@@ -75,18 +75,17 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         if (this._workspacesThumbnails.visible)
             expandFraction = this._workspacesThumbnails.expandFraction;
 
-
         if (Main.layoutManager.is_phone) {
             const hiddenStateBox = workspaceBox.copy();
             const appGridStateBox = workspaceBox.copy();
 
             hiddenStateBox.set_origin(...this._workAreaBox.get_origin());
-            hiddenStateBox.set_size(...this._workAreaBox.get_size());
+            hiddenStateBox.set_size(this._workAreaBox.get_width(), this._workAreaBox.get_height() + Main.layoutManager._bottomPanelBox.height);
 
             appGridStateBox.set_origin(0, startY + searchHeight + spacing);
             appGridStateBox.set_size(
                 width,
-                Math.round(height * SMALL_WORKSPACE_RATIO));
+                Math.round((this._workAreaBox.get_height() + Main.layoutManager._bottomPanelBox.height) * SMALL_WORKSPACE_RATIO));
 
             switch (state) {
             case ControlsState.HIDDEN:
