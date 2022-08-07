@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported Workspace */
 
-const {Clutter, GLib, GObject, Graphene, Meta, Shell, St} = imports.gi;
+const {Clutter, GLib, GObject, Gio, Graphene, Meta, Shell, St} = imports.gi;
 
 const Background = imports.ui.background;
 const DND = imports.ui.dnd;
@@ -371,8 +371,8 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                     cloneY = rowY + rowHeight - cellHeight;
 
                 // Align with the pixel grid to prevent blurry windows at scale = 1
-                cloneX = Math.floor(cloneX);
-                cloneY = Math.floor(cloneY);
+             //   cloneX = Math.floor(cloneX);
+             //   cloneY = Math.floor(cloneY);
 
                 slots.push([cloneX, cloneY, cloneWidth, cloneHeight, window]);
                 x += cellWidth + this._columnSpacing;
@@ -568,13 +568,13 @@ var WorkspaceLayout = GObject.registerClass({
 
     _getAdjustedWorkarea(container) {
         const workarea = this._workarea.copy();
-
+/*
         if (container instanceof St.Widget) {
             const themeNode = container.get_theme_node();
             workarea.width -= themeNode.get_horizontal_padding();
             workarea.height -= themeNode.get_vertical_padding();
         }
-
+*/
         return workarea;
     }
 
@@ -602,24 +602,12 @@ var WorkspaceLayout = GObject.registerClass({
 
     vfunc_get_preferred_width(container, forHeight) {
         const workarea = this._getAdjustedWorkarea(container);
-        if (forHeight === -1)
-            return [0, workarea.width];
-
-        const workAreaAspectRatio = workarea.width / workarea.height;
-        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
-
-        return [0, widthPreservingAspectRatio];
+        return [0, workarea.width];
     }
 
     vfunc_get_preferred_height(container, forWidth) {
         const workarea = this._getAdjustedWorkarea(container);
-        if (forWidth === -1)
-            return [0, workarea.height];
-
-        const workAreaAspectRatio = workarea.width / workarea.height;
-        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
-
-        return [0, heightPreservingAspectRatio];
+        return [0, workarea.height];
     }
 
     vfunc_allocate(container, box) {
@@ -988,8 +976,8 @@ class WorkspaceBackground extends Shell.WorkspaceBackground {
     _init(monitorIndex, stateAdjustment) {
         super._init({
             style_class: 'workspace-background',
-            x_expand: true,
-            y_expand: true,
+            x_align: Clutter.ActorAlign.START,
+            y_align: Clutter.ActorAlign.START,
             monitor_index: monitorIndex,
         });
 
@@ -1017,7 +1005,7 @@ class WorkspaceBackground extends Shell.WorkspaceBackground {
             y_expand: true,
         });
         this._bin.add_child(this._backgroundGroup);
-        this.add_child(this._bin);
+       // this.add_child(this._bin);
 
         this._bgManager = new Background.BackgroundManager({
             container: this._backgroundGroup,
@@ -1077,7 +1065,7 @@ class Workspace extends St.Widget {
         super._init({
             style_class: 'window-picker',
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
-            layout_manager: new Clutter.BinLayout(),
+            layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.START }),
         });
 
         const layoutManager = new WorkspaceLayout(metaWorkspace, monitorIndex,
@@ -1086,22 +1074,69 @@ class Workspace extends St.Widget {
         // Background
         this._background =
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
-        this.add_child(this._background);
 
-        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
-            this._background, 'visible',
-            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
+        if (Main.layoutManager.bottomPanelBox.height > 0) {
+            this._bottomPanelBox = new St.Bin({
+                name: 'bottomPanelBox',
+                reactive: true,
+                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+                visible: false,
+            });
+
+            this._settings = new Gio.Settings({
+                schema_id: 'org.gnome.desktop.interface',
+            });
+
+            const updateColorScheme = () => {
+                const colorScheme = this._settings.get_string('color-scheme');
+                const darkMode = colorScheme === 'prefer-dark';
+                if (colorScheme === 'prefer-dark')
+                    this._bottomPanelBox.add_style_class_name('dark-mode-enabled');
+                else
+                    this._bottomPanelBox.remove_style_class_name('dark-mode-enabled');
+            }
+
+            this._settings.connect('changed::color-scheme',
+                updateColorScheme);
+
+            updateColorScheme();
+
+            this._bottomPanelBox.child = new St.Widget({
+                name: 'bottomPanelLine',
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+            });
+        }
+
+        let overlayClone;
 
         if (metaWorkspace._appOpeningOverlay) {
             metaWorkspace._appOpeningOverlay.hide();
-            this.add_child(new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay }));
+            overlayClone = new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay });
         }
+
+        if (this._bottomPanelBox) {
+            this._background.add_child(this._bottomPanelBox);
+            this._background.bottom_panel_actor = this._bottomPanelBox;
+        }
+
+        if (overlayClone) {
+            this._background.add_child(overlayClone);
+            this._background.app_opening_overlay_actor = overlayClone;
+        }
+        this.add_child(this._background);
 
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
-            x_expand: true,
-            y_expand: true,
+            x_align: Clutter.ActorAlign.START,
+            y_align: Clutter.ActorAlign.START,
+            x_expand: false,
+            y_expand: false,
+            clip_to_allocation: true,
+//background_color: Clutter.color_from_string("red")[1],
         });
         this._container.layout_manager = layoutManager;
         this.add_child(this._container);
@@ -1159,6 +1194,28 @@ class Workspace extends St.Widget {
 
         // DND requires this to be set
         this._delegate = this;
+    }
+
+    vfunc_get_preferred_width(forHeight) {
+            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
+        if (forHeight === -1)
+            return [0, workarea.width];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height)
+        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
+
+        return [0, widthPreservingAspectRatio];
+    }
+
+    vfunc_get_preferred_height(forWidth) {
+            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
+        if (forWidth === -1)
+            return [0, (workarea.height + Main.layoutManager.bottomPanelBox.height)];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height);
+        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
+
+        return [0, heightPreservingAspectRatio];
     }
 
     _shouldLeaveOverview() {
@@ -1431,6 +1488,20 @@ class Workspace extends St.Widget {
         else
             clone.setStackAbove(this._windows[this._windows.length - 1]);
 
+        // Pan gesture of the bottommost windowPreview should have the
+        // bottom bar stick to the window
+        if (this._windows.length === 0 && this._bottomPanelBox) {
+            clone.bind_property('translation-y',
+                this._bottomPanelBox, 'translation-y',
+                GObject.BindingFlags.SYNC_CREATE);
+            clone.bind_property('opacity',
+                this._bottomPanelBox, 'opacity',
+                GObject.BindingFlags.SYNC_CREATE);
+        }
+
+        if (this._bottomPanelBox && this._windows.length === 0)
+            this._bottomPanelBox.show();
+
         this._windows.push(clone);
 
         return clone;
@@ -1444,6 +1515,9 @@ class Workspace extends St.Widget {
             return null;
 
         this._container.layout_manager.removeWindow(this._windows[index]);
+
+        if (this._bottomPanelBox && this._windows.length === 1)
+            this._bottomPanelBox.hide();
 
         return this._windows.splice(index, 1).pop();
     }

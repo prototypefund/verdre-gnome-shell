@@ -13,6 +13,8 @@ enum
 
   PROP_MONITOR_INDEX,
   PROP_STATE_ADJUSTMENT_VALUE,
+  PROP_APP_OPENING_OVERLAY_ACTOR,
+  PROP_BOTTOM_PANEL_ACTOR,
 
   PROP_LAST
 };
@@ -29,6 +31,9 @@ struct _ShellWorkspaceBackground
 
   MetaRectangle work_area;
   MetaRectangle monitor_geometry;
+
+  ClutterActor *app_opening_overlay;
+  ClutterActor *bottom_panel;
 };
 
 G_DEFINE_TYPE (ShellWorkspaceBackground, shell_workspace_background, ST_TYPE_WIDGET);
@@ -52,6 +57,79 @@ on_workareas_changed (ShellWorkspaceBackground *self)
 }
 
 static void
+shell_workspace_background_get_preferred_width (ClutterActor *actor,
+                                                 float                 for_height,
+                                                 float                *min_width_p,
+                                                 float                *natural_width_p)
+{
+  ShellWorkspaceBackground *self = SHELL_WORKSPACE_BACKGROUND (actor);
+  float work_area_aspect_ratio, width_preserving_aspect_ratio;
+
+//  if (for_height == -1)
+    {
+      *min_width_p = 0;
+      *natural_width_p = self->work_area.width;
+      return;
+    }
+
+  if (self->bottom_panel)
+    {
+      float bottom_panel_height;
+
+      clutter_actor_get_preferred_height (self->bottom_panel, -1, NULL, &bottom_panel_height);
+      work_area_aspect_ratio = (float) self->work_area.width / ((float) self->work_area.height + bottom_panel_height);
+    }
+  else
+    {
+      work_area_aspect_ratio = (float) self->work_area.width / (float) self->work_area.height;
+    }
+
+  width_preserving_aspect_ratio = for_height * work_area_aspect_ratio;
+
+  *min_width_p = 0;
+  *natural_width_p = width_preserving_aspect_ratio;
+}
+
+static void
+shell_workspace_background_get_preferred_height (ClutterActor *actor,
+                                                  float                 for_width,
+                                                  float                *min_height_p,
+                                                  float                *natural_height_p)
+{
+  ShellWorkspaceBackground *self = SHELL_WORKSPACE_BACKGROUND (actor);
+  float work_area_aspect_ratio, height_preserving_aspect_ratio;
+
+  if (self->bottom_panel)
+    {
+      float bottom_panel_height;
+      clutter_actor_get_preferred_height (self->bottom_panel, -1, NULL, &bottom_panel_height);
+
+ //     if (for_width == -1)
+        {
+          *min_height_p = 0;
+          *natural_height_p = (float) self->work_area.height + bottom_panel_height;
+          return;
+        }
+      work_area_aspect_ratio = (float) self->work_area.width / ((float) self->work_area.height+ bottom_panel_height);
+    }
+  else
+    {
+      if (for_width == -1)
+        {
+          *min_height_p = 0;
+          *natural_height_p = (float) self->work_area.height;
+          return;
+        }
+      work_area_aspect_ratio = (float) self->work_area.width / (float) self->work_area.height;
+    }
+
+  height_preserving_aspect_ratio = for_width / work_area_aspect_ratio;
+
+  *min_height_p = 0;
+  *natural_height_p = height_preserving_aspect_ratio;
+}
+
+static void
 shell_workspace_background_allocate (ClutterActor          *actor,
                                      const ClutterActorBox *box)
 {
@@ -71,6 +149,42 @@ shell_workspace_background_allocate (ClutterActor          *actor,
   int scale_factor;
 
   scale_factor = st_theme_context_get_scale_factor (context);
+
+  if (self->app_opening_overlay)
+    {
+  st_theme_node_get_content_box (theme_node, box, &content_box);
+
+  clutter_actor_box_get_size (&content_box, &content_width, &content_height);
+  x_scale = content_width / self->work_area.width;
+  y_scale = content_height / self->work_area.height;
+
+      clutter_actor_allocate (self->app_opening_overlay, &content_box);
+    }
+
+  if (self->bottom_panel)
+    {
+      float bottom_panel_height;
+
+      clutter_actor_set_allocation (actor, box);
+
+      clutter_actor_get_preferred_height (self->bottom_panel, -1, NULL, &bottom_panel_height);
+
+      st_theme_node_get_content_box (theme_node, box, &content_box);
+
+  clutter_actor_box_get_size (&content_box, &content_width, &content_height);
+  x_scale = content_width / self->work_area.width;
+  y_scale = content_height / self->work_area.height;
+
+            content_box.y1 = content_box.y2 - (bottom_panel_height);
+        clutter_actor_allocate (self->bottom_panel, &content_box);
+
+            clutter_actor_set_scale (self->bottom_panel, 1, x_scale);
+            clutter_actor_set_scale (st_bin_get_child (self->bottom_panel), x_scale, 1);
+return;
+    }
+
+
+
 
   clutter_actor_box_get_size (box, &width, &height);
   scaled_height = height - BACKGROUND_MARGIN * 2 * scale_factor;
@@ -136,6 +250,14 @@ shell_workspace_background_get_property (GObject      *gobject,
       g_value_set_double (value, self->state_adjustment_value);
       break;
 
+    case PROP_APP_OPENING_OVERLAY_ACTOR:
+      g_value_set_object (value, self->app_opening_overlay);
+      break;
+
+    case PROP_BOTTOM_PANEL_ACTOR:
+      g_value_set_object (value, self->bottom_panel);
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (gobject, property_id, pspec);
     }
@@ -173,6 +295,28 @@ shell_workspace_background_set_property (GObject      *gobject,
       }
       break;
 
+    case PROP_APP_OPENING_OVERLAY_ACTOR:
+      {
+        ClutterActor *new_value = g_value_get_object (value);
+        if (self->app_opening_overlay != new_value)
+        {
+          self->app_opening_overlay = new_value;
+          g_object_notify_by_pspec (gobject, obj_props[PROP_APP_OPENING_OVERLAY_ACTOR]);
+        }
+      }
+      break;
+
+    case PROP_BOTTOM_PANEL_ACTOR:
+      {
+        ClutterActor *new_value = g_value_get_object (value);
+        if (self->bottom_panel != new_value)
+        {
+          self->bottom_panel = new_value;
+          g_object_notify_by_pspec (gobject, obj_props[PROP_BOTTOM_PANEL_ACTOR]);
+        }
+      }
+      break;
+
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (gobject, property_id, pspec);
     }
@@ -184,6 +328,8 @@ shell_workspace_background_class_init (ShellWorkspaceBackgroundClass *klass)
   ClutterActorClass *actor_class = CLUTTER_ACTOR_CLASS (klass);
   GObjectClass *gobject_class = G_OBJECT_CLASS (klass);
 
+  actor_class->get_preferred_width = shell_workspace_background_get_preferred_width;
+  actor_class->get_preferred_height = shell_workspace_background_get_preferred_height;
   actor_class->allocate = shell_workspace_background_allocate;
 
   gobject_class->constructed = shell_workspace_background_constructed;
@@ -207,6 +353,26 @@ shell_workspace_background_class_init (ShellWorkspaceBackgroundClass *klass)
   obj_props[PROP_STATE_ADJUSTMENT_VALUE] =
     g_param_spec_double ("state-adjustment-value", "", "",
                          -G_MAXDOUBLE, G_MAXDOUBLE, 0.0,
+                         G_PARAM_READWRITE |
+                         G_PARAM_STATIC_STRINGS |
+                         G_PARAM_EXPLICIT_NOTIFY);
+
+  /**
+   * ShellWorkspaceBackground:app-opening-overlay-actor:
+   */
+  obj_props[PROP_APP_OPENING_OVERLAY_ACTOR] =
+    g_param_spec_object ("app-opening-overlay-actor", "", "",
+                         CLUTTER_TYPE_ACTOR,
+                         G_PARAM_READWRITE |
+                         G_PARAM_STATIC_STRINGS |
+                         G_PARAM_EXPLICIT_NOTIFY);
+
+  /**
+   * ShellWorkspaceBackground:bottom-panel-actor:
+   */
+  obj_props[PROP_BOTTOM_PANEL_ACTOR] =
+    g_param_spec_object ("bottom-panel-actor", "", "",
+                         CLUTTER_TYPE_ACTOR,
                          G_PARAM_READWRITE |
                          G_PARAM_STATIC_STRINGS |
                          G_PARAM_EXPLICIT_NOTIFY);
