@@ -48,6 +48,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         this._cachedWorkspaceBoxes = new Map();
         this._postAllocationCallbacks = [];
 
+this.empty = false;
         stateAdjustment.connect('notify::value', () => this.layout_changed());
 
         this._workAreaBox = new Clutter.ActorBox();
@@ -129,18 +130,31 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         const {y1: startY} = this._workAreaBox;
 
         const appDisplayBox = new Clutter.ActorBox();
+
+if (this.empty) {
+        appDisplayBox.set_size(width,
+            height -
+            searchHeight - spacing-
+            workspacesBox.get_height() * 0.8 -
+            (dashHeight > 0 ? dashHeight + spacing : 0));
+} else {
         appDisplayBox.set_size(width,
             height -
             searchHeight - spacing -
             workspacesBox.get_height() - spacing -
             (dashHeight > 0 ? dashHeight + spacing : 0));
+}
 
         if (Main.layoutManager.is_phone) {
             const hiddenStateBox = appDisplayBox.copy();
             const appGridStateBox = appDisplayBox.copy();
 
             hiddenStateBox.set_origin(0, box.y2);
-            appGridStateBox.set_origin(0,
+if (this.empty)
+            appDisplayBox.set_origin(0,
+                startY + searchHeight + spacing + workspacesBox.get_height() * 0.8);
+else
+            appDisplayBox.set_origin(0,
                 startY + searchHeight + spacing + workspacesBox.get_height() + spacing);
 
             switch (state) {
@@ -202,11 +216,29 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
 
         // Search entry
         let [searchHeight] = this._searchEntry.get_preferred_height(width);
-        childBox.set_origin(0, startY);
-        childBox.set_size(width, searchHeight);
-        this._searchEntry.allocate(childBox);
+        if (this.empty) {
 
-        availableHeight -= searchHeight + spacing;
+            if (this._searchEntry.child.text.length > 0) {
+         //       searchHeight = 58;
+                childBox.set_origin(0, startY);
+            } else {
+          //      searchHeight = 70;
+                childBox.set_origin(0, startY + spacing * 2.5);
+            }
+        } else {
+            childBox.set_origin(0, startY);
+        }
+        childBox.set_size(width, searchHeight);
+    //    searchHeight = 52;
+        this._searchEntry.save_easing_state();
+
+        this._searchEntry.allocate(childBox);
+        this._searchEntry.restore_easing_state();
+        if (this.empty) {
+            availableHeight -= searchHeight + spacing * 4;
+        } else {
+            availableHeight -= searchHeight + spacing;
+        }
 
         // Dash
         let dashHeight = 0;
@@ -277,7 +309,25 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
                 appDisplayBox = initialBox.interpolate(finalBox, transitionParams.progress);
             }
 
+       /*     this._appDisplay.save_easing_state();
+            this._appDisplay.set_easing_duration(500);
+            this._appDisplay.set_easing_mode(Clutter.AnimationMode.LINEAR);
+
+            this._appDisplay._grid.save_easing_state();
+            //this._appDisplay._grid.background_color = Clutter.color_from_string("red")[1]
+            this._appDisplay._grid.set_easing_duration(500);
+            this._appDisplay._grid.set_easing_mode(Clutter.AnimationMode.LINEAR);
+
+            this._appDisplay._pageIndicators.save_easing_state();
+            //this._appDisplay._grid.background_color = Clutter.color_from_string("red")[1]
+            this._appDisplay._pageIndicators.set_easing_duration(500);
+            this._appDisplay._pageIndicators.set_easing_mode(Clutter.AnimationMode.LINEAR);
+*/
             this._appDisplay.allocate(appDisplayBox);
+  /*          this._appDisplay._pageIndicators.restore_easing_state();
+            this._appDisplay._grid.restore_easing_state();
+            this._appDisplay.restore_easing_state();
+*/
         }
 
         // Search
@@ -553,6 +603,10 @@ class ControlsManager extends St.Widget {
             return Clutter.EVENT_PROPAGATE;
         });
 
+        global.window_group.connect('actor-added', this._emptyStateMaybeChanged.bind(this));
+        global.window_group.connect('actor-removed', this._emptyStateMaybeChanged.bind(this));
+        this._searchEntry.connect('notify::text', this._emptyStateMaybeChanged.bind(this));
+
         Main.wm.addKeybinding(
             'toggle-application-view',
             new Gio.Settings({ schema_id: WindowManager.SHELL_KEYBINDINGS_SCHEMA }),
@@ -572,6 +626,7 @@ class ControlsManager extends St.Widget {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             () => this._shiftState(Meta.MotionDirection.DOWN));
 
+this._emptyStateMaybeChanged();
         this._update();
     }
 
@@ -683,13 +738,16 @@ class ControlsManager extends St.Widget {
     }
 
     _onSearchChanged() {
-        const { searchActive } = this._searchController;
 
+        const { searchActive } = this._searchController;
+this.queue_relayout();
         if (!searchActive) {
+            this.remove_style_class_name('search-active');
             this._updateAppDisplayVisibility();
             this._workspacesDisplay.reactive = true;
             this._workspacesDisplay.setPrimaryWorkspaceVisible(true);
         } else {
+            this.add_style_class_name('search-active');
             this._searchController.show();
         }
 
@@ -936,6 +994,19 @@ class ControlsManager extends St.Widget {
 
     cancelSwitchToActiveWorkspace() {
         this._workspaceAdjustment.remove_transition('value');
+    }
+
+    _emptyStateMaybeChanged() {
+        if (!Main.wm.workspaceTracker.singleWindowWorkspaces)
+            return;
+
+        if (global.window_group.get_n_children() === 1) {
+            this.add_style_class_name("empty");
+            this.layout_manager.empty = true;
+        } else {
+            this.remove_style_class_name("empty");
+            this.layout_manager.empty = false;
+        }
     }
 
     async runStartupAnimation(callback) {

@@ -39,13 +39,15 @@
   @if $t==normal {
     background-color: lighten($bg_color, 5%);
     color: transparentize($fg_color,0.3);
-    border: 2px solid lighten($bg_color, 5%);
+background-color: transparentize(#cccccc, 0.7);
+   // border: 2px solid lighten($bg_color, 5%);
   }
 
   @if $t==focus {
     background-color: mix(lighten($bg_color, 5%), $selected_bg_color, 95%);
     border-color: $fc;
     color: $fg_color;
+background-color: transparentize(#cccccc, 0.7);
     &:hover {}
   }
 
@@ -53,12 +55,14 @@
     background-color:lighten($hover_bg_color, 5%);
     border-color:lighten($hover_bg_color, 5%);
     color: transparentize($fg_color,0.3);
+background-color: transparentize(#cccccc, 0.7);
   }
 
   @if $t==insensitive {
     background-color:lighten($insensitive_bg_color, 5%);
     border-color: lighten($insensitive_bg_color, 5%);
     color: $insensitive_fg_color;
+background-color: transparentize(#cccccc, 0.7);
   }
 }
 

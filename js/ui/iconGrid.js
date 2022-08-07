@@ -11,7 +11,7 @@ var ICON_SIZE = 96;
 var PAGE_SWITCH_TIME = 300;
 
 var IconSize = {
-    LARGE: 96,
+  //  LARGE: 96,
     MEDIUM: 64,
     MEDIUM_SMALL: 48,
     SMALL: 32,
@@ -241,8 +241,8 @@ function animateIconPosition(icon, box, nChangedIcons) {
 
     icon.save_easing_state();
     icon.set_easing_mode(Clutter.AnimationMode.EASE_OUT_QUAD);
-    icon.set_easing_delay(nChangedIcons * ICON_POSITION_DELAY);
-
+//    icon.set_easing_delay(nChangedIcons * ICON_POSITION_DELAY);
+    icon.set_easing_duration(500);
     icon.allocate(box);
 
     icon.restore_easing_state();
@@ -773,7 +773,7 @@ leftEmptySpace += hSpacing;
         const pageHeight = this._pageHeight;
         const pageSizeChanged = this._pageSizeChanged;
         const lastRowAlign = this.lastRowAlign;
-        const shouldEaseItems = this._shouldEaseItems;
+        const shouldEaseItems = true;
 
         this._pages.forEach((page, pageIndex) => {
             if (isRtl && orientation === Clutter.Orientation.HORIZONTAL)
@@ -810,10 +810,10 @@ leftEmptySpace += hSpacing;
                     Math.max(childWidth, naturalWidth),
                     Math.max(childHeight, naturalHeight));
 
-                if (!shouldEaseItems || pageSizeChanged)
+          //      if (!shouldEaseItems || pageSizeChanged)
                     item.allocate(childBox);
-                else if (animateIconPosition(item, childBox, nChangedIcons))
-                    nChangedIcons++;
+          //      else if (animateIconPosition(item, childBox, nChangedIcons))
+            //        nChangedIcons++;
             });
         });
 
