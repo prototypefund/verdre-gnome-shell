@@ -129,7 +129,11 @@ var SwipeTracker = GObject.registerClass({
     },
 }, class SwipeTracker extends Clutter.PanGesture {
     _init(orientation, allowedModes, params) {
-        params = Params.parse(params, { allowDrag: true, allowScroll: true });
+        params = Params.parse(params, {
+            allowDrag: true,
+            allowScroll: true,
+            allowTouchpadThreeFinger: true,
+        });
 
         super._init({
             pan_axis: orientation === Clutter.Orientation.HORIZONTAL
@@ -158,6 +162,7 @@ var SwipeTracker = GObject.registerClass({
         this.connect('pan-cancel', this._cancelTouchGesture.bind(this));
 
         this._scrollEnabled = params.allowScroll;
+        this._touchpadEnabled = params.allowTouchpadThreeFinger;
 
         this._cumulativeX = 0;
         this._cumulativeY = 0;
@@ -316,6 +321,9 @@ var SwipeTracker = GObject.registerClass({
     }
 
     _handleTouchpadEvent(actor, event) {
+        if (!this._touchpadEnabled)
+            return Clutter.EVENT_PROPAGATE;
+
         if (!this.enabled)
             return Clutter.EVENT_PROPAGATE;
 
