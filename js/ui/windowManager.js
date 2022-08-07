@@ -195,6 +195,47 @@ x_expand:true, y_expand: true,
             factor: 0.5,
         }));
 
+        this._bottomPanelBox = new St.Bin({
+            name: 'bottomPanelBox',
+            reactive: true,
+            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+//            x_expand: true,
+  //          y_align: Clutter.ActorAlign.END,
+        });
+        this._bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.X_AXIS,
+            factor: 0.5,
+        }));
+        this._bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            factor: 1,
+        }));
+
+        /*this._bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this._container,
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            pivot_point: new Graphene.Point({ x: -1, y: 0 }),
+            factor: 1,
+        }))*/
+        this._bottomPanelBox.child = new St.Widget({
+            name: 'bottomPanelLine',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER,
+            y_align: Clutter.ActorAlign.CENTER,
+            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+        });
+        this.add_child(this._bottomPanelBox);
+
+        /*this.connect('notify::allocation', () => {
+            const scale = this.allocation.get_width() / this._monitor.width;
+
+            this._bottomPanelBox.scale_y = scale;
+            this._bottomPanelBox.child.scale_x = scale;
+        });
+*/
+
         const wmId = global.window_manager.connect('switch-workspace', () => {
             if (this._forceVisible)
                 return;
@@ -220,6 +261,8 @@ x_expand:true, y_expand: true,
         const iconExtents = existingAppIcon.get_transformed_extents();
         existingAppIcon.opacity = 0;
 
+Main.layoutManager._bottomPanelBox._bla = true;
+
         this._appIcon.scale_x = iconExtents.size.width / 128;
         this._appIcon.scale_y = iconExtents.size.height / 128;
 
@@ -236,7 +279,7 @@ x_expand:true, y_expand: true,
         const workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor)
         this.ease({
             width: workArea.width,
-            height: workArea.height,
+            height: Main.layoutManager.primaryMonitor.height - workArea.y,
             x: workArea.x,
             y: workArea.y,
             mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
@@ -245,9 +288,20 @@ x_expand:true, y_expand: true,
                 existingAppIcon.opacity = 255;
             },
         });
+
+        this._bottomPanelBox.scale_x = 0;
+        this._bottomPanelBox.scale_y = 0;
+        this._bottomPanelBox.ease({
+            scale_x: 1,
+            scale_y: 1,
+            mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD,
+            duration: 400,
+        });
     }
 
     _fadeOutAndDestroy() {
+        Main.layoutManager._bottomPanelBox.opacity = 255;
+delete Main.layoutManager._bottomPanelBox._bla;
         if (this._clone) {
             this._clone.ease({
                 opacity: 0,

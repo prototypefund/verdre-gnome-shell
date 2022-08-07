@@ -372,6 +372,7 @@ this._bottomPanelBox.show();
         });
 
         Main.overview.connect('hidden', () => {
+            if (!this._bottomPanelBox._bla)
                 this._bottomPanelBox.opacity = 255;
         });
 
