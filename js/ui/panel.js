@@ -453,6 +453,17 @@ class Panel extends St.Widget {
             this.remove_style_pseudo_class('overview');
         });
 
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+            begin_threshold: 0,
+        });
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this._panGesture.connect('pan-cancel', this._panCancel.bind(this));
+        this.add_action(this._panGesture);
+
         Main.layoutManager.panelBox.add(this);
         Main.ctrlAltTabManager.addGroup(this, _("Top Bar"), 'focus-top-bar-symbolic',
                                         { sortGroup: CtrlAltTab.SortGroup.TOP });
@@ -461,6 +472,54 @@ class Panel extends St.Widget {
 
         global.display.connect('workareas-changed', () => this.queue_relayout());
         this._updatePanel();
+    }
+
+    _panBegin(gesture, x, y) {
+        const menuActor = this.statusArea.quickSettings.menu.actor;
+
+        this.statusArea.quickSettings.menu.open(false);
+
+        menuActor.remove_transition('translation-y');
+
+        this._panHeight = menuActor.get_children()[1].get_children()[0].get_preferred_height(-1)[1];
+        menuActor.translation_y = -this._panHeight + y;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        const menuActor = this.statusArea.quickSettings.menu.actor;
+
+        menuActor.translation_y += deltaY;
+        if (menuActor.translation_y > 0)
+            menuActor.translation_y = 0;
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const menuActor = this.statusArea.quickSettings.menu.actor;
+
+        const remainingHeight = Math.abs(menuActor.translation_y);
+
+log("pan End: " + velocityY);
+log("pan travelled: " + remainingHeight + " of " + this._panHeight + " taking " + Math.clamp(remainingHeight / Math.abs(velocityY), 100, 350));
+
+        if (velocityY > 0.9 || (remainingHeight < this._panHeight / 2 && velocityY >= 0)) {
+            menuActor.ease({
+                translation_y: 0,
+                duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
+                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+
+            });
+        } else {
+            menuActor.ease({
+                translation_y: -this._panHeight,
+                duration: Math.clamp((this._panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+                onStopped: () => this.statusArea.quickSettings.menu.close(false),
+            });
+        }
+    }
+
+    _panCancel(gesture) {
+
     }
 
     vfunc_get_preferred_width(_forHeight) {

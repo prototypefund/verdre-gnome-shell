@@ -134,8 +134,8 @@ var Button = GObject.registerClass({
 
     vfunc_event(event) {
         if (this.menu &&
-            (event.type() == Clutter.EventType.TOUCH_BEGIN ||
-             event.type() == Clutter.EventType.BUTTON_PRESS))
+            (event.type() == Clutter.EventType.TOUCH_END ||
+             event.type() == Clutter.EventType.BUTTON_RELEASE))
             this.menu.toggle();
 
         return Clutter.EVENT_PROPAGATE;
