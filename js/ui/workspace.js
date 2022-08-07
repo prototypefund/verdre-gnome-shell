@@ -371,8 +371,8 @@ var UnalignedLayoutStrategy = class extends LayoutStrategy {
                     cloneY = rowY + rowHeight - cellHeight;
 
                 // Align with the pixel grid to prevent blurry windows at scale = 1
-                cloneX = Math.floor(cloneX);
-                cloneY = Math.floor(cloneY);
+             //   cloneX = Math.floor(cloneX);
+             //   cloneY = Math.floor(cloneY);
 
                 slots.push([cloneX, cloneY, cloneWidth, cloneHeight, window]);
                 x += cellWidth + this._columnSpacing;
@@ -568,13 +568,13 @@ var WorkspaceLayout = GObject.registerClass({
 
     _getAdjustedWorkarea(container) {
         const workarea = this._workarea.copy();
-
+/*
         if (container instanceof St.Widget) {
             const themeNode = container.get_theme_node();
             workarea.width -= themeNode.get_horizontal_padding();
             workarea.height -= themeNode.get_vertical_padding();
         }
-
+*/
         return workarea;
     }
 
