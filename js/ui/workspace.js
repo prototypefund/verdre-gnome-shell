@@ -647,7 +647,7 @@ var WorkspaceLayout = GObject.registerClass({
 
         const window = this._sortedWindows[0];
 
-        if (inSessionTransition || !window) {
+        if (!Main.layoutManager.is_phone && (inSessionTransition || !window)) {
             container.remove_clip();
         } else {
             const [, bottomOversize] = window.chromeHeights();
@@ -714,20 +714,27 @@ var WorkspaceLayout = GObject.registerClass({
                 workspaceBoxHeight = 0;
             }
 
-            // Don't allow the scaled floating size to drop below
-            // the target layout size.
-            // We only want to apply this when the scaled floating size is
-            // actually larger than the target layout size, that is while
-            // animating between the session and the window picker.
-            if (inSessionTransition) {
-                workspaceBoxWidth = Math.max(workspaceBoxWidth, width);
-                workspaceBoxHeight = Math.max(workspaceBoxHeight, height);
-            }
+            if (Main.layoutManager.is_phone) {
+                x = workspaceBoxX;
+                y = workspaceBoxY;
+                width = workspaceBoxWidth;
+                height = workspaceBoxHeight;
+            } else {
+                // Don't allow the scaled floating size to drop below
+                // the target layout size.
+                // We only want to apply this when the scaled floating size is
+                // actually larger than the target layout size, that is while
+                // animating between the session and the window picker.
+                if (inSessionTransition) {
+                    workspaceBoxWidth = Math.max(workspaceBoxWidth, width);
+                    workspaceBoxHeight = Math.max(workspaceBoxHeight, height);
+                }
 
-            x = Util.lerp(workspaceBoxX, x, stateAdjustementValue);
-            y = Util.lerp(workspaceBoxY, y, stateAdjustementValue);
-            width = Util.lerp(workspaceBoxWidth, width, stateAdjustementValue);
-            height = Util.lerp(workspaceBoxHeight, height, stateAdjustementValue);
+                x = Util.lerp(workspaceBoxX, x, stateAdjustementValue);
+                y = Util.lerp(workspaceBoxY, y, stateAdjustementValue);
+                width = Util.lerp(workspaceBoxWidth, width, stateAdjustementValue);
+                height = Util.lerp(workspaceBoxHeight, height, stateAdjustementValue);
+            }
 
             childBox.set_origin(x, y);
             childBox.set_size(width, height);
@@ -996,7 +1003,8 @@ class WorkspaceBackground extends Shell.WorkspaceBackground {
 
     _updateBorderRadius() {
         const { scaleFactor } = St.ThemeContext.get_for_stage(global.stage);
-        const cornerRadius = scaleFactor * BACKGROUND_CORNER_RADIUS_PIXELS;
+        const cornerRadius = Main.layoutManager.is_phone
+            ? 0 : scaleFactor * BACKGROUND_CORNER_RADIUS_PIXELS;
 
         const backgroundContent = this._bgManager.backgroundActor.content;
         backgroundContent.rounded_clip_radius =

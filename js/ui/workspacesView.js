@@ -222,6 +222,9 @@ return 0;
     }
 
     _getWorkspaceModeForOverviewState(state) {
+        if (Main.layoutManager.is_phone)
+            return 0;
+
         const { ControlsState } = OverviewControls;
 
         switch (state) {
