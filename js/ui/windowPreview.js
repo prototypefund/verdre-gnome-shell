@@ -262,8 +262,9 @@ var WindowPreview = GObject.registerClass({
         const { currentState, initialState, finalState } =
             this._overviewAdjustment.getStateTransitionParams();
         const visible =
-            initialState === ControlsState.WINDOW_PICKER ||
-            finalState === ControlsState.WINDOW_PICKER;
+            this.overlayEnabled &&
+            (initialState === ControlsState.WINDOW_PICKER ||
+             finalState === ControlsState.WINDOW_PICKER);
         const scale = visible
             ? 1 - Math.abs(ControlsState.WINDOW_PICKER - currentState) : 0;
 

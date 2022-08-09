@@ -647,7 +647,9 @@ var WorkspaceLayout = GObject.registerClass({
 
         const window = this._sortedWindows[0];
 
-        if (!Main.layoutManager.is_phone && (inSessionTransition || !window)) {
+        if (Main.layoutManager.is_phone) {
+            container.clip_to_allocation = true;
+        } else if (inSessionTransition || !window) {
             container.remove_clip();
         } else {
             const [, bottomOversize] = window.chromeHeights();
@@ -1055,17 +1057,6 @@ class Workspace extends St.Widget {
             this._background, 'visible',
             GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
 
-if (metaWorkspace._appOpeningOverlay) {
-log("CREATING WS: reparenting overlay");
-            Main.uiGroup.remove_child(metaWorkspace._appOpeningOverlay);
-metaWorkspace._appOpeningOverlay.forceVisible = true;
-metaWorkspace._appOpeningOverlay.x = 0;
-metaWorkspace._appOpeningOverlay.y = 0;
-metaWorkspace._appOpeningOverlay.width = -1;
-metaWorkspace._appOpeningOverlay.height = -1;
-            this.add_child(metaWorkspace._appOpeningOverlay);
-}
-
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
@@ -1083,37 +1074,44 @@ metaWorkspace._appOpeningOverlay.height = -1;
         this.monitorIndex = monitorIndex;
         this._monitor = Main.layoutManager.monitors[this.monitorIndex];
 
-        this._bottomPanelBox = new St.Bin({
-            name: 'bottomPanelBox',
-            reactive: true,
-            x_expand: true,
-y_expand: true, // standard hack :(
-            y_align: Clutter.ActorAlign.END,
-            pivot_point: new Graphene.Point({ x: 0, y: 1 }),
-        });
-        this._bottomPanelBox.child = new St.Widget({
-            name: 'bottomPanelLine',
-            x_expand: true,
-            x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.CENTER,
-            pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
-        });
-        this.add_child(this._bottomPanelBox);
+        if (metaWorkspace._appOpeningOverlay) {
+            metaWorkspace._appOpeningOverlay.hide();
+            this.add_child(new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay }));
+        }
 
-        this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-        this._container.connect('actor-added', () => {
+        if (Main.layoutManager.bottomPanelBox.height > 0) {
+            this._bottomPanelBox = new St.Bin({
+                name: 'bottomPanelBox',
+                reactive: true,
+                x_expand: true,
+                y_expand: true, // standard BinLayout hack :(
+                y_align: Clutter.ActorAlign.END,
+                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+            });
+            this._bottomPanelBox.child = new St.Widget({
+                name: 'bottomPanelLine',
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+            });
+            this.add_child(this._bottomPanelBox);
+
             this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-        });
-        this._container.connect('actor-removed', () => {
-            this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-        });
+            this._container.connect('actor-added', () => {
+                this._bottomPanelBox.visible = this._container.get_n_children() > 0;
+            });
+            this._container.connect('actor-removed', () => {
+                this._bottomPanelBox.visible = this._container.get_n_children() > 0;
+            });
 
-        this.connect('notify::allocation', () => {
-            const scale = this.allocation.get_width() / this._monitor.width;
+            this.connect('notify::allocation', () => {
+                const scale = this.allocation.get_width() / this._monitor.width;
 
-            this._bottomPanelBox.scale_y = scale;
-            this._bottomPanelBox.child.scale_x = scale;
-        });
+                this._bottomPanelBox.scale_y = scale;
+                this._bottomPanelBox.child.scale_x = scale;
+            });
+        }
 
         if (monitorIndex != Main.layoutManager.primaryIndex)
             this.add_style_class_name('external-monitor');
@@ -1167,8 +1165,8 @@ y_expand: true, // standard hack :(
             const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
         if (forHeight === -1)
             return [0, workarea.width];
-log("FOR height " + forHeight)
-        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager._bottomPanelBox.height)
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height)
         const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
 
         return [0, widthPreservingAspectRatio];
@@ -1177,9 +1175,9 @@ log("FOR height " + forHeight)
     vfunc_get_preferred_height(forWidth) {
             const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
         if (forWidth === -1)
-            return [0, (workarea.height + Main.layoutManager._bottomPanelBox.height)];
-log("FOR forWidth " + forWidth)
-        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager._bottomPanelBox.height);
+            return [0, (workarea.height + Main.layoutManager.bottomPanelBox.height)];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height);
         const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
 
         return [0, heightPreservingAspectRatio];
@@ -1391,24 +1389,13 @@ log("FOR forWidth " + forWidth)
         }
 
         this._windows = [];
-
-if (this.metaWorkspace._appOpeningOverlay && this.contains(this.metaWorkspace._appOpeningOverlay)) {
-            this.remove_child(this.metaWorkspace._appOpeningOverlay);
-
-        const workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor)
-//this.width = workArea.width;
-//this.height = workArea.height;
-this.metaWorkspace._appOpeningOverlay.x = workArea.x;
-this.metaWorkspace._appOpeningOverlay.y = workArea.y;
-this.metaWorkspace._appOpeningOverlay.width = workArea.width;
-this.metaWorkspace._appOpeningOverlay.height = workArea.height;
-this.metaWorkspace._appOpeningOverlay.forceVisible = false;
-            Main.uiGroup.add_child(this.metaWorkspace._appOpeningOverlay);
-}
     }
 
     _doneLeavingOverview() {
         this._container.layout_manager.layout_frozen = false;
+
+        if (this.metaWorkspace._appOpeningOverlay)
+            this.metaWorkspace._appOpeningOverlay.maybeShow();
     }
 
     _doneShowingOverview() {

@@ -67,8 +67,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
     }
 
     _computeWorkspacesBoxForState(state, box, searchHeight, dashHeight, thumbnailsHeight, spacing) {
-        const workspaceBox = box.copy();
-        const [width, height] = workspaceBox.get_size();
+        const [width, height] = box.get_size();
         const {y1: startY} = this._workAreaBox;
 
         let expandFraction = 0;
@@ -76,16 +75,16 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
             expandFraction = this._workspacesThumbnails.expandFraction;
 
         if (Main.layoutManager.is_phone) {
-            const hiddenStateBox = workspaceBox.copy();
-            const appGridStateBox = workspaceBox.copy();
+            const hiddenStateBox = new Clutter.ActorBox();
+            const appGridStateBox = new Clutter.ActorBox();
 
             hiddenStateBox.set_origin(...this._workAreaBox.get_origin());
-            hiddenStateBox.set_size(this._workAreaBox.get_width(), this._workAreaBox.get_height() + Main.layoutManager._bottomPanelBox.height);
+            hiddenStateBox.set_size(this._workAreaBox.get_width(), this._workAreaBox.get_height() + Main.layoutManager.bottomPanelBox.height);
 
             appGridStateBox.set_origin(0, startY + searchHeight + spacing);
             appGridStateBox.set_size(
                 width,
-                Math.round((this._workAreaBox.get_height() + Main.layoutManager._bottomPanelBox.height) * SMALL_WORKSPACE_RATIO));
+                Math.round(height * SMALL_WORKSPACE_RATIO));
 
             switch (state) {
             case ControlsState.HIDDEN:
@@ -96,10 +95,12 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
                 return appGridStateBox;
             }
         } else {
-        switch (state) {
+            const workspaceBox = new Clutter.ActorBox();
+
+            switch (state) {
             case ControlsState.HIDDEN:
                 workspaceBox.set_origin(...this._workAreaBox.get_origin());
-                workspaceBox.set_size(...this._workAreaBox.get_size());
+                workspaceBox.set_size(this._workAreaBox.get_width(), this._workAreaBox.get_height() + Main.layoutManager.bottomPanelBox.height);
                 break;
             case ControlsState.WINDOW_PICKER:
                 workspaceBox.set_origin(0,
@@ -118,9 +119,9 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
                     Math.round(height * SMALL_WORKSPACE_RATIO));
                 break;
             }
-        }
 
-        return workspaceBox;
+            return workspaceBox;
+        }
     }
 
     _getAppDisplayBoxForState(state, box, searchHeight, dashHeight, workspacesBox, spacing) {

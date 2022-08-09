@@ -269,32 +269,32 @@ var LayoutManager = GObject.registerClass({
         this.panelBox.connect('notify::allocation',
                               this._panelBoxChanged.bind(this));
 
-        this._bottomPanelBox = new St.Bin({
-//        this._bottomPanelBox = new St.Button({
+        this.bottomPanelBox = new St.Bin({
             name: 'bottomPanelBox',
             reactive: true,
         });
 
-        this._bottomPanelBox.child = new St.Widget({
+        this.bottomPanelBox.child = new St.Widget({
             name: 'bottomPanelLine',
             x_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        this.addChrome(this._bottomPanelBox, {
+        this.addChrome(this.bottomPanelBox, {
             affectsStruts: true,
             trackFullscreen: true,
         });
 
-this._bottomPanelBox.show();
-
-
-        this._bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
-            source: this._bottomPanelBox.get_parent(),
+        this.bottomPanelBox.add_constraint(new Clutter.AlignConstraint({
+            source: this.bottomPanelBox.get_parent(),
             align_axis: Clutter.AlignAxis.Y_AXIS,
             factor: 1,
         }));
+
+        this.connect('notify::is-phone', () => {
+            this.bottomPanelBox.height = this.is_phone ? -1 : 0;
+        });
 
         this.modalDialogGroup = new St.Widget({
             name: 'modalDialogGroup',
@@ -361,6 +361,17 @@ this._bottomPanelBox.show();
         }));
     }
 
+    maybeShowBottomPanel() {
+        const activeWorkspace = global.workspace_manager.get_active_workspace();
+
+        if (Main.overview.visible ||
+            activeWorkspace._appOpeningOverlay ||
+            Main.sessionMode.isLocked)
+            return;
+
+        this.bottomPanelBox.opacity = 255;
+    }
+
     // This is called by Main after everything else is constructed
     init() {
         Main.sessionMode.connect('updated', this._sessionUpdated.bind(this));
@@ -368,14 +379,16 @@ this._bottomPanelBox.show();
         this._loadBackground();
 
         Main.overview.connect('showing', () => {
-            this._bottomPanelBox.opacity = 0;
+            this.bottomPanelBox.opacity = 0;
         });
-
-        Main.overview.connect('hidden', () => {
-            if (!this._bottomPanelBox._bla)
-                this._bottomPanelBox.opacity = 255;
+        Main.overview.connect('hidden', this.maybeShowBottomPanel.bind(this));
+        Main.sessionMode.connect('updated', () => {
+            if (Main.sessionMode.isLocked)
+                this.bottomPanelBox.opacity = 0;
+            else
+                this.maybeShowBottomPanel();
         });
-
+        global.window_manager.connect('switch-workspace', this.maybeShowBottomPanel.bind(this));
     }
 
     showOverview() {
@@ -578,8 +591,8 @@ this._bottomPanelBox.show();
         this.panelBox.set_position(this.primaryMonitor.x, this.primaryMonitor.y);
         this.panelBox.set_size(this.primaryMonitor.width, -1);
 
-        this._bottomPanelBox.x = this.primaryMonitor.x;
-        this._bottomPanelBox.width = this.primaryMonitor.width;
+        this.bottomPanelBox.x = this.primaryMonitor.x;
+        this.bottomPanelBox.width = this.primaryMonitor.width;
 
         this.keyboardIndex = this.primaryIndex;
     }

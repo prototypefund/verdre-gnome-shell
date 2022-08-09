@@ -171,29 +171,9 @@ class AppStartupAnimation extends St.Widget {
             style_class: 'tmp-overlay',
             width: 0,
             height: 0,
-x_expand:true, y_expand: true,
         });
 
-        this._forceVisible = false;
         this._workspace = workspace;
-
-        this._appIcon = app.create_icon_texture(128);
-        this._appIcon.add_style_class_name('icon-dropshadow');
-        this._appIcon.opacity = 255;
-        this._appIcon.set_pivot_point(0.5, 0.5);
-
-        this.add_child(this._appIcon);
-
-        this._appIcon.add_constraint(new Clutter.AlignConstraint({
-            source: this,
-            align_axis: Clutter.AlignAxis.X_AXIS,
-            factor: 0.5,
-        }));
-        this._appIcon.add_constraint(new Clutter.AlignConstraint({
-            source: this,
-            align_axis: Clutter.AlignAxis.Y_AXIS,
-            factor: 0.5,
-        }));
 
         this._bottomPanelBox = new St.Bin({
             name: 'bottomPanelBox',
@@ -228,19 +208,27 @@ x_expand:true, y_expand: true,
         });
         this.add_child(this._bottomPanelBox);
 
-        /*this.connect('notify::allocation', () => {
-            const scale = this.allocation.get_width() / this._monitor.width;
+        this._appIcon = app.create_icon_texture(128);
+        this._appIcon.add_style_class_name('icon-dropshadow');
+        this._appIcon.opacity = 255;
+        this._appIcon.set_pivot_point(0.5, 0.5);
 
-            this._bottomPanelBox.scale_y = scale;
-            this._bottomPanelBox.child.scale_x = scale;
-        });
-*/
+        this.add_child(this._appIcon);
+
+        this._appIcon.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.X_AXIS,
+            factor: 0.5,
+        }));
+        this._appIcon.add_constraint(new Clutter.AlignConstraint({
+            source: this,
+            align_axis: Clutter.AlignAxis.Y_AXIS,
+            factor: 0.5,
+        }));
 
         const wmId = global.window_manager.connect('switch-workspace', () => {
-            if (this._forceVisible)
-                return;
-
-            this.visible = global.workspace_manager.get_active_workspace() === workspace;
+            if (this.visible && global.workspace_manager.get_active_workspace() !== workspace)
+                this.hide();
         });
 
         this.connect('destroy', () => {
@@ -248,20 +236,14 @@ x_expand:true, y_expand: true,
         });
     }
 
-    set forceVisible(force) {
-        this._forceVisible = force;
-
-        if (force)
+    maybeShow() {
+        if (global.workspace_manager.get_active_workspace() === this._workspace)
             this.show();
-        else
-            this.visible = global.workspace_manager.get_active_workspace() === this._workspace;
     }
 
     animateIn(existingAppIcon) {
         const iconExtents = existingAppIcon.get_transformed_extents();
         existingAppIcon.opacity = 0;
-
-Main.layoutManager._bottomPanelBox._bla = true;
 
         this._appIcon.scale_x = iconExtents.size.width / 128;
         this._appIcon.scale_y = iconExtents.size.height / 128;
@@ -300,24 +282,15 @@ Main.layoutManager._bottomPanelBox._bla = true;
     }
 
     _fadeOutAndDestroy() {
-        Main.layoutManager._bottomPanelBox.opacity = 255;
-delete Main.layoutManager._bottomPanelBox._bla;
-        if (this._clone) {
-            this._clone.ease({
-                opacity: 0,
-                duration: 350,
-                onStopped: () => this.destroy(),
-            });
-        } else {
-            this.ease({
-                opacity: 0,
-                duration: 350,
-                onStopped: () => this.destroy(),
-            });
-        }
+        this.ease({
+            opacity: 0,
+            duration: 350,
+            onStopped: () => this.destroy(),
+        });
     }
 
     animateOut() {
+log("OVERLAY: animating out now");
         const existingTransition = this.get_transition('width');
         if (existingTransition) {
             existingTransition.connect('stopped', (finished) => {
@@ -561,6 +534,15 @@ log("WS:  updated should have own workspaces: " + this._windowData.get(window).s
     return false;
     }
 
+    _animateOutStartupOverlay(workspace) {
+        if (workspace._appOpeningOverlay) {
+            workspace._appOpeningOverlay.animateOut();
+            delete workspace._appOpeningOverlay;
+
+            Main.layoutManager.maybeShowBottomPanel();
+        }
+    }
+
     _windowAddedToWorkspace(workspace, window) {
         if (!window._laterDone) {
 log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " delaying " + window.title);
@@ -609,16 +591,17 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                             this._maybeMoveToOwnWorkspace(window);
                     }),
                     window.connect('notify::above', () => {
-    log("WS: above change");
+                        log("WS: above change");
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
                     window.connect('size-changed', () => {
-    log("WS: siye change");
-                        if (((window.maximized_vertically && window.maximized_horizontally) || window.fullscreen) && workspace._appOpeningOverlay) {
-                            workspace._appOpeningOverlay.animateOut();
-                            delete workspace._appOpeningOverlay;
-                        }
+                        delete window._waitForSizeChange;
+
+                        log("WS: siye change, maximized v " + window.maximized_vertically + " h " + window.maximized_horizontally);
+
+                        if ((window.maximized_vertically && window.maximized_horizontally) || window.fullscreen)
+                            this._animateOutStartupOverlay(workspace);
 
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
@@ -633,10 +616,8 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                         this._windowData.delete(window);
                     }),
                     window.connect('shown', () => {
-        if (!window._waitForSizeChange && workspace._appOpeningOverlay) {
-            workspace._appOpeningOverlay.animateOut();
-            delete workspace._appOpeningOverlay;
-        }
+                        if (!window._waitForSizeChange)
+                            this._animateOutStartupOverlay(workspace);
                     }),
                 ],
             });
@@ -678,15 +659,20 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
             if (shouldMaximize) {
 log("WS: telling window to maxi");
                 window.maximize(Meta.MaximizeFlags.BOTH);
-window._waitForSizeChange = true;
-                /* Wait for the size-change to finish before animating out the
+
+                /* Wait for the maximize to finish before animating out the
                  * app opening overlay.
                  */
+                window._waitForSizeChange = true;
+
+                /* everything is shit and we can't trust noone */
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                    this._animateOutStartupOverlay(workspace);
+                    return GLib.SOURCE_REMOVE;
+                });
+
             } else if (window.get_compositor_private()?.visible) {
-        if (workspace._appOpeningOverlay) {
-            workspace._appOpeningOverlay.animateOut();
-            delete workspace._appOpeningOverlay;
-        }
+                this._animateOutStartupOverlay(workspace);
             }
 
             window.set_can_grab(this._windowShouldBeGrabbable(window));
