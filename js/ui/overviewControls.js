@@ -151,10 +151,10 @@ if (this.empty) {
 
             hiddenStateBox.set_origin(0, box.y2);
 if (this.empty)
-            appDisplayBox.set_origin(0,
+            appGridStateBox.set_origin(0,
                 startY + searchHeight + spacing + workspacesBox.get_height() * 0.8);
 else
-            appDisplayBox.set_origin(0,
+            appGridStateBox.set_origin(0,
                 startY + searchHeight + spacing + workspacesBox.get_height() + spacing);
 
             switch (state) {
