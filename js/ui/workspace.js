@@ -1389,6 +1389,9 @@ class Workspace extends St.Widget {
         }
 
         this._windows = [];
+
+        if (this.metaWorkspace._appOpeningOverlay)
+            this.metaWorkspace._appOpeningOverlay.maybeShow();
     }
 
     _doneLeavingOverview() {
