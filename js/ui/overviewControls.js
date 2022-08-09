@@ -603,9 +603,9 @@ class ControlsManager extends St.Widget {
             return Clutter.EVENT_PROPAGATE;
         });
 
-        global.window_group.connect('actor-added', this._emptyStateMaybeChanged.bind(this));
-        global.window_group.connect('actor-removed', this._emptyStateMaybeChanged.bind(this));
-        this._searchEntry.connect('notify::text', this._emptyStateMaybeChanged.bind(this));
+        Main.wm.workspaceTracker.connect('notify::zero-open-windows', () =>
+            this._emptyStateMaybeChanged(false));
+       // this._searchEntry.connect('notify::text', this._emptyStateMaybeChanged.bind(this));
 
         Main.wm.addKeybinding(
             'toggle-application-view',
@@ -626,7 +626,7 @@ class ControlsManager extends St.Widget {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             () => this._shiftState(Meta.MotionDirection.DOWN));
 
-this._emptyStateMaybeChanged();
+this._emptyStateMaybeChanged(true);
         this._update();
     }
 
@@ -852,6 +852,8 @@ this.queue_relayout();
         this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
+        this._emptyStateMaybeChanged(true);
+
         this._stateAdjustment.value = ControlsState.HIDDEN;
         this._stateAdjustment.ease(state, {
             duration: Overview.ANIMATION_TIME,
@@ -996,14 +998,14 @@ this.queue_relayout();
         this._workspaceAdjustment.remove_transition('value');
     }
 
-    _emptyStateMaybeChanged() {
+    _emptyStateMaybeChanged(allowMovingToNonEmpty) {
         if (!Main.wm.workspaceTracker.singleWindowWorkspaces)
             return;
 
-        if (global.window_group.get_n_children() === 1) {
+        if (Main.wm.workspaceTracker.zeroOpenWindows) {
             this.add_style_class_name("empty");
             this.layout_manager.empty = true;
-        } else {
+        } else if (allowMovingToNonEmpty) {
             this.remove_style_class_name("empty");
             this.layout_manager.empty = false;
         }

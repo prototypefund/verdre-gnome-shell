@@ -310,6 +310,10 @@ var WorkspaceTracker = GObject.registerClass({
             'single-window-workspaces', 'single-window-workspaces', 'single-window-workspaces',
             GObject.ParamFlags.READWRITE,
             false),
+        'zero-open-windows': GObject.ParamSpec.boolean(
+            'zero-open-windows', 'zero-open-windows', 'zero-open-windows',
+            GObject.ParamFlags.READABLE,
+            true),
     },
 }, class WorkspaceTracker extends GObject.Object {
     _init(params) {
@@ -346,6 +350,17 @@ var WorkspaceTracker = GObject.registerClass({
             this._workspaceAdded(workspaceManager, i);
 
         this._redoLayout();
+    }
+
+    get zeroOpenWindows() {
+        if (this._workspaces.length === 1 &&
+            !this._workspaces[0]._appStartingUp &&
+            !this._workspaces[0]._splashscreenGraceTimeoutId &&
+            !this._workspaces[0]._newTilingWorkspaceTimeoutId &&
+            !this._workspaceHasOwnWindows(this._workspaces[0]))
+            return true;
+
+        return false;
     }
 
     blockUpdates() {
@@ -456,8 +471,10 @@ log("WS: nope, its occupied");
             /* There must always be a default workspace, don't remove that one */
             if (this._workspaces.length > 1)
                 workspaceManager.remove_workspace(workspace, 0);
-else
+else {
+            this.notify('zero-open-windows');
 log("WS: nope, it's the default one");
+}
 
 
         } else {
@@ -811,6 +828,9 @@ log("WS: created app workspace index " + newWorkspaceIndex);
         animationActor.animateIn(existingIcon);
 
         newWorkspace._appOpeningOverlay = animationActor;
+
+        if (newWorkspaceIndex === 0)
+            this.notify('zero-open-windows');
 
         return newWorkspace;
     }
