@@ -1128,7 +1128,9 @@ class Workspace extends St.Widget {
                     Main.overview.hide();
             }
         });
-        this.bind_property('mapped', clickGesture, 'enabled', GObject.BindingFlags.SYNC_CREATE);
+        Main.wm.workspaceTracker.bind_property('zero-open-windows',
+            clickGesture, 'enabled',
+            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
         this._container.add_action(clickGesture);
 
         this.connect('style-changed', this._onStyleChanged.bind(this));

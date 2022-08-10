@@ -626,7 +626,7 @@ class ControlsManager extends St.Widget {
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             () => this._shiftState(Meta.MotionDirection.DOWN));
 
-this._emptyStateMaybeChanged(true);
+        this._emptyStateMaybeChanged(true);
         this._update();
     }
 
@@ -968,6 +968,9 @@ this.queue_relayout();
     workspacesGestureBegin(tracker, monitor) {
         this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
+
+        this._emptyStateMaybeChanged(true);
+
         this._workspacesDisplay.workspacesGestureBegin(tracker, monitor);
     }
 
@@ -1001,7 +1004,7 @@ this.queue_relayout();
     _emptyStateMaybeChanged(allowMovingToNonEmpty) {
         if (!Main.wm.workspaceTracker.singleWindowWorkspaces)
             return;
-
+log("CHECKING " + Main.wm.workspaceTracker.zeroOpenWindows);
         if (Main.wm.workspaceTracker.zeroOpenWindows) {
             this.add_style_class_name("empty");
             this.layout_manager.empty = true;

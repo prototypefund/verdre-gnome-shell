@@ -269,6 +269,14 @@ var Overview = class extends Signals.EventEmitter {
             Clutter.EventPhase.BUBBLE, singleFingerOverviewGesture);
         this._singleFingerOverviewGesture = singleFingerOverviewGesture;
 
+        Main.wm.workspaceTracker.connect('notify::zero-open-windows', () => {
+            this._threeFingerOverviewGesture.enabled = !Main.wm.workspaceTracker.zeroOpenWindows;
+            this._singleFingerOverviewGesture.enabled = !Main.wm.workspaceTracker.zeroOpenWindows;
+        });
+
+        this._threeFingerOverviewGesture.enabled = !Main.wm.workspaceTracker.zeroOpenWindows;
+        this._singleFingerOverviewGesture.enabled = !Main.wm.workspaceTracker.zeroOpenWindows;
+
         const singleFingerWorkspacesGesture = new EdgeDragAction.EdgeSwipeTracker(
             St.Side.BOTTOM,
             Clutter.Orientation.HORIZONTAL,
@@ -427,6 +435,8 @@ var Overview = class extends Signals.EventEmitter {
 
         if (hidden)
             this.emit('showing');
+
+        this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
     }
 
     _overviewGestureUpdate(tracker, progress) {
@@ -709,7 +719,6 @@ var Overview = class extends Signals.EventEmitter {
 
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
         this._singleFingerWorkspacesGesture.enabled = false;
-        this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
     }
 
     // hide:
@@ -765,6 +774,11 @@ var Overview = class extends Signals.EventEmitter {
 
         this._visible = false;
         this._animationInProgress = false;
+
+        // disallow hiding and show again, needed for when the screen is turned :/
+        if (Main.wm.workspaceTracker.zeroOpenWindows) {
+            this.show(2)
+        }
 
         // Handle any calls to show* while we were hiding
         if (this._shown) {
