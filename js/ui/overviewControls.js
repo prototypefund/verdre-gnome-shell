@@ -288,6 +288,9 @@ else
             workspacesBox = initialBox.interpolate(finalBox, transitionParams.progress);
         }
 
+if (this.empty)
+        this._workspacesDisplay.allocate(new Clutter.ActorBox());
+else
         this._workspacesDisplay.allocate(workspacesBox);
 
         // AppDisplay
@@ -427,10 +430,19 @@ class ControlsManager extends St.Widget {
             can_focus: true,
         });
         this._searchEntry.set_offscreen_redirect(Clutter.OffscreenRedirect.ALWAYS);
+        this._searchEntry.connect('primary-icon-clicked', () => {
+            this._searchEntry.grab_key_focus();
+        });
+        const searchClickGesture = new Clutter.ClickGesture();
+        searchClickGesture.connect('clicked', () => {
+            this._searchEntry.grab_key_focus();
+        });
+        this._searchEntry.add_action(searchClickGesture);
         this._searchEntryBin = new St.Bin({
             child: this._searchEntry,
             x_align: Clutter.ActorAlign.CENTER,
         });
+
 
         this.dash = new Dash.Dash();
         Main.layoutManager.bind_property('is-phone',

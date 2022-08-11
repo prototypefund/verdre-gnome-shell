@@ -52,6 +52,42 @@ on_workareas_changed (ShellWorkspaceBackground *self)
 }
 
 static void
+shell_workspace_background_get_preferred_width (ClutterActor *actor,
+                                                 float                 for_height,
+                                                 float                *min_width_p,
+                                                 float                *natural_width_p)
+{
+  ShellWindowPreviewLayout *self = SHELL_WINDOW_PREVIEW_LAYOUT (layout);
+  ShellWindowPreviewLayoutPrivate *priv;
+
+  priv = shell_window_preview_layout_get_instance_private (self);
+
+  if (min_width_p)
+    *min_width_p = 0;
+
+  if (natural_width_p)
+    *natural_width_p = clutter_actor_box_get_width (&priv->bounding_box);
+}
+
+static void
+shell_workspace_background_get_preferred_height (ClutterActor *actor,
+                                                  float                 for_width,
+                                                  float                *min_height_p,
+                                                  float                *natural_height_p)
+{
+  ShellWindowPreviewLayout *self = SHELL_WINDOW_PREVIEW_LAYOUT (layout);
+  ShellWindowPreviewLayoutPrivate *priv;
+
+  priv = shell_window_preview_layout_get_instance_private (self);
+
+  if (min_height_p)
+    *min_height_p = 0;
+
+  if (natural_height_p)
+    *natural_height_p = clutter_actor_box_get_height (&priv->bounding_box);
+}
+
+static void
 shell_workspace_background_allocate (ClutterActor          *actor,
                                      const ClutterActorBox *box)
 {

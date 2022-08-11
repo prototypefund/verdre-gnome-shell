@@ -406,7 +406,7 @@ var WorkspaceLayout = GObject.registerClass({
             false),
     },
 }, class WorkspaceLayout extends Clutter.LayoutManager {
-    _init(metaWorkspace, monitorIndex, overviewAdjustment) {
+    _init(metaWorkspace, monitorIndex, overviewAdjustment, bottomPanelBox, appOpeningOverlay) {
         super._init();
 
         this._spacing = 20;
@@ -415,6 +415,8 @@ var WorkspaceLayout = GObject.registerClass({
         this._metaWorkspace = metaWorkspace;
         this._monitorIndex = monitorIndex;
         this._overviewAdjustment = overviewAdjustment;
+        this._bottomPanelBox = bottomPanelBox;
+        this._appOpeningOverlay = appOpeningOverlay;
 
         this._container = null;
         this._windows = new Map();
@@ -605,6 +607,29 @@ var WorkspaceLayout = GObject.registerClass({
         if (forHeight === -1)
             return [0, workarea.width];
 
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height)
+        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
+
+        return [0, widthPreservingAspectRatio];
+    }
+
+    vfunc_get_preferred_height(container, forWidth) {
+        const workarea = this._getAdjustedWorkarea(container);
+        if (forWidth === -1)
+            return [0, (workarea.height + Main.layoutManager.bottomPanelBox.height)];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height);
+        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
+
+        return [0, heightPreservingAspectRatio];
+    }
+
+/*
+    vfunc_get_preferred_width(container, forHeight) {
+        const workarea = this._getAdjustedWorkarea(container);
+        if (forHeight === -1)
+            return [0, workarea.width];
+
         const workAreaAspectRatio = workarea.width / workarea.height;
         const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
 
@@ -621,7 +646,7 @@ var WorkspaceLayout = GObject.registerClass({
 
         return [0, heightPreservingAspectRatio];
     }
-
+*/
     vfunc_allocate(container, box) {
         const containerBox = container.allocation;
         const [containerWidth, containerHeight] = containerBox.get_size();
@@ -773,6 +798,20 @@ var WorkspaceLayout = GObject.registerClass({
             }
         }
 
+        if (this._appOpeningOverlay) {
+            this._appOpeningOverlay.allocate(box);
+        }
+
+        if (this._bottomPanelBox) {
+            const [, bottomPanelHeight] =
+                this._bottomPanelBox.get_preferred_height(-1);
+            box.y1 = box.y2 - (bottomPanelHeight);
+            this._bottomPanelBox.allocate(box);
+log("BOX y1 " + box.y1 + " child y2 " + childBox.y2);
+            this._bottomPanelBox.scale_y = allocationScale;
+            this._bottomPanelBox.child.scale_x = allocationScale;
+        }
+
         this._lastBox = containerBox.copy();
     }
 
@@ -828,6 +867,20 @@ var WorkspaceLayout = GObject.registerClass({
         this._syncOverlay(window);
         this._container.add_child(window);
 
+        // Pan gesture of the bottommost windowPreview should have the
+        // bottom bar stick to the window
+        if (this._windows.size === 1 && this._bottomPanelBox) {
+            window.bind_property('translation-y',
+                this._bottomPanelBox, 'translation-y',
+                GObject.BindingFlags.SYNC_CREATE);
+            window.bind_property('opacity',
+                this._bottomPanelBox, 'opacity',
+                GObject.BindingFlags.SYNC_CREATE);
+        }
+
+        if (this._windows.size === 1)
+            this._bottomPanelBox.show();
+
         this._needsLayout = true;
         this.layout_changed();
     }
@@ -862,6 +915,9 @@ var WorkspaceLayout = GObject.registerClass({
         // The window might have been reparented by DND
         if (window.get_parent() === this._container)
             this._container.remove_child(window);
+
+        if (this._windows.size === 0)
+            this._bottomPanelBox.hide();
 
         this._needsLayout = true;
         this.layout_changed();
@@ -1045,8 +1101,32 @@ class Workspace extends St.Widget {
             layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.START }),
         });
 
+        if (Main.layoutManager.bottomPanelBox.height > 0) {
+            this._bottomPanelBox = new St.Bin({
+                name: 'bottomPanelBox',
+                reactive: true,
+                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+                visible: false,
+            });
+            this._bottomPanelBox.child = new St.Widget({
+                name: 'bottomPanelLine',
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+            });
+        }
+
+        let overlayClone;
+
+        if (metaWorkspace._appOpeningOverlay) {
+            metaWorkspace._appOpeningOverlay.hide();
+            overlayClone = new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay });
+        }
+
+// FIXME: This is all shit, it needs to happen on the background really :(
         const layoutManager = new WorkspaceLayout(metaWorkspace, monitorIndex,
-            overviewAdjustment);
+            overviewAdjustment, this._bottomPanelBox, overlayClone);
 
         // Background
         this._background =
@@ -1065,6 +1145,10 @@ class Workspace extends St.Widget {
 //background_color: Clutter.color_from_string("red")[1],
         });
         this._container.layout_manager = layoutManager;
+        if (this._bottomPanelBox)
+            this._container.add_child(this._bottomPanelBox);
+        if (overlayClone)
+            this._container.add_child(overlayClone);
         this.add_child(this._container);
 
         this.metaWorkspace = metaWorkspace;
@@ -1074,44 +1158,7 @@ class Workspace extends St.Widget {
         this.monitorIndex = monitorIndex;
         this._monitor = Main.layoutManager.monitors[this.monitorIndex];
 
-        if (metaWorkspace._appOpeningOverlay) {
-            metaWorkspace._appOpeningOverlay.hide();
-            this.add_child(new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay }));
-        }
 
-        if (Main.layoutManager.bottomPanelBox.height > 0) {
-            this._bottomPanelBox = new St.Bin({
-                name: 'bottomPanelBox',
-                reactive: true,
-                x_expand: true,
-                y_expand: true, // standard BinLayout hack :(
-                y_align: Clutter.ActorAlign.END,
-                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
-            });
-            this._bottomPanelBox.child = new St.Widget({
-                name: 'bottomPanelLine',
-                x_expand: true,
-                x_align: Clutter.ActorAlign.CENTER,
-                y_align: Clutter.ActorAlign.CENTER,
-                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
-            });
-            this.add_child(this._bottomPanelBox);
-
-            this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-            this._container.connect('actor-added', () => {
-                this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-            });
-            this._container.connect('actor-removed', () => {
-                this._bottomPanelBox.visible = this._container.get_n_children() > 0;
-            });
-
-            this.connect('notify::allocation', () => {
-                const scale = this.allocation.get_width() / this._monitor.width;
-
-                this._bottomPanelBox.scale_y = scale;
-                this._bottomPanelBox.child.scale_x = scale;
-            });
-        }
 
         if (monitorIndex != Main.layoutManager.primaryIndex)
             this.add_style_class_name('external-monitor');
@@ -1128,9 +1175,6 @@ class Workspace extends St.Widget {
                     Main.overview.hide();
             }
         });
-        Main.wm.workspaceTracker.bind_property('zero-open-windows',
-            clickGesture, 'enabled',
-            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
         this._container.add_action(clickGesture);
 
         this.connect('style-changed', this._onStyleChanged.bind(this));
@@ -1163,27 +1207,6 @@ class Workspace extends St.Widget {
         this._delegate = this;
     }
 
-    vfunc_get_preferred_width(forHeight) {
-            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
-        if (forHeight === -1)
-            return [0, workarea.width];
-
-        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height)
-        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
-
-        return [0, widthPreservingAspectRatio];
-    }
-
-    vfunc_get_preferred_height(forWidth) {
-            const workarea = Main.layoutManager.getWorkAreaForMonitor(this.monitorIndex);
-        if (forWidth === -1)
-            return [0, (workarea.height + Main.layoutManager.bottomPanelBox.height)];
-
-        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height);
-        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
-
-        return [0, heightPreservingAspectRatio];
-    }
 
     _shouldLeaveOverview() {
         if (!this.metaWorkspace || this.metaWorkspace.active)
