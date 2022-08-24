@@ -601,7 +601,7 @@ var WorkspaceLayout = GObject.registerClass({
         this._syncWorkareaTracking();
         this._stateAdjustment.actor = container;
     }
-
+/*
     vfunc_get_preferred_width(container, forHeight) {
         const workarea = this._getAdjustedWorkarea(container);
         if (forHeight === -1)
@@ -623,30 +623,36 @@ var WorkspaceLayout = GObject.registerClass({
 
         return [0, heightPreservingAspectRatio];
     }
+*/
 
-/*
     vfunc_get_preferred_width(container, forHeight) {
         const workarea = this._getAdjustedWorkarea(container);
-        if (forHeight === -1)
+ //       if (forHeight === -1) {
+log("BACKGROUND ws w for h -1");
             return [0, workarea.width];
+//}
 
         const workAreaAspectRatio = workarea.width / workarea.height;
         const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
 
+log("BACKGROUND ws w " +  widthPreservingAspectRatio + " pt " + container);
         return [0, widthPreservingAspectRatio];
     }
 
     vfunc_get_preferred_height(container, forWidth) {
         const workarea = this._getAdjustedWorkarea(container);
-        if (forWidth === -1)
+//        if (forWidth === -1) {
+log("BACKGROUND ws h for w -1");
             return [0, workarea.height];
+//}
 
         const workAreaAspectRatio = workarea.width / workarea.height;
         const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
 
+log("BACKGROUND ws h "+  heightPreservingAspectRatio);
         return [0, heightPreservingAspectRatio];
     }
-*/
+
     vfunc_allocate(container, box) {
         const containerBox = container.allocation;
         const [containerWidth, containerHeight] = containerBox.get_size();
@@ -867,20 +873,6 @@ log("BOX y1 " + box.y1 + " child y2 " + childBox.y2);
         this._syncOverlay(window);
         this._container.add_child(window);
 
-        // Pan gesture of the bottommost windowPreview should have the
-        // bottom bar stick to the window
-        if (this._windows.size === 1 && this._bottomPanelBox) {
-            window.bind_property('translation-y',
-                this._bottomPanelBox, 'translation-y',
-                GObject.BindingFlags.SYNC_CREATE);
-            window.bind_property('opacity',
-                this._bottomPanelBox, 'opacity',
-                GObject.BindingFlags.SYNC_CREATE);
-        }
-
-        if (this._windows.size === 1)
-            this._bottomPanelBox.show();
-
         this._needsLayout = true;
         this.layout_changed();
     }
@@ -915,9 +907,6 @@ log("BOX y1 " + box.y1 + " child y2 " + childBox.y2);
         // The window might have been reparented by DND
         if (window.get_parent() === this._container)
             this._container.remove_child(window);
-
-        if (this._windows.size === 0)
-            this._bottomPanelBox.hide();
 
         this._needsLayout = true;
         this.layout_changed();
@@ -1009,9 +998,12 @@ class WorkspaceBackground extends Shell.WorkspaceBackground {
     _init(monitorIndex, stateAdjustment) {
         super._init({
             style_class: 'workspace-background',
-            x_expand: true,
-            y_expand: true,
+           // x_expand: true,
+           // y_expand: true,
+x_align: Clutter.ActorAlign.START,
+y_align: Clutter.ActorAlign.START,
             monitor_index: monitorIndex,
+//background_color: Clutter.color_from_string("blue")[1],
         });
 
         this._monitorIndex = monitorIndex;
@@ -1038,7 +1030,7 @@ class WorkspaceBackground extends Shell.WorkspaceBackground {
             y_expand: true,
         });
         this._bin.add_child(this._backgroundGroup);
-        this.add_child(this._bin);
+       // this.add_child(this._bin);
 
         this._bgManager = new Background.BackgroundManager({
             container: this._backgroundGroup,
@@ -1099,6 +1091,7 @@ class Workspace extends St.Widget {
             style_class: 'window-picker',
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
             layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.START }),
+//background_color: Clutter.color_from_string("green")[1],
         });
 
         if (Main.layoutManager.bottomPanelBox.height > 0) {
@@ -1126,29 +1119,38 @@ class Workspace extends St.Widget {
 
 // FIXME: This is all shit, it needs to happen on the background really :(
         const layoutManager = new WorkspaceLayout(metaWorkspace, monitorIndex,
-            overviewAdjustment, this._bottomPanelBox, overlayClone);
+            overviewAdjustment);
 
         // Background
         this._background =
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
+
+        if (this._bottomPanelBox) {
+            this._background.add_child(this._bottomPanelBox);
+            this._background.bottom_panel_actor = this._bottomPanelBox;
+        }
+
+        if (overlayClone) {
+            this._background.add_child(overlayClone);
+            this._background.app_opening_overlay_actor = overlayClone;
+        }
         this.add_child(this._background);
 
-        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
+/*        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
             this._background, 'visible',
             GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
-
+*/
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
-           // x_expand: true,
-         //   y_expand: true,
+x_align: Clutter.ActorAlign.START,
+y_align: Clutter.ActorAlign.START,
+            x_expand: false,
+            y_expand: false,
+clip_to_allocation: true,
 //background_color: Clutter.color_from_string("red")[1],
         });
         this._container.layout_manager = layoutManager;
-        if (this._bottomPanelBox)
-            this._container.add_child(this._bottomPanelBox);
-        if (overlayClone)
-            this._container.add_child(overlayClone);
         this.add_child(this._container);
 
         this.metaWorkspace = metaWorkspace;
@@ -1218,6 +1220,28 @@ class Workspace extends St.Widget {
 
     vfunc_get_focus_chain() {
         return this._container.layout_manager.getFocusChain();
+    }
+
+    vfunc_get_preferred_width(forHeight) {
+        const workarea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor);
+        if (forHeight === -1)
+            return [0, workarea.width];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height)
+        const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
+
+        return [0, widthPreservingAspectRatio];
+    }
+
+    vfunc_get_preferred_height(forWidth) {
+        const workarea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor);
+        if (forWidth === -1)
+            return [0, (workarea.height + Main.layoutManager.bottomPanelBox.height)];
+
+        const workAreaAspectRatio = workarea.width / (workarea.height + Main.layoutManager.bottomPanelBox.height);
+        const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
+
+        return [0, heightPreservingAspectRatio];
     }
 
     _lookupIndex(metaWindow) {
@@ -1478,6 +1502,20 @@ class Workspace extends St.Widget {
         else
             clone.setStackAbove(this._windows[this._windows.length - 1]);
 
+        // Pan gesture of the bottommost windowPreview should have the
+        // bottom bar stick to the window
+        if (this._windows.length === 0 && this._bottomPanelBox) {
+            clone.bind_property('translation-y',
+                this._bottomPanelBox, 'translation-y',
+                GObject.BindingFlags.SYNC_CREATE);
+            clone.bind_property('opacity',
+                this._bottomPanelBox, 'opacity',
+                GObject.BindingFlags.SYNC_CREATE);
+        }
+
+        if (this._windows.length === 0)
+            this._bottomPanelBox.show();
+
         this._windows.push(clone);
 
         return clone;
@@ -1491,6 +1529,9 @@ class Workspace extends St.Widget {
             return null;
 
         this._container.layout_manager.removeWindow(this._windows[index]);
+
+        if (this._windows.length === 1)
+            this._bottomPanelBox.hide();
 
         return this._windows.splice(index, 1).pop();
     }
