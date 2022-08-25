@@ -642,7 +642,7 @@ var BaseAppView = GObject.registerClass({
             () => this._redisplay(), this);
 
         // Drag n' Drop
-        this._overshootTimeoutId = 0;
+        this._lastOvershootTimeoutId = 0;
         this._delayedMoveData = null;
 
         this._dragBeginId = 0;
@@ -865,9 +865,9 @@ const phoneGridModes = [
     }
 
     _resetOvershoot() {
-        if (this._overshootTimeoutId)
-            GLib.source_remove(this._overshootTimeoutId);
-        this._overshootTimeoutId = 0;
+        if (this._lastOvershootTimeoutId)
+            GLib.source_remove(this._lastOvershootTimeoutId);
+        this._lastOvershootTimeoutId = 0;
     }
 
     _handleDragOvershoot(dragEvent) {
@@ -883,7 +883,7 @@ const phoneGridModes = [
             return;
         }
 
-        if (this._overshootTimeoutId > 0)
+        if (this._lastOvershootTimeoutId > 0)
             return;
 
         let targetPage;
@@ -895,14 +895,14 @@ const phoneGridModes = [
         if (targetPage < 0 || targetPage >= this._grid.nPages)
             return; // don't go beyond first/last page
 
-        this._overshootTimeoutId =
+        this._lastOvershootTimeoutId =
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, OVERSHOOT_TIMEOUT, () => {
                 this._resetOvershoot();
                 this.goToPage(targetPage);
                 return GLib.SOURCE_REMOVE;
             });
-        GLib.Source.set_name_by_id(this._overshootTimeoutId,
-            '[gnome-shell] this._overshootTimeoutId');
+        GLib.Source.set_name_by_id(this._lastOvershootTimeoutId,
+            '[gnome-shell] this._lastOvershootTimeoutId');
     }
 
     _onDragBegin() {
