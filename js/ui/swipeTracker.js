@@ -714,4 +714,13 @@ var SwipeTracker = GObject.registerClass({
         this._otherDimensionTracker = otherSwipeTracker;
         otherSwipeTracker._otherDimensionTracker = this;
     }
+
+    vfunc_should_influence(otherGesture, cancel, inhibit) {
+        if (this.get_points().length === 3 && (this.actor !== otherGesture.actor && this.actor.contains(otherGesture.actor))) {
+log(this + " length 3, inhibit true");
+            return [cancel, true];
+}
+
+        return [cancel, inhibit]
+    }
 });
