@@ -2270,6 +2270,9 @@ var KeyboardController = class extends Signals.EventEmitter {
             }
         }
 
+        if (Main.layoutManager.isPhone)
+            return this._currentSource.xkbId + '-mobile';
+
         return this._currentSource.xkbId;
     }
 
