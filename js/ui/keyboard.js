@@ -141,6 +141,16 @@ class KeyContainer extends St.Widget {
 
             for (let j = 0; j < row.keys.length; j++) {
                 let keyInfo = row.keys[j];
+
+                if (i === 0)
+                    keyInfo.key.add_style_class_name('topmost-row');
+                else if (i === this._rows.length - 1)
+                    keyInfo.key.add_style_class_name('bottommost-row');
+                if (j === 0)
+                    keyInfo.key.add_style_class_name('leftmost-column');
+                else if (j === row.keys.length - 1)
+                    keyInfo.key.add_style_class_name('rightmost-column');
+
                 let width = keyInfo.width * KEY_SIZE;
                 let height = keyInfo.height * KEY_SIZE;
 
@@ -879,6 +889,7 @@ var EmojiPager = GObject.registerClass({
         for (let i = 0; i < page.pageKeys.length; i++) {
             let modelKey = page.pageKeys[i];
             let key = new Key({commitString: modelKey.label}, modelKey.variants);
+            key.add_style_class_name('emoji');
 
             key.connect('commit', (actor, keyval, str) => {
                 this.emit('emoji', str);
