@@ -164,7 +164,7 @@ class KeyContainer extends St.Widget {
     }
 
     getRatio() {
-        return [this._maxCols, this._rows.length];
+        return [this._maxCols, this._rows.length * 1.5];
     }
 });
 
@@ -1141,8 +1141,8 @@ var EmojiSelection = GObject.registerClass({
     }
 
     setRatio(nCols, nRows) {
-        this._emojiPager.setRatio(Math.floor(nCols), Math.floor(nRows) - 1);
-        this._bottomRow.setRatio(nCols, 1);
+        this._emojiPager.setRatio(Math.floor(nCols), (Math.floor(nRows) - 1) * 1.5);
+        this._bottomRow.setRatio(nCols, 1.5);
 
         // (Re)attach actors so the emoji panel fits the ratio and
         // the bottom row is ensured to take 1 row high.
@@ -1861,10 +1861,17 @@ var Keyboard = GObject.registerClass({
 
         this.width = monitor.width;
 
-        if (monitor.width > monitor.height)
-            this.height = monitor.height / 3;
-        else
-            this.height = monitor.height / 4;
+        this.height = -1;
+        const forWidth = this.get_theme_node().adjust_for_width(monitor.width);
+        const [, natHeight] = this.get_preferred_height(forWidth);
+
+        /* If the requested height is smaller than 1/3rd of the monitor height,
+         * we'll extend the height to the full 1/3rd of the monitor.
+         */
+      //  if (natHeight > monitor.height * (2/3))
+        //    this.height = monitor.height * (2/3);
+       // else
+            this.height = natHeight;
     }
 
     _updateKeys() {
