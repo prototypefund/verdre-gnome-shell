@@ -226,6 +226,9 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
     }
 
     _getIndicatorsWidth(box) {
+        if (Main.layoutManager.isPhone)
+            return 0;
+
         const [width, height] = box.get_size();
         const arrows = [
             this._nextPageArrow,
@@ -244,7 +247,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
     }
 
     _syncPageIndicatorsVisibility(animate = true) {
-        const previousIndicatorsVisible =
+        const previousIndicatorsVisible = !Main.layoutManager.isPhone &&
             this._currentPage > 0 && this._showIndicators;
 
         if (previousIndicatorsVisible)
@@ -259,7 +262,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
             },
         });
 
-        const previousArrowVisible =
+        const previousArrowVisible = !Main.layoutManager.isPhone &&
             this._currentPage > 0 && !previousIndicatorsVisible;
 
         if (previousArrowVisible)
@@ -277,7 +280,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
         // Always show the next page indicator to allow dropping
         // icons into new pages
         const {allowIncompletePages, nPages} = this._grid.layoutManager;
-        const nextIndicatorsVisible = this._showIndicators &&
+        const nextIndicatorsVisible = !Main.layoutManager.isPhone && this._showIndicators &&
             (allowIncompletePages ? true : this._currentPage < nPages - 1);
 
         if (nextIndicatorsVisible)
@@ -292,7 +295,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
             },
         });
 
-        const nextArrowVisible =
+        const nextArrowVisible = !Main.layoutManager.isPhone &&
             this._currentPage < nPages - 1 &&
             !nextIndicatorsVisible;
 
@@ -663,7 +666,27 @@ var BaseAppView = GObject.registerClass({
     }
 
     _createGrid() {
-        return new AppGrid({allow_incomplete_pages: true});
+        const appGrid = new AppGrid({allow_incomplete_pages: true});
+
+const phoneGridModes = [
+    {
+        rows: 4,
+        columns: 4,
+    },
+    {
+        rows: 3,
+        columns: 6,
+    },
+    {
+        rows: 2,
+        columns: 8,
+    },
+];
+
+        if (Main.layoutManager.isPhone)
+            appGrid.setGridModes(phoneGridModes);
+
+        return appGrid;
     }
 
     _onScroll(actor, event) {
@@ -1244,15 +1267,24 @@ var PageManager = GObject.registerClass({
     _init() {
         super._init();
 
+        this._settingsKey = Main.layoutManager.isPhone
+            ? 'app-picker-layout-mobile' : 'app-picker-layout';
+
+        Main.layoutManager.connect('notify::is-phone', () => {
+            this._settingsKey = Main.layoutManager.isPhone
+                ? 'app-picker-layout-mobile' : 'app-picker-layout';
+            this._loadPages();
+        });
+
         this._updatingPages = false;
         this._loadPages();
 
-        global.settings.connect('changed::app-picker-layout',
+        global.settings.connect(`changed::${this._settingsKey}`,
             this._loadPages.bind(this));
     }
 
     _loadPages() {
-        const layout = global.settings.get_value('app-picker-layout');
+        const layout = global.settings.get_value(this._settingsKey);
         this._pages = layout.recursiveUnpack();
         if (!this._updatingPages)
             this.emit('layout-changed');
@@ -1289,7 +1321,7 @@ var PageManager = GObject.registerClass({
         this._updatingPages = true;
 
         const variant = new GLib.Variant('aa{sv}', packedPages);
-        global.settings.set_value('app-picker-layout', variant);
+        global.settings.set_value(this._settingsKey, variant);
 
         this._updatingPages = false;
     }
@@ -1473,8 +1505,12 @@ class AppDisplay extends BaseAppView {
             } catch (e) {
                 return false;
             }
-            return !this._appFavorites.isFavorite(appInfo.get_id()) &&
+            const isInDash = !Main.layoutManager.isPhone &&
+                this._appFavorites.isFavorite(appInfo.get_id());
+            const parentalControlsAllowed =
                 this._parentalControlsManager.shouldShowApp(appInfo);
+
+            return !isInDash && parentalControlsAllowed;
         });
 
         let apps = this._appInfoList.map(app => app.get_id());
@@ -2038,8 +2074,8 @@ class FolderGrid extends AppGrid {
             allow_incomplete_pages: false,
             columns_per_page: 3,
             rows_per_page: 3,
-            page_halign: Clutter.ActorAlign.CENTER,
-            page_valign: Clutter.ActorAlign.CENTER,
+            page_halign: Clutter.ActorAlign.FILL,
+            page_valign: Clutter.ActorAlign.FILL,
         });
 
         this.setGridModes([
@@ -2282,12 +2318,19 @@ var FolderIcon = GObject.registerClass({
             path,
         });
 
+        this._iconContainer = new St.Widget({
+            layout_manager: new Clutter.BinLayout(),
+            x_expand: true,
+            y_expand: true,
+        });
+
         this.icon = new IconGrid.BaseIcon('', {
             createIcon: this._createIcon.bind(this),
             setSizeManually: true,
         });
-        this.set_child(this.icon);
-        this.label_actor = this.icon.label;
+        this._iconContainer.add_child(this.icon);
+
+        this.set_child(this._iconContainer);
 
         this.view = new FolderView(this._folder, id, parentView);
 
@@ -2488,6 +2531,9 @@ var AppFolderDialog = GObject.registerClass({
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
+
+        if (Main.layoutManager.isPhone)
+            this.child.add_style_class_name('mobile');
 
         this._addFolderNameEntry();
         this._viewBox.add_child(this._view);

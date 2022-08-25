@@ -55,7 +55,7 @@ var DragLocation = {
 };
 
 var BaseIcon = GObject.registerClass(
-class BaseIcon extends Shell.SquareBin {
+class BaseIcon extends St.BoxLayout {
     _init(label, params) {
         params = Params.parse(params, {
             createIcon: null,
@@ -67,19 +67,15 @@ class BaseIcon extends Shell.SquareBin {
         if (params.showLabel)
             styleClass += ' overview-icon-with-label';
 
-        super._init({ style_class: styleClass });
-
-        this._box = new St.BoxLayout({
+        super._init({
+            style_class: styleClass,
             vertical: true,
-            x_expand: true,
-            y_expand: true,
         });
-        this.set_child(this._box);
 
         this.iconSize = ICON_SIZE;
         this._iconBin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
 
-        this._box.add_actor(this._iconBin);
+        this.add_child(this._iconBin);
 
         if (params.showLabel) {
             this.label = new St.Label({ text: label });
@@ -87,7 +83,7 @@ class BaseIcon extends Shell.SquareBin {
                 x_align: Clutter.ActorAlign.CENTER,
                 y_align: Clutter.ActorAlign.CENTER,
             });
-            this._box.add_actor(this.label);
+            this.add_child(this.label);
         } else {
             this.label = null;
         }
@@ -101,6 +97,31 @@ class BaseIcon extends Shell.SquareBin {
         let cache = St.TextureCache.get_default();
         cache.connectObject(
             'icon-theme-changed', this._onIconThemeChanged.bind(this), this);
+
+        this._updateSquareLayout();
+        Main.layoutManager.connect('notify::is-phone', () => this._updateSquareLayout());
+    }
+
+    vfunc_get_preferred_width(forHeight) {
+        if (Main.layoutManager.isPhone)
+            return super.vfunc_get_preferred_width(forHeight);
+
+        return super.vfunc_get_preferred_height(-1);
+    }
+
+    _updateSquareLayout() {
+        if (Main.layoutManager.isPhone) {
+            if (this.label) {
+                this._const = new Clutter.BindConstraint({
+                    source: this._iconBin,
+                    coordinate: Clutter.BindCoordinate.WIDTH,
+                });
+                this.label.add_constraint(this._const);
+            }
+        } else {
+            if (this.label && this._const)
+              this.label.remove_constraint(this._const);
+        }
     }
 
     // This can be overridden by a subclass, or by the createIcon
@@ -157,11 +178,11 @@ class BaseIcon extends Shell.SquareBin {
         // Animate only the child instead of the entire actor, so the
         // styles like hover and running are not applied while
         // animating.
-        zoomOutActor(this.child);
+        zoomOutActor(this);
     }
 
     animateZoomOutAtPos(x, y) {
-        zoomOutActorAtPos(this.child, x, y);
+        zoomOutActorAtPos(this, x, y);
     }
 
     update() {
@@ -347,7 +368,8 @@ var IconGridLayout = GObject.registerClass({
         this._containerDestroyedId = 0;
         this._updateIconSizesLaterId = 0;
 
-        this._childrenMaxSize = -1;
+        this._childrenMaxWidth = -1;
+        this._childrenMaxHeight = -1;
     }
 
     _findBestIconSize() {
@@ -369,10 +391,8 @@ var IconGridLayout = GObject.registerClass({
                 const [firstItemWidth, firstItemHeight] =
                     firstItem.get_preferred_size();
 
-                const itemSize = Math.max(firstItemWidth, firstItemHeight);
-
-                usedWidth = itemSize * nColumns;
-                usedHeight = itemSize * nRows;
+                usedWidth = firstItemWidth * nColumns;
+                usedHeight = firstItemHeight * nRows;
             } else {
                 usedWidth = size * nColumns;
                 usedHeight = size * nRows;
@@ -385,7 +405,7 @@ var IconGridLayout = GObject.registerClass({
                 this._pageHeight - usedHeight -  rowSpacingPerPage -
                 this.pagePadding.top - this.pagePadding.bottom;
 
-            if (emptyHSpace >= 0 && emptyVSpace > 0)
+            if (emptyHSpace >= 0 && emptyVSpace >= 0)
                 return size;
         }
 
@@ -393,7 +413,7 @@ var IconGridLayout = GObject.registerClass({
     }
 
     _getChildrenMaxSize() {
-        if (this._childrenMaxSize === -1) {
+        if (this._childrenMaxWidth === -1) {
             let minWidth = 0;
             let minHeight = 0;
 
@@ -412,10 +432,11 @@ var IconGridLayout = GObject.registerClass({
                 }
             }
 
-            this._childrenMaxSize = Math.max(minWidth, minHeight);
+            this._childrenMaxWidth = minWidth;
+            this._childrenMaxHeight = minHeight;
         }
 
-        return this._childrenMaxSize;
+        return [this._childrenMaxWidth, this._childrenMaxHeight];
     }
 
     _updateVisibleChildrenForPage(pageIndex) {
@@ -551,7 +572,7 @@ var IconGridLayout = GObject.registerClass({
                     this._fillItemVacancies(itemData.pageIndex);
             }),
             queueRelayoutId: item.connect('queue-relayout', () => {
-                this._childrenMaxSize = -1;
+                this._childrenMaxWidth = this._childrenMaxHeight = -1;
             }),
         });
 
@@ -562,11 +583,11 @@ var IconGridLayout = GObject.registerClass({
         this._relocateSurplusItems(pageIndex);
     }
 
-    _calculateSpacing(childSize) {
+    _calculateSpacing(childWidth, childHeight) {
         const nColumns = this.columnsPerPage;
         const nRows = this.rowsPerPage;
-        const usedWidth = childSize * nColumns;
-        const usedHeight = childSize * nRows;
+        const usedWidth = childWidth * nColumns;
+        const usedHeight = childHeight * nRows;
         const columnSpacingPerPage = this.columnSpacing * (nColumns - 1);
         const rowSpacingPerPage = this.rowSpacing * (nRows - 1);
 
@@ -594,17 +615,20 @@ var IconGridLayout = GObject.registerClass({
             hSpacing = this.columnSpacing;
             break;
         case Clutter.ActorAlign.FILL:
-            hSpacing = this.columnSpacing + emptyHSpace / (nColumns - 1);
+            hSpacing = this.columnSpacing + emptyHSpace / (nColumns + 1);
 
             // Maybe constraint horizontal spacing
             if (this.maxColumnSpacing !== -1 && hSpacing > this.maxColumnSpacing) {
                 const extraHSpacing =
-                    (this.maxColumnSpacing - this.columnSpacing) * (nColumns - 1);
+                    (this.maxColumnSpacing - this.columnSpacing) * (nColumns + 1);
 
                 hSpacing = this.maxColumnSpacing;
                 leftEmptySpace +=
                     Math.max((emptyHSpace - extraHSpacing) / 2, 0);
             }
+
+leftEmptySpace += hSpacing;
+
             break;
         }
 
@@ -639,7 +663,7 @@ var IconGridLayout = GObject.registerClass({
         return [leftEmptySpace, topEmptySpace, hSpacing, vSpacing];
     }
 
-    _getRowPadding(align, items, itemIndex, childSize, spacing) {
+    _getRowPadding(align, items, itemIndex, childWidth, spacing) {
         if (align === Clutter.ActorAlign.START ||
             align === Clutter.ActorAlign.FILL)
             return 0;
@@ -657,7 +681,7 @@ var IconGridLayout = GObject.registerClass({
         const rowEnd = Math.min((row + 1) * this.columnsPerPage - 1, items.length - 1);
         const itemsInThisRow = rowEnd - rowStart + 1;
         const nEmpty = this.columnsPerPage - itemsInThisRow;
-        const availableWidth = nEmpty * (spacing + childSize);
+        const availableWidth = nEmpty * (spacing + childWidth);
 
         const isRtl =
             Clutter.get_default_text_direction() === Clutter.TextDirection.RTL;
@@ -735,10 +759,10 @@ var IconGridLayout = GObject.registerClass({
 
         const isRtl =
             Clutter.get_default_text_direction() === Clutter.TextDirection.RTL;
-        const childSize = this._getChildrenMaxSize();
+        const [childWidth, childHeight] = this._getChildrenMaxSize();
 
         const [leftEmptySpace, topEmptySpace, hSpacing, vSpacing] =
-            this._calculateSpacing(childSize);
+            this._calculateSpacing(childWidth, childHeight);
 
         const childBox = new Clutter.ActorBox();
 
@@ -763,11 +787,11 @@ var IconGridLayout = GObject.registerClass({
                     column = swap(column, columnsPerPage);
 
                 const rowPadding = this._getRowPadding(lastRowAlign,
-                    page.visibleChildren, itemIndex, childSize, hSpacing);
+                    page.visibleChildren, itemIndex, childWidth, hSpacing);
 
                 // Icon position
-                let x = leftEmptySpace + rowPadding + column * (childSize + hSpacing);
-                let y = topEmptySpace + row * (childSize + vSpacing);
+                let x = leftEmptySpace + rowPadding + column * (childWidth + hSpacing);
+                let y = topEmptySpace + row * (childHeight + vSpacing);
 
                 // Page start
                 switch (orientation) {
@@ -783,8 +807,8 @@ var IconGridLayout = GObject.registerClass({
 
                 const [,, naturalWidth, naturalHeight] = item.get_preferred_size();
                 childBox.set_size(
-                    Math.max(childSize, naturalWidth),
-                    Math.max(childSize, naturalHeight));
+                    Math.max(childWidth, naturalWidth),
+                    Math.max(childHeight, naturalHeight));
 
                 if (!shouldEaseItems || pageSizeChanged)
                     item.allocate(childBox);
@@ -993,9 +1017,9 @@ var IconGridLayout = GObject.registerClass({
      * under (@x, @y)
      */
     getDropTarget(x, y) {
-        const childSize = this._getChildrenMaxSize();
+        const [childWidth, childHeight] = this._getChildrenMaxSize();
         const [leftEmptySpace, topEmptySpace, hSpacing, vSpacing] =
-            this._calculateSpacing(childSize);
+            this._calculateSpacing(childWidth, childHeight);
 
         const isRtl =
             Clutter.get_default_text_direction() === Clutter.TextDirection.RTL;
@@ -1021,10 +1045,10 @@ var IconGridLayout = GObject.registerClass({
             return [null, DragLocation.INVALID];
 
         const gridWidth =
-            childSize * this.columnsPerPage +
+            childWidth * this.columnsPerPage +
             hSpacing * (this.columnsPerPage - 1);
         const gridHeight =
-            childSize * this.rowsPerPage +
+            childHeight * this.rowsPerPage +
             vSpacing * (this.rowsPerPage - 1);
 
         if (x > leftEmptySpace + gridWidth || y > topEmptySpace + gridHeight)

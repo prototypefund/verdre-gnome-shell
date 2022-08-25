@@ -16,7 +16,7 @@ const WorkspacesView = imports.ui.workspacesView;
 
 var WORKSPACE_SWITCH_TIME = 250;
 
-const SMALL_WORKSPACE_RATIO = 0.15;
+const SMALL_WORKSPACE_RATIO = 0.21;
 const DASH_MAX_HEIGHT_RATIO = 0.15;
 
 const A11Y_SCHEMA = 'org.gnome.desktop.a11y.keyboard';
@@ -64,61 +64,103 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         this._workAreaBox.set_size(workArea.width, workArea.height);
     }
 
-    _computeWorkspacesBoxForState(state, box, searchHeight, dashHeight, thumbnailsHeight) {
+    _computeWorkspacesBoxForState(state, box, searchHeight, dashHeight, thumbnailsHeight, spacing) {
         const workspaceBox = box.copy();
         const [width, height] = workspaceBox.get_size();
         const {y1: startY} = this._workAreaBox;
-        const {spacing} = this;
-        const {expandFraction} = this._workspacesThumbnails;
 
-        switch (state) {
-        case ControlsState.HIDDEN:
-            workspaceBox.set_origin(...this._workAreaBox.get_origin());
-            workspaceBox.set_size(...this._workAreaBox.get_size());
-            break;
-        case ControlsState.WINDOW_PICKER:
-            workspaceBox.set_origin(0,
-                startY + searchHeight + spacing +
-                thumbnailsHeight + spacing * expandFraction);
-            workspaceBox.set_size(width,
-                height -
-                dashHeight - spacing -
-                searchHeight - spacing -
-                thumbnailsHeight - spacing * expandFraction);
-            break;
-        case ControlsState.APP_GRID:
-            workspaceBox.set_origin(0, startY + searchHeight + spacing);
-            workspaceBox.set_size(
+        let expandFraction = 0;
+        if (this._workspacesThumbnails.visible)
+            expandFraction = this._workspacesThumbnails.expandFraction;
+
+
+        if (Main.layoutManager.is_phone) {
+            const hiddenStateBox = workspaceBox.copy();
+            const appGridStateBox = workspaceBox.copy();
+
+            hiddenStateBox.set_origin(...this._workAreaBox.get_origin());
+            hiddenStateBox.set_size(...this._workAreaBox.get_size());
+
+            appGridStateBox.set_origin(0, startY + searchHeight + spacing);
+            appGridStateBox.set_size(
                 width,
                 Math.round(height * SMALL_WORKSPACE_RATIO));
-            break;
+
+            switch (state) {
+            case ControlsState.HIDDEN:
+                return hiddenStateBox;
+            case ControlsState.WINDOW_PICKER:
+                return hiddenStateBox.interpolate(appGridStateBox, 0.5);
+            case ControlsState.APP_GRID:
+                return appGridStateBox;
+            }
+        } else {
+        switch (state) {
+            case ControlsState.HIDDEN:
+                workspaceBox.set_origin(...this._workAreaBox.get_origin());
+                workspaceBox.set_size(...this._workAreaBox.get_size());
+                break;
+            case ControlsState.WINDOW_PICKER:
+                workspaceBox.set_origin(0,
+                    startY + searchHeight + spacing +
+                    (thumbnailsHeight + spacing) * expandFraction);
+                workspaceBox.set_size(width,
+                    height -
+                    (dashHeight > 0 ? dashHeight + spacing : 0) -
+                    searchHeight - spacing -
+                    (thumbnailsHeight + spacing) * expandFraction);
+                break;
+            case ControlsState.APP_GRID:
+                workspaceBox.set_origin(0, startY + searchHeight + spacing);
+                workspaceBox.set_size(
+                    width,
+                    Math.round(height * SMALL_WORKSPACE_RATIO));
+                break;
+            }
         }
 
         return workspaceBox;
     }
 
-    _getAppDisplayBoxForState(state, box, searchHeight, dashHeight, appGridBox) {
+    _getAppDisplayBoxForState(state, box, searchHeight, dashHeight, workspacesBox, spacing) {
         const [width, height] = box.get_size();
         const {y1: startY} = this._workAreaBox;
+
         const appDisplayBox = new Clutter.ActorBox();
-        const {spacing} = this;
-
-        switch (state) {
-        case ControlsState.HIDDEN:
-        case ControlsState.WINDOW_PICKER:
-            appDisplayBox.set_origin(0, box.y2);
-            break;
-        case ControlsState.APP_GRID:
-            appDisplayBox.set_origin(0,
-                startY + searchHeight + spacing + appGridBox.get_height());
-            break;
-        }
-
         appDisplayBox.set_size(width,
             height -
             searchHeight - spacing -
-            appGridBox.get_height() - spacing -
-            dashHeight);
+            workspacesBox.get_height() - spacing -
+            (dashHeight > 0 ? dashHeight + spacing : 0));
+
+        if (Main.layoutManager.is_phone) {
+            const hiddenStateBox = appDisplayBox.copy();
+            const appGridStateBox = appDisplayBox.copy();
+
+            hiddenStateBox.set_origin(0, box.y2);
+            appGridStateBox.set_origin(0,
+                startY + searchHeight + spacing + workspacesBox.get_height() + spacing);
+
+            switch (state) {
+            case ControlsState.HIDDEN:
+                return hiddenStateBox;
+            case ControlsState.WINDOW_PICKER:
+                return hiddenStateBox.interpolate(appGridStateBox, 0.5);
+            case ControlsState.APP_GRID:
+                return appGridStateBox;
+            }
+        } else {
+            switch (state) {
+            case ControlsState.HIDDEN:
+            case ControlsState.WINDOW_PICKER:
+                appDisplayBox.set_origin(0, box.y2);
+                break;
+            case ControlsState.APP_GRID:
+                appDisplayBox.set_origin(0,
+                    startY + searchHeight + spacing + workspacesBox.get_height() + spacing);
+                break;
+            }
+        }
 
         return appDisplayBox;
     }
@@ -150,11 +192,10 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
     vfunc_allocate(container, box) {
         const childBox = new Clutter.ActorBox();
 
-        const { spacing } = this;
-
         const startY = this._workAreaBox.y1;
         box.y1 += startY;
         const [width, height] = box.get_size();
+        const spacing = height * 0.03;
         let availableHeight = height;
 
         // Search entry
@@ -166,16 +207,19 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         availableHeight -= searchHeight + spacing;
 
         // Dash
-        const maxDashHeight = Math.round(box.get_height() * DASH_MAX_HEIGHT_RATIO);
-        this._dash.setMaxSize(width, maxDashHeight);
+        let dashHeight = 0;
+        if (this._dash.visible) {
+            const maxDashHeight = Math.round(box.get_height() * DASH_MAX_HEIGHT_RATIO);
+            this._dash.setMaxSize(width, maxDashHeight);
 
-        let [, dashHeight] = this._dash.get_preferred_height(width);
-        dashHeight = Math.min(dashHeight, maxDashHeight);
-        childBox.set_origin(0, startY + height - dashHeight);
-        childBox.set_size(width, dashHeight);
-        this._dash.allocate(childBox);
+            [, dashHeight] = this._dash.get_preferred_height(width);
+            dashHeight = Math.min(dashHeight, maxDashHeight);
+            childBox.set_origin(0, startY + height - dashHeight);
+            childBox.set_size(width, dashHeight);
+            this._dash.allocate(childBox);
 
-        availableHeight -= dashHeight + spacing;
+            availableHeight -= dashHeight + spacing;
+        }
 
         // Workspace Thumbnails
         let thumbnailsHeight = 0;
@@ -192,7 +236,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
         }
 
         // Workspaces
-        let params = [box, searchHeight, dashHeight, thumbnailsHeight];
+        let params = [box, searchHeight, dashHeight, thumbnailsHeight, spacing];
         const transitionParams = this._stateAdjustment.getStateTransitionParams();
 
         // Update cached boxes
@@ -217,7 +261,7 @@ class ControlsManagerLayout extends Clutter.BoxLayout {
             const workspaceAppGridBox =
                 this._cachedWorkspaceBoxes.get(ControlsState.APP_GRID);
 
-            params = [box, searchHeight, dashHeight, workspaceAppGridBox];
+            params = [box, searchHeight, dashHeight, workspaceAppGridBox, spacing];
             let appDisplayBox;
             if (!transitionParams.transitioning) {
                 appDisplayBox =
@@ -334,6 +378,9 @@ class ControlsManager extends St.Widget {
         });
 
         this.dash = new Dash.Dash();
+        Main.layoutManager.bind_property('is-phone',
+            this.dash, 'visible',
+            GObject.BindingFlags.SYNC_CREATE | GObject.BindingFlags.INVERT_BOOLEAN);
 
         let workspaceManager = global.workspace_manager;
         let activeWorkspaceIndex = workspaceManager.get_active_workspace_index();
@@ -365,7 +412,6 @@ class ControlsManager extends St.Widget {
         this._thumbnailsBox = new WorkspaceThumbnail.ThumbnailsBox(
             this._workspaceAdjustment, Main.layoutManager.primaryIndex);
         this._thumbnailsBox.connect('notify::should-show', () => {
-            this._thumbnailsBox.show();
             this._thumbnailsBox.ease_property('expand-fraction',
                 this._thumbnailsBox.should_show ? 1 : 0, {
                     duration: SIDE_CONTROLS_ANIMATION_TIME,
@@ -373,6 +419,7 @@ class ControlsManager extends St.Widget {
                     onComplete: () => this._updateThumbnailsBox(),
                 });
         });
+        Main.layoutManager.connect('notify::is-phone', () => this._updateThumbnailsBox());
 
         this._workspacesDisplay = new WorkspacesView.WorkspacesDisplay(
             this,
@@ -505,6 +552,7 @@ class ControlsManager extends St.Widget {
     }
 
     _getFitModeForState(state) {
+            return WorkspacesView.FitMode.SINGLE;
         switch (state) {
         case ControlsState.HIDDEN:
         case ControlsState.WINDOW_PICKER:
@@ -559,7 +607,9 @@ class ControlsManager extends St.Widget {
         const { searchActive } = this._searchController;
         const [opacity, scale, translationY] = this._getThumbnailsBoxParams();
 
-        const thumbnailsBoxVisible = shouldShow && !searchActive && opacity !== 0;
+        const thumbnailsBoxVisible = !Main.layoutManager.is_phone &&
+            shouldShow && !searchActive && opacity !== 0;
+
         if (thumbnailsBoxVisible) {
             this._thumbnailsBox.opacity = 0;
             this._thumbnailsBox.visible = thumbnailsBoxVisible;
@@ -589,7 +639,7 @@ class ControlsManager extends St.Widget {
         const state = Math.max(initialState, finalState);
 
         this._appDisplay.visible =
-            state > ControlsState.WINDOW_PICKER &&
+            (Main.layoutManager.is_phone || state > ControlsState.WINDOW_PICKER) &&
             !this._searchController.searchActive;
     }
 
@@ -760,7 +810,10 @@ class ControlsManager extends St.Widget {
 
     overviewGestureBegin(tracker) {
         const progress = this._stateAdjustment.value;
-        const points = [
+        const points = Main.layoutManager.is_phone ? [
+            ControlsState.HIDDEN,
+            ControlsState.APP_GRID,
+        ] : [
             ControlsState.HIDDEN,
             ControlsState.WINDOW_PICKER,
             ControlsState.APP_GRID,
@@ -867,13 +920,16 @@ class ControlsManager extends St.Widget {
         this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
+        const initialState = Main.layoutManager.is_phone
+            ? ControlsState.APP_GRID : ControlsState.WINDOW_PICKER;
+
         this._stateAdjustment.value = ControlsState.HIDDEN;
-        this._stateAdjustment.ease(ControlsState.WINDOW_PICKER, {
+        this._stateAdjustment.ease(initialState, {
             duration: Overview.ANIMATION_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
         });
 
-        this.dash.showAppsButton.checked = false;
+        this.dash.showAppsButton.checked = initialState === ControlsState.APP_GRID;
         this._ignoreShowAppsButtonToggle = false;
 
         // Set the opacity here to avoid a 1-frame flicker
