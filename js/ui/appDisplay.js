@@ -226,6 +226,9 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
     }
 
     _getIndicatorsWidth(box) {
+        if (Main.layoutManager.isPhone)
+            return 0;
+
         const [width, height] = box.get_size();
         const arrows = [
             this._nextPageArrow,
@@ -244,7 +247,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
     }
 
     _syncPageIndicatorsVisibility(animate = true) {
-        const previousIndicatorsVisible =
+        const previousIndicatorsVisible = !Main.layoutManager.isPhone &&
             this._currentPage > 0 && this._showIndicators;
 
         if (previousIndicatorsVisible)
@@ -259,7 +262,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
             },
         });
 
-        const previousArrowVisible =
+        const previousArrowVisible = !Main.layoutManager.isPhone &&
             this._currentPage > 0 && !previousIndicatorsVisible;
 
         if (previousArrowVisible)
@@ -277,7 +280,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
         // Always show the next page indicator to allow dropping
         // icons into new pages
         const {allowIncompletePages, nPages} = this._grid.layoutManager;
-        const nextIndicatorsVisible = this._showIndicators &&
+        const nextIndicatorsVisible = !Main.layoutManager.isPhone && this._showIndicators &&
             (allowIncompletePages ? true : this._currentPage < nPages - 1);
 
         if (nextIndicatorsVisible)
@@ -292,7 +295,7 @@ class BaseAppViewGridLayout extends Clutter.BinLayout {
             },
         });
 
-        const nextArrowVisible =
+        const nextArrowVisible = !Main.layoutManager.isPhone &&
             this._currentPage < nPages - 1 &&
             !nextIndicatorsVisible;
 
