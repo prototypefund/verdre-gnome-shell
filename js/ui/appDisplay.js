@@ -844,6 +844,10 @@ var BaseAppView = GObject.registerClass({
         if (this._overshootTimeoutId)
             GLib.source_remove(this._overshootTimeoutId);
         this._overshootTimeoutId = 0;
+
+        if (this._pageSwitchTimeoutId)
+            GLib.source_remove(this._pageSwitchTimeoutId);
+        this._pageSwitchTimeoutId = 0;
     }
 
     _dragWithinOvershootRegion(dragEvent) {
@@ -878,11 +882,8 @@ var BaseAppView = GObject.registerClass({
             return;
         }
 
-        if (this._overshootTimeoutId > 0)
-            return;
-
         let targetPage;
-        if (dragEvent.targetActor === this._prevPageIndicator)
+        if (targetActor === this._prevPageIndicator)
             targetPage = this._grid.currentPage - 1;
         else
             targetPage = this._grid.currentPage + 1;
@@ -893,18 +894,33 @@ var BaseAppView = GObject.registerClass({
         // If dragging over the drag overshoot threshold region, immediately
         // switch pages
         if (this._dragWithinOvershootRegion(dragEvent)) {
-            this._resetOvershoot();
-            this.goToPage(targetPage);
-        }
+            if (this._overshootTimeoutId > 0)
+                return;
 
-        this._overshootTimeoutId =
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, OVERSHOOT_TIMEOUT, () => {
-                this._resetOvershoot();
-                this.goToPage(targetPage);
-                return GLib.SOURCE_REMOVE;
-            });
-        GLib.Source.set_name_by_id(this._overshootTimeoutId,
-            '[gnome-shell] this._overshootTimeoutId');
+            this.goToPage(targetPage);
+
+            this._overshootTimeoutId =
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, OVERSHOOT_TIMEOUT, () => {
+                    this._resetOvershoot();
+                    return GLib.SOURCE_REMOVE;
+                });
+
+            GLib.Source.set_name_by_id(this._overshootTimeoutId,
+                '[gnome-shell] this._overshootTimeoutId');
+        } else {
+            if (this._pageSwitchTimeoutId > 0)
+                return;
+
+            this._pageSwitchTimeoutId =
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, OVERSHOOT_TIMEOUT, () => {
+                    this._resetOvershoot();
+                    this.goToPage(targetPage);
+                    return GLib.SOURCE_REMOVE;
+                });
+
+            GLib.Source.set_name_by_id(this._pageSwitchTimeoutId,
+                '[gnome-shell] this._pageSwitchTimeoutId');
+        }
     }
 
     _onDragBegin() {
