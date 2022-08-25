@@ -1051,6 +1051,21 @@ class Workspace extends St.Widget {
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
         this.add_child(this._background);
 
+        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
+            this._background, 'visible',
+            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
+
+if (metaWorkspace._appOpeningOverlay) {
+log("CREATING WS: reparenting overlay");
+            Main.uiGroup.remove_child(metaWorkspace._appOpeningOverlay);
+metaWorkspace._appOpeningOverlay.forceVisible = true;
+metaWorkspace._appOpeningOverlay.x = 0;
+metaWorkspace._appOpeningOverlay.y = 0;
+metaWorkspace._appOpeningOverlay.width = -1;
+metaWorkspace._appOpeningOverlay.height = -1;
+            this.add_child(metaWorkspace._appOpeningOverlay);
+}
+
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
@@ -1321,6 +1336,20 @@ class Workspace extends St.Widget {
         }
 
         this._windows = [];
+
+if (this.metaWorkspace._appOpeningOverlay && this.contains(this.metaWorkspace._appOpeningOverlay)) {
+            this.remove_child(this.metaWorkspace._appOpeningOverlay);
+
+        const workArea = Main.layoutManager.getWorkAreaForMonitor(Main.layoutManager.primaryMonitor)
+//this.width = workArea.width;
+//this.height = workArea.height;
+this.metaWorkspace._appOpeningOverlay.x = workArea.x;
+this.metaWorkspace._appOpeningOverlay.y = workArea.y;
+this.metaWorkspace._appOpeningOverlay.width = workArea.width;
+this.metaWorkspace._appOpeningOverlay.height = workArea.height;
+this.metaWorkspace._appOpeningOverlay.forceVisible = false;
+            Main.uiGroup.add_child(this.metaWorkspace._appOpeningOverlay);
+}
     }
 
     _doneLeavingOverview() {
