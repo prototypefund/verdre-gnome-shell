@@ -1352,7 +1352,8 @@ class AppDisplay extends BaseAppView {
 
         this._placeholder = null;
 
-        Main.overview.connect('hidden', () => this.goToPage(0));
+        if (!Main.layoutManager.isPhone)
+            Main.overview.connect('hidden', () => this.goToPage(0));
 
         this._redisplayWorkId = Main.initializeDeferredWork(this, this._redisplay.bind(this));
 
