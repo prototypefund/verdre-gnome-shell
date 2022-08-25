@@ -852,15 +852,17 @@ var BaseAppView = GObject.registerClass({
         const [indicatorX, indicatorY] = indicator.get_transformed_position();
         const [indicatorWidth, indicatorHeight] = indicator.get_transformed_size();
 
-        let overshootX = indicatorX;
-        if (indicator === this._nextPageIndicator || rtl)
-            overshootX += indicatorWidth - OVERSHOOT_THRESHOLD;
+        if (indicator === this._nextPageIndicator || rtl) {
+            if (y >= indicatorY && y <= indicatorY + indicatorHeight &&
+                x > (indicatorX + indicatorWidth) - OVERSHOOT_THRESHOLD)
+                return true;
+        } else {
+            if (y >= indicatorY && y <= indicatorY + indicatorHeight &&
+                x < indicatorX + OVERSHOOT_THRESHOLD)
+                return true;
+        }
 
-        const overshootBox = new Clutter.ActorBox();
-        overshootBox.set_origin(overshootX, indicatorY);
-        overshootBox.set_size(OVERSHOOT_THRESHOLD, indicatorHeight);
-
-        return overshootBox.contains(x, y);
+        return false;
     }
 
     _handleDragOvershoot(dragEvent) {
