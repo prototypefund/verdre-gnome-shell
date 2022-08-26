@@ -1683,15 +1683,17 @@ var Keyboard = GObject.registerClass({
     }
 
     _toggleDelete(enabled) {
+log("KEYBOARD: ENABLING DELETE: " + enabled);
         if (this._deleteEnabled === enabled)
             return;
 
         this._deleteEnabled = enabled;
         this._timesDeleted = 0;
 
-        if (!Main.inputMethod.currentFocus ||
+        if (true || !Main.inputMethod.currentFocus ||
             Main.inputMethod.hasPreedit() ||
             Main.inputMethod.terminalMode) {
+log("KEYBOARD: using cheap keyval press");
             /* If there is no IM focus or are in the middle of preedit,
              * fallback to keypresses */
             if (enabled)
