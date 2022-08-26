@@ -1604,6 +1604,7 @@ var Keyboard = GObject.registerClass({
                         this._toggleDelete(true);
                         this._toggleDelete(false);
                     } else if (key.action === 'levelSwitch') {
+                        this._layer1 = key.level === 1;
                         this._setActiveLayer(key.level);
                         this._setLatched(
                             key.level === 1 &&
@@ -1670,8 +1671,10 @@ var Keyboard = GObject.registerClass({
             }
         }
 
-        if (!this._latched)
+        if (!this._latched && this._layer1) {
             this._setActiveLayer(0);
+            delete this._layer1;
+        }
     }
 
     _previousWordPosition(text, cursor) {
