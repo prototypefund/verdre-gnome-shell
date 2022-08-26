@@ -239,7 +239,7 @@ var SearchController = GObject.registerClass({
     _onTextChanged() {
         let terms = getTermsForSearchString(this._entry.get_text());
 
-        const searchActive = terms.length > 0;
+        const searchActive = this._entry.get_text().length > 0;
         this._searchResults.setTerms(terms);
 
         if (searchActive) {
