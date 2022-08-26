@@ -208,6 +208,27 @@ class AppStartupAnimation extends St.Widget {
         });
         this.add_child(this._bottomPanelBox);
 
+        this._settings = new Gio.Settings({
+            schema_id: 'org.gnome.desktop.interface',
+        });
+
+        const updateColorScheme = () => {
+            const colorScheme = this._settings.get_string('color-scheme');
+            const darkMode = colorScheme === 'prefer-dark';
+            if (colorScheme === 'prefer-dark') {
+                this.add_style_class_name('dark-mode-enabled');
+                this._bottomPanelBox.add_style_class_name('dark-mode-enabled');
+            } else {
+                this.remove_style_class_name('dark-mode-enabled');
+                this._bottomPanelBox.remove_style_class_name('dark-mode-enabled');
+            }
+        }
+
+        this._settings.connect('changed::color-scheme',
+            updateColorScheme);
+
+        updateColorScheme();
+
         this._appIcon = app.create_icon_texture(128);
         this._appIcon.add_style_class_name('icon-dropshadow');
         this._appIcon.opacity = 255;

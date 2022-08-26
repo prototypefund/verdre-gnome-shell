@@ -258,10 +258,6 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
   //background-color: $panel_bg_color;
   background-color: #fafafa;
 
-  &.dark-mode-enabled {
-    background-color: black;
-  }
-
   height: 18px;
 
   #bottomPanelLine {
@@ -271,6 +267,14 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
  //   background-color: white;
     background-color: $panel_bg_color
 
+  }
+
+  &.dark-mode-enabled {
+    background-color: #242424;
+
+    #bottomPanelLine {
+      background-color: white;
+    }
   }
 
   // transparent panel on lock & login screens

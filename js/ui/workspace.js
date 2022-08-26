@@ -1,7 +1,7 @@
 // -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
 /* exported Workspace */
 
-const {Clutter, GLib, GObject, Graphene, Meta, Shell, St} = imports.gi;
+const {Clutter, GLib, GObject, Gio, Graphene, Meta, Shell, St} = imports.gi;
 
 const Background = imports.ui.background;
 const DND = imports.ui.dnd;
@@ -1097,6 +1097,25 @@ class Workspace extends St.Widget {
                 pivot_point: new Graphene.Point({ x: 0, y: 1 }),
                 visible: false,
             });
+
+            this._settings = new Gio.Settings({
+                schema_id: 'org.gnome.desktop.interface',
+            });
+
+            const updateColorScheme = () => {
+                const colorScheme = this._settings.get_string('color-scheme');
+                const darkMode = colorScheme === 'prefer-dark';
+                if (colorScheme === 'prefer-dark')
+                    this._bottomPanelBox.add_style_class_name('dark-mode-enabled');
+                else
+                    this._bottomPanelBox.remove_style_class_name('dark-mode-enabled');
+            }
+
+            this._settings.connect('changed::color-scheme',
+                updateColorScheme);
+
+            updateColorScheme();
+
             this._bottomPanelBox.child = new St.Widget({
                 name: 'bottomPanelLine',
                 x_expand: true,
