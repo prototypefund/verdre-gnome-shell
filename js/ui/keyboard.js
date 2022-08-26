@@ -367,7 +367,6 @@ var Key = GObject.registerClass({
         super._init({ style_class: 'key-container' });
         this.get_click_gesture().enabled = false;
 
-        this._keyval = parseInt(keyval, 16);
         this._keyBin = this._makeKey(commitString, label, iconName);
 
         /* Add the key in a container, so keys can be padded without losing
@@ -386,7 +385,13 @@ var Key = GObject.registerClass({
         });
         keyClickGesture.connect('release', () => {
             this.remove_style_pseudo_class('active');
-            this.emit('commit', this._getKeyvalFromString(commitString), commitString || '');
+
+            let finalKeyval = parseInt(keyval, 16);
+            if (!finalKeyval && commitString)
+                finalKeyval = this._getKeyvalFromString(commitString);
+            console.assert(finalKeyval !== undefined, 'Need keyval or commitString');
+
+            this.emit('commit', finalKeyval, commitString || '');
             this.emit('released');
         });
         keyClickGesture.connect('cancel', () => {
