@@ -67,7 +67,6 @@ shell_workspace_background_get_preferred_width (ClutterActor *actor,
 
 //  if (for_height == -1)
     {
-g_warning("BACKGROUND req w h -1");
       *min_width_p = 0;
       *natural_width_p = self->work_area.width;
       return;
@@ -86,7 +85,7 @@ g_warning("BACKGROUND req w h -1");
     }
 
   width_preserving_aspect_ratio = for_height * work_area_aspect_ratio;
-g_warning("BACKGROUND %p req w %f", self, width_preserving_aspect_ratio);
+
   *min_width_p = 0;
   *natural_width_p = width_preserving_aspect_ratio;
 }
@@ -107,7 +106,6 @@ shell_workspace_background_get_preferred_height (ClutterActor *actor,
 
  //     if (for_width == -1)
         {
-g_warning("BACKGROUND req h w -1");
           *min_height_p = 0;
           *natural_height_p = (float) self->work_area.height + bottom_panel_height;
           return;
@@ -126,7 +124,7 @@ g_warning("BACKGROUND req h w -1");
     }
 
   height_preserving_aspect_ratio = for_width / work_area_aspect_ratio;
-g_warning("BACKGROUND req h %f", height_preserving_aspect_ratio);
+
   *min_height_p = 0;
   *natural_height_p = height_preserving_aspect_ratio;
 }
@@ -154,7 +152,6 @@ shell_workspace_background_allocate (ClutterActor          *actor,
 
   if (self->app_opening_overlay)
     {
-g_warning("BLABLA HAVE OPEN OV");
   st_theme_node_get_content_box (theme_node, box, &content_box);
 
   clutter_actor_box_get_size (&content_box, &content_width, &content_height);
@@ -179,7 +176,6 @@ g_warning("BLABLA HAVE OPEN OV");
   y_scale = content_height / self->work_area.height;
 
             content_box.y1 = content_box.y2 - (bottom_panel_height);
-g_warning("HAVE BOTTOM PANEL. giving x %f y %f w %f h %f", content_box.x1, content_box.y1,   clutter_actor_box_get_width (&content_box), clutter_actor_box_get_height (&content_box));
         clutter_actor_allocate (self->bottom_panel, &content_box);
 
             clutter_actor_set_scale (self->bottom_panel, 1, x_scale);
@@ -304,7 +300,6 @@ shell_workspace_background_set_property (GObject      *gobject,
         ClutterActor *new_value = g_value_get_object (value);
         if (self->app_opening_overlay != new_value)
         {
-g_warning("BLABLA: setting opr");
           self->app_opening_overlay = new_value;
           g_object_notify_by_pspec (gobject, obj_props[PROP_APP_OPENING_OVERLAY_ACTOR]);
         }

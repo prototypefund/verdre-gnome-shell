@@ -628,28 +628,24 @@ var WorkspaceLayout = GObject.registerClass({
     vfunc_get_preferred_width(container, forHeight) {
         const workarea = this._getAdjustedWorkarea(container);
  //       if (forHeight === -1) {
-log("BACKGROUND ws w for h -1");
             return [0, workarea.width];
 //}
 
         const workAreaAspectRatio = workarea.width / workarea.height;
         const widthPreservingAspectRatio = forHeight * workAreaAspectRatio;
 
-log("BACKGROUND ws w " +  widthPreservingAspectRatio + " pt " + container);
         return [0, widthPreservingAspectRatio];
     }
 
     vfunc_get_preferred_height(container, forWidth) {
         const workarea = this._getAdjustedWorkarea(container);
 //        if (forWidth === -1) {
-log("BACKGROUND ws h for w -1");
             return [0, workarea.height];
 //}
 
         const workAreaAspectRatio = workarea.width / workarea.height;
         const heightPreservingAspectRatio = forWidth / workAreaAspectRatio;
 
-log("BACKGROUND ws h "+  heightPreservingAspectRatio);
         return [0, heightPreservingAspectRatio];
     }
 
