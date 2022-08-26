@@ -312,9 +312,9 @@ background-color: transparentize(#cccccc, 0.7);
 
 // styling for elements within popovers that look like notifications
 @mixin card($flat: false) {
-  border-radius: $base_border_radius;
+  border-radius: 18px;
   margin: $base_margin;
-  box-shadow: 0 1px 1px 0 $shadow_color;
+ // box-shadow: 0 1px 1px 0 $shadow_color;
 
   @if $flat {
     @include button(undecorated);

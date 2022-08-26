@@ -3,20 +3,22 @@
 
 // main list
 .message-list {
-  width: 29em;
-  border: solid $borders_color;
+  width: 200px;
+  margin-top: 24px;
+
+ // border: solid $borders_color;
 
   &:ltr {
     StScrollBar { margin-right: 0; }
-    margin-right: $base_margin;
-    padding-right: $base_padding;
+  //  margin-right: $base_margin;
+  //  padding-right: $base_padding;
     border-right-width: 1px;
   }
 
   &:rtl {
     StScrollBar { margin-left: 0; }
-    margin-left: $base_margin;
-    padding-left: $base_padding;
+  //  margin-left: $base_margin;
+  //  padding-left: $base_padding;
     border-left-width: 1px;
   }
 
