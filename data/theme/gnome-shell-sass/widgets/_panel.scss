@@ -257,6 +257,11 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
 #bottomPanelBox {
   //background-color: $panel_bg_color;
   background-color: #fafafa;
+
+  &.dark-mode-enabled {
+    background-color: black;
+  }
+
   height: 18px;
 
   #bottomPanelLine {

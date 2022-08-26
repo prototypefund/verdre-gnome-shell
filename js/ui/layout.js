@@ -274,6 +274,24 @@ var LayoutManager = GObject.registerClass({
             reactive: true,
         });
 
+        this._settings = new Gio.Settings({
+            schema_id: 'org.gnome.desktop.interface',
+        });
+
+        const updateColorScheme = () => {
+            const colorScheme = this._settings.get_string('color-scheme');
+            const darkMode = colorScheme === 'prefer-dark';
+            if (colorScheme === 'prefer-dark')
+                this.bottomPanelBox.add_style_class_name('dark-mode-enabled');
+            else
+                this.bottomPanelBox.remove_style_class_name('dark-mode-enabled');
+        }
+
+        this._settings.connect('changed::color-scheme',
+            updateColorScheme);
+
+        updateColorScheme();
+
         this.bottomPanelBox.child = new St.Widget({
             name: 'bottomPanelLine',
             x_expand: true,
