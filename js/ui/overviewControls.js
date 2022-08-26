@@ -17,7 +17,7 @@ const WorkspacesView = imports.ui.workspacesView;
 
 var WORKSPACE_SWITCH_TIME = 250;
 
-const SMALL_WORKSPACE_RATIO = 0.21;
+const SMALL_WORKSPACE_RATIO = 0.25;
 const DASH_MAX_HEIGHT_RATIO = 0.15;
 
 const A11Y_SCHEMA = 'org.gnome.desktop.a11y.keyboard';
@@ -211,7 +211,7 @@ else
         const startY = this._workAreaBox.y1;
         box.y1 += startY;
         const [width, height] = box.get_size();
-        const spacing = height * 0.03;
+        const spacing = height * 0.02;
         let availableHeight = height;
 
         // Search entry
@@ -223,7 +223,7 @@ else
                 childBox.set_origin(0, startY);
             } else {
           //      searchHeight = 70;
-                childBox.set_origin(0, startY + spacing * 2.5);
+                childBox.set_origin(0, startY + spacing * 4.5);
             }
         } else {
             childBox.set_origin(0, startY);
