@@ -616,7 +616,7 @@ class ControlsManager extends St.Widget {
         });
 
         Main.wm.workspaceTracker.connect('notify::zero-open-windows', () =>
-            this._emptyStateMaybeChanged(false));
+            this._emptyStateMaybeChanged(true));
        // this._searchEntry.connect('notify::text', this._emptyStateMaybeChanged.bind(this));
 
         Main.wm.addKeybinding(
