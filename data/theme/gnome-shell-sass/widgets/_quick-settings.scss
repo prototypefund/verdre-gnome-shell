@@ -1,6 +1,6 @@
 .quick-settings {
-  padding: $base_padding*3;
-  border-radius: $modal_radius*2.25;
+  padding: 1.5 * $base_padding;
+  border-radius: 32px;
 
   .icon-button, .button {
     padding: $base_padding*1.75;
@@ -14,8 +14,8 @@
 
 .quick-toggle {
   border-radius: 99px;
-  min-width: 12em;
-  max-width: 12em;
+  min-width: 9em;
+  max-width: 9em;
   min-height: 40px;
   border:none;
 
@@ -100,7 +100,7 @@
 }
 
 .quick-settings-system-item {
-  & > StBoxLayout { spacing: 2 * $base_padding; }
+  & > StBoxLayout { spacing: 1 * $base_padding; }
 
   & .power-item {
     min-height: 0;

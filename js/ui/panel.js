@@ -475,18 +475,18 @@ class Panel extends St.Widget {
     }
 
     _panBegin(gesture, x, y) {
-        const menuActor = this.statusArea.quickSettings.menu.actor;
+        const menuActor = this.statusArea.quickSettings.menu.actor.get_children()[0];
 
         this.statusArea.quickSettings.menu.open(false);
 
         menuActor.remove_transition('translation-y');
 
-        this._panHeight = menuActor.get_children()[1].get_children()[0].get_preferred_height(-1)[1];
+        this._panHeight = menuActor.get_preferred_height(-1)[1] + this.height;
         menuActor.translation_y = -this._panHeight + y;
     }
 
     _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
-        const menuActor = this.statusArea.quickSettings.menu.actor;
+        const menuActor = this.statusArea.quickSettings.menu.actor.get_children()[0];
 
         menuActor.translation_y += deltaY;
         if (menuActor.translation_y > 0)
@@ -494,12 +494,9 @@ class Panel extends St.Widget {
     }
 
     _panEnd(gesture, velocityX, velocityY) {
-        const menuActor = this.statusArea.quickSettings.menu.actor;
+        const menuActor = this.statusArea.quickSettings.menu.actor.get_children()[0];
 
         const remainingHeight = Math.abs(menuActor.translation_y);
-
-log("pan End: " + velocityY);
-log("pan travelled: " + remainingHeight + " of " + this._panHeight + " taking " + Math.clamp(remainingHeight / Math.abs(velocityY), 100, 350));
 
         if (velocityY > 0.9 || (remainingHeight < this._panHeight / 2 && velocityY >= 0)) {
             menuActor.ease({
