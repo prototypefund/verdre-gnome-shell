@@ -1,6 +1,7 @@
 /* exported QuickToggle, QuickMenuToggle, QuickSlider, QuickSettingsMenu, SystemIndicator */
 const {Atk, Clutter, Gio, GLib, GObject, Graphene, Meta, Pango, St} = imports.gi;
 
+const Calendar = imports.ui.calendar;
 const Main = imports.ui.main;
 const PopupMenu = imports.ui.popupMenu;
 const {Slider} = imports.ui.slider;
@@ -618,6 +619,10 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
         });
         this.box.add_child(this._grid);
         this._grid.add_child(placeholder);
+
+        this._messageList = new Calendar.CalendarMessageList();
+        this._messageList.x_align = Clutter.ActorAlign.FILL;
+        this.box.add_child(this._messageList);
 
         const yConstraint = new Clutter.BindConstraint({
             coordinate: Clutter.BindCoordinate.Y,

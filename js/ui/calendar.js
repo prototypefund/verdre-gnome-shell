@@ -924,8 +924,8 @@ class CalendarMessageList extends St.Widget {
             y_expand: true,
         });
 
-        this._placeholder = new Placeholder();
-        this.add_actor(this._placeholder);
+     //   this._placeholder = new Placeholder();
+     //   this.add_actor(this._placeholder);
 
         let box = new St.BoxLayout({
             vertical: true,
@@ -976,10 +976,10 @@ class CalendarMessageList extends St.Widget {
         });
         hbox.add_actor(this._clearButton);
 
-        this._placeholder.bind_property('visible',
+      /*  this._placeholder.bind_property('visible',
             this._clearButton, 'visible',
             GObject.BindingFlags.INVERT_BOOLEAN);
-
+*/
         this._sectionList = new St.BoxLayout({
             style_class: 'message-list-sections',
             vertical: true,
@@ -1022,7 +1022,7 @@ class CalendarMessageList extends St.Widget {
             return;
 
         let empty = sections.every(s => s.empty || !s.visible);
-        this._placeholder.visible = empty;
+    //    this._placeholder.visible = empty;
 
         let canClear = sections.some(s => s.canClear && s.visible);
         this._clearButton.reactive = canClear;
