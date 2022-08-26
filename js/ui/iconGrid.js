@@ -241,8 +241,7 @@ function animateIconPosition(icon, box, nChangedIcons) {
 
     icon.save_easing_state();
     icon.set_easing_mode(Clutter.AnimationMode.EASE_OUT_QUAD);
-//    icon.set_easing_delay(nChangedIcons * ICON_POSITION_DELAY);
-    icon.set_easing_duration(500);
+    icon.set_easing_delay(nChangedIcons * ICON_POSITION_DELAY);
     icon.allocate(box);
 
     icon.restore_easing_state();
@@ -810,10 +809,10 @@ leftEmptySpace += hSpacing;
                     Math.max(childWidth, naturalWidth),
                     Math.max(childHeight, naturalHeight));
 
-          //      if (!shouldEaseItems || pageSizeChanged)
+                if (!shouldEaseItems || pageSizeChanged)
                     item.allocate(childBox);
-          //      else if (animateIconPosition(item, childBox, nChangedIcons))
-            //        nChangedIcons++;
+                else if (animateIconPosition(item, childBox, nChangedIcons))
+                    nChangedIcons++;
             });
         });
 
