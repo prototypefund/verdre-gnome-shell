@@ -419,12 +419,15 @@ var Key = GObject.registerClass({
                 return;
 
             const extendedKey = this._currentExtendedKeyButton.extendedKey;
-            this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey);
+            this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey || '');
 
             this._currentExtendedKeyButton.remove_style_pseudo_class('active');
             delete this._currentExtendedKeyButton;
             this._hideSubkeys();
         });
+
+        if (this._extendedKeys.length === 0)
+            longPressAndDragGesture.can_not_cancel(keyClickGesture);
 
         this.add_action(longPressAndDragGesture);
     }
@@ -460,7 +463,6 @@ this._boxPointer.y_align = Clutter.ActorAlign.START;
         // Adds style to existing keyboard style to avoid repetition
         this._boxPointer.add_style_class_name('keyboard-subkeys');
         this._getExtendedKeys();
-        this._extendedKeys = this._extendedKeyboard;
     }
 
     _getKeyvalFromString(string) {
@@ -504,7 +506,7 @@ this._boxPointer.y_align = Clutter.ActorAlign.START;
     }
 
     _makeKey(commitString, label, icon) {
-        const button = new St.Button({
+        const button = new St.Bin({
             style_class: 'visible-key',
             x_expand: true,
         });
@@ -522,8 +524,13 @@ this._boxPointer.y_align = Clutter.ActorAlign.START;
             labelActor.clutter_text.use_markup = true;
             button.set_child(labelActor);
         } else if (commitString) {
-            const str = GLib.markup_escape_text(commitString, -1);
-            button.set_label(str);
+            const labelActor = new St.Label({
+                text: GLib.markup_escape_text(commitString, -1) || '',
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+            });
+            labelActor.clutter_text.use_markup = true;
+            button.set_child(labelActor);
         }
 
         return button;
@@ -541,7 +548,7 @@ this._boxPointer.y_align = Clutter.ActorAlign.START;
             button.set_child(button._keyBin);
 
             button.connect('clicked', () => {
-                this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey);
+                this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey || '');
 
                 this._hideSubkeys();
             });
@@ -732,7 +739,7 @@ var EmojiPager = GObject.registerClass({
         this._delta = 0;
         this._width = null;
 
-        const swipeTracker = new SwipeTracker.SwipeTracker(this,
+        const swipeTracker = new SwipeTracker.SwipeTracker(
             Clutter.Orientation.HORIZONTAL,
             Shell.ActionMode.NORMAL | Shell.ActionMode.OVERVIEW,
             {allowDrag: true, allowScroll: true});
@@ -740,6 +747,8 @@ var EmojiPager = GObject.registerClass({
         swipeTracker.connect('update', this._onSwipeUpdate.bind(this));
         swipeTracker.connect('end', this._onSwipeEnd.bind(this));
         this._swipeTracker = swipeTracker;
+
+        this.add_action(swipeTracker);
     }
 
     get delta() {
@@ -803,8 +812,6 @@ var EmojiPager = GObject.registerClass({
 
     _onSwipeUpdate(tracker, progress) {
         this.delta = -progress * this._width;
-
-        return false;
     }
 
     _onSwipeBegin(tracker) {
@@ -952,8 +959,8 @@ var EmojiPager = GObject.registerClass({
     }
 
     setRatio(nCols, nRows) {
-        this._nCols = nCols;
-        this._nRows = nRows;
+        this._nCols = Math.floor(nCols * 0.75);
+        this._nRows = Math.floor(nRows * 0.75);
         this._initPagingInfo();
     }
 });
@@ -1108,13 +1115,13 @@ var EmojiSelection = GObject.registerClass({
             section.button = key;
         }
 
-        key = new Key({iconName: 'go-down-symbolic'});
+    /*    key = new Key({iconName: 'go-down-symbolic'});
         key.add_style_class_name('default-key');
         key.add_style_class_name('hide-key');
         key.connect('released', () => {
             this.emit('close-request');
         });
-        row.appendKey(key);
+        row.appendKey(key);*/
         row.layoutButtons();
 
         const actor = new AspectContainer({
@@ -1128,8 +1135,8 @@ var EmojiSelection = GObject.registerClass({
     }
 
     setRatio(nCols, nRows) {
-        this._emojiPager.setRatio(Math.floor(nCols), (Math.floor(nRows) - 1) * 1.5);
-        this._bottomRow.setRatio(nCols, 1.5);
+        this._emojiPager.setRatio(Math.floor(nCols), (Math.floor(nRows) - 1));
+        this._bottomRow.setRatio(nCols, 1);
 
         // (Re)attach actors so the emoji panel fits the ratio and
         // the bottom row is ensured to take 1 row high.
@@ -1611,14 +1618,18 @@ var Keyboard = GObject.registerClass({
                     } else if (key.action === 'delete') {
                         this._toggleDelete(true);
                         this._toggleDelete(false);
-                    } else if (!this._longPressed && key.action === 'levelSwitch') {
+                    } else if (key.action === 'levelSwitch') {
                         this._setActiveLayer(key.level);
                         this._setLatched(
                             key.level === 1 &&
                                 key.iconName === 'keyboard-caps-lock-symbolic');
                     }
+                });
 
-                    this._longPressed = false;
+                button.connect('cancelled', () => {
+                    if (key.action === 'delete') {
+                        this._toggleDelete(false);
+                    }
                 });
             }
 
@@ -1629,7 +1640,6 @@ var Keyboard = GObject.registerClass({
                     button.connect('long-press', () => {
                         this._setActiveLayer(key.level);
                         this._setLatched(true);
-                        this._longPressed = true;
                     });
                 }
             }
