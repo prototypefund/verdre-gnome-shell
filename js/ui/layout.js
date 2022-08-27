@@ -272,6 +272,7 @@ var LayoutManager = GObject.registerClass({
         this.bottomPanelBox = new St.Bin({
             name: 'bottomPanelBox',
             reactive: true,
+            opacity: Main.sessionMode.hasBottomPanel ? 255 : 0,
         });
 
         this._settings = new Gio.Settings({
@@ -383,7 +384,7 @@ var LayoutManager = GObject.registerClass({
 
         if (Main.overview.visible ||
             activeWorkspace._appOpeningOverlay ||
-            Main.sessionMode.isLocked)
+            !Main.sessionMode.hasBottomPanel)
             return;
 
         this.bottomPanelBox.opacity = 255;
@@ -401,7 +402,7 @@ var LayoutManager = GObject.registerClass({
         });
         Main.overview.connect('hidden', this.maybeShowBottomPanel.bind(this));
         Main.sessionMode.connect('updated', () => {
-            if (Main.sessionMode.isLocked)
+            if (!Main.sessionMode.hasBottomPanel)
                 this.bottomPanelBox.opacity = 0;
             else
                 this.maybeShowBottomPanel();
