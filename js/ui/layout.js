@@ -410,11 +410,16 @@ var LayoutManager = GObject.registerClass({
     }
 
     showOverview() {
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin show actors");
         this.overviewGroup.show();
+imports.gi.Cogl.trace_generic_end();
         this.screenTransition.hide();
 
+
         this._inOverview = true;
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin update visi");
         this._updateVisibility();
+imports.gi.Cogl.trace_generic_end();
     }
 
     hideOverview() {

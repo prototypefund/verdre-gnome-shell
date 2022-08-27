@@ -416,26 +416,30 @@ var Overview = class extends Signals.EventEmitter {
     _overviewGestureBegin(tracker) {
         const hidden = !this._shown;
         if (hidden) {
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin unredi ");
             Meta.disable_unredirect_for_display(global.display);
-
+imports.gi.Cogl.trace_generic_end();
             this._shown = true;
             this._visible = true;
             this._visibleTarget = true;
             this._animationInProgress = true;
 
             Main.layoutManager.showOverview();
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin sync grab ");
             this._syncGrab();
+imports.gi.Cogl.trace_generic_end();
         }
 
         delete this._shownForWorkspacesGesture;
         this._visible = true; // FIXME: do we really need this
         this._visibleTarget = true;// FIXME: do we really need this?
 
-        this._overview.controls.overviewGestureBegin(tracker);
 
+        this._overview.controls.overviewGestureBegin(tracker);
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin emitting showing");
         if (hidden)
             this.emit('showing');
-
+imports.gi.Cogl.trace_generic_end();
         this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
     }
 
@@ -690,6 +694,7 @@ var Overview = class extends Signals.EventEmitter {
     _animateVisible(state) {
         if (this._visible || this._animationInProgress)
             return;
+imports.gi.Cogl.trace_generic_begin("overview anim visible");
 
         this._visible = true;
         this._animationInProgress = true;
@@ -703,7 +708,11 @@ var Overview = class extends Signals.EventEmitter {
         Main.layoutManager.overviewGroup.set_child_above_sibling(
             this._coverPane, null);
         this._coverPane.show();
+imports.gi.Cogl.trace_generic_end();
+imports.gi.Cogl.trace_generic_begin("emitting showing");
         this.emit('showing');
+imports.gi.Cogl.trace_generic_end();
+
     }
 
     _showDone() {

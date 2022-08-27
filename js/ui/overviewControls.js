@@ -915,6 +915,7 @@ this.queue_relayout();
             ControlsState.APP_GRID,
         ];
 
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin removing old transition");
         let wasEasingTo = null;
         let cancelProgress = Math.round(progress);
         const transition = this._stateAdjustment.get_transition('value');
@@ -922,20 +923,28 @@ this.queue_relayout();
             wasEasingTo = cancelProgress = transition.get_interval().peek_final_value();
             this._stateAdjustment.remove_transition('value');
         }
-
+imports.gi.Cogl.trace_generic_end();
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin get ws boxes");
         const hiddenBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.HIDDEN);
         const windowPickerBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.WINDOW_PICKER);
         const appGridBox = this.layoutManager.getWorkspacesBoxForState(ControlsState.APP_GRID);
-
+imports.gi.Cogl.trace_generic_end();
         const distanceHiddenToWindowPicker = Math.abs(hiddenBox.y2 - windowPickerBox.y2);
         const distanceWindowPickerToAppGrid = Math.abs(windowPickerBox.y2 - appGridBox.y2);
 
         const distance = progress > ControlsState.WINDOW_PICKER
             ? distanceWindowPickerToAppGrid : distanceHiddenToWindowPicker;
 
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin confirm swipe");
         tracker.confirmSwipe(distance, points, progress, cancelProgress, wasEasingTo);
+imports.gi.Cogl.trace_generic_end();
+
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin showing ws display");
         this._workspacesDisplay.show();
+imports.gi.Cogl.trace_generic_end();
+imports.gi.Cogl.trace_generic_begin("_overviewGestureBegin prepare to enter");
         this._searchController.prepareToEnterOverview();
+imports.gi.Cogl.trace_generic_end();
         this._stateAdjustment.gestureInProgress = true;
     }
 
