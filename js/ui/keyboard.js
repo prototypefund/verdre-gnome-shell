@@ -1405,7 +1405,109 @@ var Keyboard = GObject.registerClass({
             this.close(true);
         });
 
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this._panGesture.enabled = false;
+        Main.uiGroup.add_action(this._panGesture); // don't add to stage so that Metagesture tracker doesn't complain
+
         this.connect('destroy', this._onDestroy.bind(this));
+    }
+
+    _panMayRecognize(gesture) {
+        const points = gesture.get_points();
+        if (!points[0])
+            return true;
+
+        if (!this.get_transformed_extents().contains_point(points[0].latest_coords))
+            return true;
+
+        const delta = points[0].latest_coords.y - points[0].begin_coords.y;
+
+        return delta > 0;
+    }
+
+    _panBegin(gesture, x, y) {
+        this.remove_transition('translation-y');
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+        windowActor?.remove_transition('y');
+
+        this._keyboardBeginY = this.get_transformed_extents().origin.y;
+        this._panCurY = y;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        if (this._panCurY < this._keyboardBeginY) {
+            this._panCurY += deltaY;
+            return;
+        }
+        this._panCurY += deltaY;
+
+        let newTranslation = this.translation_y + deltaY;
+        if (newTranslation < 0)
+            newTranslation = 0;
+
+        this.translation_y = newTranslation;
+
+        const panHeight = this.get_transformed_extents().size.height;
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+
+        if (windowActor)
+            windowActor.y = this._focusWindowStartY - (panHeight - newTranslation);
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const panHeight = this.get_transformed_extents().size.height;
+
+        const remainingHeight = panHeight - this.translation_y;
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+
+        if (this._panCurY >= this._keyboardBeginY && (velocityY > 0.9 || (remainingHeight < panHeight / 2 && velocityY >= 0))) {
+            this.ease({
+                translation_y: panHeight,
+                duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
+                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                onStopped: () => this.close(),
+            });
+
+            if (windowActor) {
+                windowActor.ease({
+                    y: this._focusWindowStartY,
+                    duration: KEYBOARD_ANIMATION_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onStopped: () => {
+                        windowActor.y = this._focusWindowStartY;
+                        this._windowSlideAnimationComplete(this._focusWindow, this._focusWindowStartY);
+                    },
+                });
+            }
+        } else {
+            this.ease({
+                translation_y: 0,
+                duration: Math.clamp((panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+            });
+
+            if (windowActor) {
+                windowActor.ease({
+                    y: this._focusWindowStartY - panHeight,
+                    duration: KEYBOARD_ANIMATION_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onStopped: () => {
+                        windowActor.y = this._focusWindowStartY - panHeight;
+                     //   this._windowSlideAnimationComplete(window, finalY);
+                    },
+                });
+            }
+        }
     }
 
     get visible() {
@@ -2014,6 +2116,8 @@ log("KEYBOARD: using cheap keyval press");
         this._animateShow();
 
         this._setEmojiActive(false);
+
+        this._panGesture.enabled = true;
     }
 
     close(immediate = false) {
@@ -2049,6 +2153,8 @@ log("KEYBOARD: using cheap keyval press");
         this._animateHide();
         this.setCursorLocation(null);
         this._disableAllModifiers();
+
+        this._panGesture.enabled = false;
     }
 
     _animateShow() {
