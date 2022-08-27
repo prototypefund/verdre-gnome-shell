@@ -452,8 +452,13 @@ var IconGridLayout = GObject.registerClass({
         const itemData = this._items.get(item);
 
         item.disconnect(itemData.destroyId);
-        item.disconnect(itemData.visibleId);
-        item.disconnect(itemData.queueRelayoutId);
+      //  item.disconnect(itemData.visibleId);
+
+        if (item === this._queueRelayoutItem) {
+            delete this._queueRelayoutItem;
+            item.disconnect(this._queueRelayoutId);
+            delete this._queueRelayoutId;
+        }
 
         this._items.delete(item);
     }
@@ -560,7 +565,7 @@ var IconGridLayout = GObject.registerClass({
             actor: item,
             pageIndex,
             destroyId: item.connect('destroy', () => this._removeItemData(item)),
-            visibleId: item.connect('notify::visible', () => {
+       /*     visibleId: item.connect('notify::visible', () => {
                 const itemData = this._items.get(item);
 
                 this._updateVisibleChildrenForPage(itemData.pageIndex);
@@ -569,11 +574,18 @@ var IconGridLayout = GObject.registerClass({
                     this._relocateSurplusItems(itemData.pageIndex);
                 else if (!this.allowIncompletePages)
                     this._fillItemVacancies(itemData.pageIndex);
-            }),
+            }),*//*
             queueRelayoutId: item.connect('queue-relayout', () => {
                 this._childrenMaxWidth = this._childrenMaxHeight = -1;
-            }),
+            }),*/
         });
+
+        if (!this._queueRelayoutItem) {
+            this._queueRelayoutItem = item;
+            this._queueRelayoutId = item.connect('queue-relayout', () => {
+                this._childrenMaxWidth = this._childrenMaxHeight = -1;
+            });
+        }
 
         item.icon.setIconSize(this._iconSize);
 
