@@ -185,7 +185,7 @@
         [
           {
             "action": "levelSwitch",
-            "label": "?123",
+            "label": "123",
             "level": 2,
             "width": 1.5
           },
@@ -393,7 +393,7 @@
         [
           {
             "action": "levelSwitch",
-            "label": "?123",
+            "label": "123",
             "level": 2,
             "width": 1.5
           },
@@ -517,6 +517,11 @@
           {
             "strings": [
               "&"
+            ]
+          },
+          {
+            "strings": [
+              "/"
             ]
           },
           {
@@ -771,7 +776,7 @@
         [
           {
             "action": "levelSwitch",
-            "label": "?123",
+            "label": "123",
             "level": 2,
             "width": 1.5
           },
