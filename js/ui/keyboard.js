@@ -1506,6 +1506,26 @@ var Keyboard = GObject.registerClass({
                 this._onEmojiKeyVisible.bind(this), this);
         }
 
+        if (Main.layoutManager.bottomPanelBox.height > 0) {
+            this._bottomPanelBox = new St.Bin({
+                name: 'bottomPanelBox',
+                reactive: true,
+                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+            });
+
+            this._bottomPanelBox.add_style_class_name('dark-mode-enabled');
+
+            this._bottomPanelBox.child = new St.Widget({
+                name: 'bottomPanelLine',
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+            });
+
+            this.add_child(this._bottomPanelBox);
+        }
+
         this._relayout();
     }
 
@@ -1999,6 +2019,11 @@ log("KEYBOARD: using cheap keyval press");
         if (!this._keyboardRequested)
             return;
 
+        if (this._bottomPanelBox) {
+            this._bottomPanelBox.child.visible =
+                !Main.overview.visible && Main.sessionMode.hasBottomPanel;
+        }
+
         this._relayout();
         this._animateShow();
 
@@ -2156,7 +2181,7 @@ log("KEYBOARD: using cheap keyval press");
             return;
 
         const finalY = show
-            ? this._focusWindowStartY - this.get_transformed_extents().size.height
+            ? this._focusWindowStartY - (this.get_transformed_extents().size.height - this._bottomPanelBox.height)
             : this._focusWindowStartY;
 
         windowActor.ease({
