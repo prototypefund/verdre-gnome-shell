@@ -67,7 +67,7 @@ var SearchController = GObject.registerClass({
             this._entry.menu.close();
             this._searchResults.popupMenuDefault();
         });
-        this._entry.connect('notify::mapped', this._onMapped.bind(this));
+      //  this._entry.connect('notify::mapped', this._onMapped.bind(this));
         global.stage.connect('notify::key-focus', this._onStageKeyFocusChanged.bind(this));
 
         this._entry.set_primary_icon(new St.Icon({
