@@ -1724,15 +1724,19 @@ var Keyboard = GObject.registerClass({
 
         this.translation_y = newTranslation;
 
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
+
         const panHeight = this.get_transformed_extents().size.height;
 
         const windowActor = this._focusWindow?.get_compositor_private();
 
+        // subtract the bottom panel here because we don't want the window to include the panel
         if (windowActor)
-            windowActor.y = this._focusWindowStartY - (panHeight - newTranslation);
+            windowActor.y = this._focusWindowStartY - (panHeight - bottomPanelHeight - newTranslation);
     }
 
     _panEnd(gesture, velocityX, velocityY) {
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
         const panHeight = this.get_transformed_extents().size.height;
 
         const remainingHeight = panHeight - this.translation_y;
@@ -1767,11 +1771,12 @@ var Keyboard = GObject.registerClass({
 
             if (windowActor) {
                 windowActor.ease({
-                    y: this._focusWindowStartY - panHeight,
+                    // subtract the bottom panel here because we don't want the window to include the panel
+                    y: this._focusWindowStartY - (panHeight - bottomPanelHeight),
                     duration: KEYBOARD_ANIMATION_TIME,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     onStopped: () => {
-                        windowActor.y = this._focusWindowStartY - panHeight;
+                        windowActor.y = this._focusWindowStartY - (panHeight - bottomPanelHeight);
                      //   this._windowSlideAnimationComplete(window, finalY);
                     },
                 });
@@ -1886,6 +1891,26 @@ var Keyboard = GObject.registerClass({
         if (Meta.is_wayland_compositor()) {
             this._keyboardController.connectObject('emoji-visible',
                 this._onEmojiKeyVisible.bind(this), this);
+        }
+
+        if (Main.layoutManager.bottomPanelBox.height > 0) {
+            this._bottomPanelBox = new St.Bin({
+                name: 'bottomPanelBox',
+                reactive: true,
+                pivot_point: new Graphene.Point({ x: 0, y: 1 }),
+            });
+
+            this._bottomPanelBox.add_style_class_name('dark-mode-enabled');
+
+            this._bottomPanelBox.child = new St.Widget({
+                name: 'bottomPanelLine',
+                x_expand: true,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
+            });
+
+            this.add_child(this._bottomPanelBox);
         }
 
         this._relayout();
@@ -2406,6 +2431,11 @@ var Keyboard = GObject.registerClass({
         if (!this._keyboardRequested)
             return;
 
+        if (this._bottomPanelBox) {
+            this._bottomPanelBox.child.visible =
+                !Main.overview.visible && Main.sessionMode.hasBottomPanel;
+        }
+
         this._relayout();
         this._animateShow();
 
@@ -2568,8 +2598,10 @@ var Keyboard = GObject.registerClass({
         if (!windowActor)
             return;
 
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
+
         const finalY = show
-            ? this._focusWindowStartY - this.get_transformed_extents().size.height
+            ? this._focusWindowStartY - (this.get_transformed_extents().size.height - bottomPanelHeight)
             : this._focusWindowStartY;
 
         windowActor.ease({
