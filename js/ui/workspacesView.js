@@ -798,6 +798,15 @@ class WorkspacesDisplay extends St.Widget {
 
         this._gestureActive = false; // touch(pad) gestures
 
+        this._updateWorkspacesViews();
+
+        Main.overview.connectObject(
+            'windows-restacked', this._onRestacked.bind(this),
+            'scroll-event', this._onScrollEvent.bind(this), this);
+
+        global.stage.connectObject(
+            'key-press-event', this._onKeyPressEvent.bind(this), this);
+
         this.connect('destroy', this._onDestroy.bind(this));
     }
 
@@ -927,24 +936,19 @@ distance = Main.layoutManager.primaryMonitor.width;
             primaryWorkspace.visible = visible;
     }
 
-    vfunc_show() {
-        this._updateWorkspacesViews();
-
-        Main.overview.connectObject(
-            'windows-restacked', this._onRestacked.bind(this),
-            'scroll-event', this._onScrollEvent.bind(this), this);
-
-        global.stage.connectObject(
-            'key-press-event', this._onKeyPressEvent.bind(this), this);
+  /*  vfunc_show() {
+  //      this._updateWorkspacesViews();
+//        for (let i = 0; i < this._workspacesViews.length; i++)
+//this._workspacesViews[i]._updateWorkspaces()
 
         super.vfunc_show();
     }
-
+*/
     prepareToLeaveOverview() {
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].prepareToLeaveOverview();
     }
-
+/*
     vfunc_hide() {
         Main.overview.disconnectObject(this);
         global.stage.disconnectObject(this);
@@ -955,7 +959,7 @@ distance = Main.layoutManager.primaryMonitor.width;
 
         super.vfunc_hide();
     }
-
+*/
     _updateWorkspacesViews() {
         for (let i = 0; i < this._workspacesViews.length; i++)
             this._workspacesViews[i].destroy();

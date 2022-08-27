@@ -1125,12 +1125,6 @@ class Workspace extends St.Widget {
             });
         }
 
-        let overlayClone;
-
-        if (metaWorkspace._appOpeningOverlay) {
-            metaWorkspace._appOpeningOverlay.hide();
-            overlayClone = new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay });
-        }
 
 // FIXME: This is all shit, it needs to happen on the background really :(
         const layoutManager = new WorkspaceLayout(metaWorkspace, monitorIndex,
@@ -1145,10 +1139,6 @@ class Workspace extends St.Widget {
             this._background.bottom_panel_actor = this._bottomPanelBox;
         }
 
-        if (overlayClone) {
-            this._background.add_child(overlayClone);
-            this._background.app_opening_overlay_actor = overlayClone;
-        }
         this.add_child(this._background);
 
 /*        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
@@ -1392,7 +1382,7 @@ clip_to_allocation: true,
     }
 
     _windowAdded(metaWorkspace, metaWin) {
-        if (!Main.overview.closing)
+     //   if (!Main.overview.closing)
             this._doAddWindow(metaWin);
     }
 
@@ -1401,7 +1391,7 @@ clip_to_allocation: true,
     }
 
     _windowEnteredMonitor(metaDisplay, monitorIndex, metaWin) {
-        if (monitorIndex === this.monitorIndex && !Main.overview.closing)
+        if (monitorIndex === this.monitorIndex /*&& !Main.overview.closing*/)
             this._doAddWindow(metaWin);
     }
 
@@ -1426,6 +1416,22 @@ clip_to_allocation: true,
         for (const [metaWin, id] of this._skipTaskbarSignals)
             metaWin.disconnect(id);
         this._skipTaskbarSignals.clear();
+    }
+
+    vfunc_map() {
+        let overlayClone;
+
+        if (this.metaWorkspace._appOpeningOverlay) {
+            this.metaWorkspace._appOpeningOverlay.hide();
+            overlayClone = new Clutter.Clone({ source: this.metaWorkspace._appOpeningOverlay });
+        }
+
+        if (overlayClone) {
+            this._background.add_child(overlayClone);
+            this._background.app_opening_overlay_actor = overlayClone;
+        }
+
+        super.vfunc_map();
     }
 
     prepareToLeaveOverview() {
@@ -1461,8 +1467,15 @@ clip_to_allocation: true,
     _doneLeavingOverview() {
         this._container.layout_manager.layout_frozen = false;
 
-        if (this.metaWorkspace._appOpeningOverlay)
+        if (this.metaWorkspace._appOpeningOverlay) {
             this.metaWorkspace._appOpeningOverlay.maybeShow();
+
+            if (this._background.app_opening_overlay_actor) {
+                const clone = this._background.app_opening_overlay_actor;
+                this._background.app_opening_overlay_actor = null;
+                clone.destroy();
+            }
+        }
     }
 
     _doneShowingOverview() {
