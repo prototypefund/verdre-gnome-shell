@@ -544,6 +544,9 @@ log("WS: nope, it's the default one");
         if (frameRect.width > workArea.width || frameRect.height > workArea.height)
             return true;
 
+        if (!window.maximized_vertically && !window.maximized_horizontally)
+            return true;
+
         return false;
     }
 
@@ -578,6 +581,11 @@ log("WS:  updated should have own workspaces: " + this._windowData.get(window).s
             delete workspace._appOpeningOverlay;
 
             Main.layoutManager.maybeShowBottomPanel();
+        }
+
+        if (workspace._animateOutTimeoutId) {
+            GLib.source_remove(workspace._animateOutTimeoutId);
+            delete workspace._animateOutTimeoutId;
         }
     }
 
@@ -634,8 +642,6 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
                     window.connect('size-changed', () => {
-                        delete window._waitForSizeChange;
-
                         log("WS: siye change, maximized v " + window.maximized_vertically + " h " + window.maximized_horizontally);
 
                         if ((window.maximized_vertically && window.maximized_horizontally) || window.fullscreen)
@@ -644,6 +650,15 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
+
+                    window.connect('can-maximize-changed', () => {
+                        log("WS: can-maximize changed: " + window.can_maximize());
+                        log("WS: maximized v " + window.maximized_vertically + " h " + window.maximized_horizontally);
+
+                        if (window.can_maximize() && (!window.maximized_vertically || !window.maximized_horizontally))
+                            window.maximize(Meta.MaximizeFlags.BOTH);
+                    }),
+
 
                 /*    window.connect('notify::on-all-workspaces', () => {
     log("WS: on-all-ws change");
@@ -654,7 +669,7 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
                         this._windowData.delete(window);
                     }),
                     window.connect('shown', () => {
-                        if (!window._waitForSizeChange)
+                        if (!workspace._animateOutTimeoutId)
                             this._animateOutStartupOverlay(workspace);
                     }),
                 ],
@@ -689,28 +704,34 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
 
             if (this._maybeMoveToOwnWorkspace(window))
                 return; // let the new workspaces 'window-added' handler maximize the window
-
+/*
             const shouldMaximize = windowData.shouldHaveOwnWorkspace &&
                 window.can_maximize() &&
                 !(window.maximized_vertically && window.maximized_horizontally);
+*/
+// we deliberately ignore can_maximiue() here because we're most likely too early 
+// and no features have been calculated yet, so it would regtunr TRUE anyway
+            const shouldMaximize = windowData.shouldHaveOwnWorkspace &&
+                !(window.maximized_vertically && window.maximized_horizontally);
 
             if (shouldMaximize) {
-log("WS: telling window to maxi");
+log("WS: telling window to maxi, can: " + window.can_maximize());
                 window.maximize(Meta.MaximizeFlags.BOTH);
 
-                /* Wait for the maximize to finish before animating out the
-                 * app opening overlay.
-                 */
-                window._waitForSizeChange = true;
+              //  window._waitForSizeChange = true;
 
                 /* everything is shit and we can't trust noone */
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+                workspace._animateOutTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+log("WS fuck, we landed in the damn timeout");
+                    delete workspace._animateOutTimeoutId;
                     this._animateOutStartupOverlay(workspace);
                     return GLib.SOURCE_REMOVE;
                 });
 
             } else if (window.get_compositor_private()?.visible) {
                 this._animateOutStartupOverlay(workspace);
+            } else {
+                // we'll wait for the "shown" signal and then animate out
             }
 
             window.set_can_grab(this._windowShouldBeGrabbable(window));
