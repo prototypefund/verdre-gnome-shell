@@ -825,7 +825,7 @@ var EmojiPager = GObject.registerClass({
         tracker.confirmSwipe(this._width, points, 0, 0);
     }
 
-    _onSwipeEnd(tracker, duration, endProgress) {
+    _onSwipeEnd(tracker, duration, endProgress, endCb) {
         this.remove_all_transitions();
         if (endProgress === 0) {
             this.ease_property('delta', 0, {duration});
@@ -835,8 +835,9 @@ var EmojiPager = GObject.registerClass({
                 : -this._width - EMOJI_PAGE_SEPARATION;
             this.ease_property('delta', value, {
                 duration,
-                onComplete: () => {
+                onStopped: () => {
                     this.setCurrentPage(this.getFollowingPage());
+                    endCb();
                 },
             });
         }
