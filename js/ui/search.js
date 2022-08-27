@@ -558,6 +558,11 @@ var SearchResultsView = GObject.registerClass({
         panGesture.connect('pan-update', this._onPanUpdate.bind(this));
         this._scrollView.add_action(panGesture);
 
+        if (Main.keyboard._keyboard) {
+            Main.keyboard._keyboard._panGesture.can_not_cancel(panGesture);
+            panGesture.can_not_cancel(Main.keyboard._keyboard._panGesture);
+        }
+
         this.add_child(this._scrollView);
 
         this._statusText = new St.Label({

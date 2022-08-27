@@ -1334,6 +1334,24 @@ var KeyboardManager = class extends Signals.EventEmitter {
     }
 };
 
+var UncancellablePanGesture = GObject.registerClass(
+class UncancellablePanGesture extends Clutter.PanGesture {
+    vfunc_should_influence(otherGesture, cancel, inhibit) {
+        if (otherGesture instanceof Clutter.PanGesture && (otherGesture.pan_axis === Clutter.PanAxis.Y || otherGesture.pan_axis === Clutter.PanAxis.BOTH))
+            return [false, false]
+
+        return [cancel, inhibit]; 
+    }
+
+    vfunc_should_be_influenced_by(otherGesture, cancel, inhibit) {
+        if (otherGesture instanceof Clutter.PanGesture && (otherGesture.pan_axis === Clutter.PanAxis.Y || otherGesture.pan_axis === Clutter.PanAxis.BOTH))
+            return [false, false]
+
+        return [cancel, inhibit]; 
+    }
+});
+
+
 var Keyboard = GObject.registerClass({
     Signals: {
         'visibility-changed': {},
@@ -1405,7 +1423,100 @@ var Keyboard = GObject.registerClass({
             this.close(true);
         });
 
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this._panGesture.enabled = false;
+        Main.uiGroup.add_action(this._panGesture); // don't add to stage so that Metagesture tracker doesn't complain
+
         this.connect('destroy', this._onDestroy.bind(this));
+    }
+
+    _panBegin(gesture, x, y) {
+        this.remove_transition('translation-y');
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+        windowActor?.remove_transition('y');
+
+        this._keyboardBeginY = this.get_transformed_extents().origin.y;
+        this._panCurY = y;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        if (this._panCurY < this._keyboardBeginY) {
+            this._panCurY += deltaY;
+            return;
+        }
+        this._panCurY += deltaY;
+
+        let newTranslation = this.translation_y + deltaY;
+        if (newTranslation < 0)
+            newTranslation = 0;
+
+        this.translation_y = newTranslation;
+
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
+
+        const panHeight = this.get_transformed_extents().size.height;
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+
+        // subtract the bottom panel here because we don't want the window to include the panel
+        if (windowActor)
+            windowActor.y = this._focusWindowStartY - (panHeight - bottomPanelHeight - newTranslation);
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
+        const panHeight = this.get_transformed_extents().size.height;
+
+        const remainingHeight = panHeight - this.translation_y;
+
+        const windowActor = this._focusWindow?.get_compositor_private();
+
+        if (this._panCurY >= this._keyboardBeginY && (velocityY > 0.9 || (remainingHeight < panHeight / 2 && velocityY >= 0))) {
+            this.ease({
+                translation_y: panHeight,
+                duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
+                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                onStopped: () => this.close(),
+            });
+
+            if (windowActor) {
+                windowActor.ease({
+                    y: this._focusWindowStartY,
+                    duration: KEYBOARD_ANIMATION_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onStopped: () => {
+                        windowActor.y = this._focusWindowStartY;
+                        this._windowSlideAnimationComplete(this._focusWindow, this._focusWindowStartY);
+                    },
+                });
+            }
+        } else {
+            this.ease({
+                translation_y: 0,
+                duration: Math.clamp((panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+            });
+
+            if (windowActor) {
+                windowActor.ease({
+                    // subtract the bottom panel here because we don't want the window to include the panel
+                    y: this._focusWindowStartY - panHeight - bottomPanelHeight,
+                    duration: KEYBOARD_ANIMATION_TIME,
+                    mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                    onStopped: () => {
+                        windowActor.y = this._focusWindowStartY - panHeight - bottomPanelHeight;
+                     //   this._windowSlideAnimationComplete(window, finalY);
+                    },
+                });
+            }
+        }
     }
 
     get visible() {
@@ -2032,6 +2143,8 @@ log("KEYBOARD: using cheap keyval press");
         this._animateShow();
 
         this._setEmojiActive(false);
+
+        this._panGesture.enabled = true;
     }
 
     close(immediate = false) {
@@ -2067,6 +2180,8 @@ log("KEYBOARD: using cheap keyval press");
         this._animateHide();
         this.setCursorLocation(null);
         this._disableAllModifiers();
+
+        this._panGesture.enabled = false;
     }
 
     _animateShow() {
@@ -2184,8 +2299,10 @@ log("KEYBOARD: using cheap keyval press");
         if (!windowActor)
             return;
 
+        const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
+
         const finalY = show
-            ? this._focusWindowStartY - (this.get_transformed_extents().size.height - this._bottomPanelBox.height)
+            ? this._focusWindowStartY - (this.get_transformed_extents().size.height - bottomPanelHeight)
             : this._focusWindowStartY;
 
         windowActor.ease({
