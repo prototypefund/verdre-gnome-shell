@@ -480,10 +480,12 @@ static void
 st_widget_map (ClutterActor *actor)
 {
   StWidget *self = ST_WIDGET (actor);
+  StWidgetPrivate *priv = st_widget_get_instance_private (self);
 
   CLUTTER_ACTOR_CLASS (st_widget_parent_class)->map (actor);
 
-  st_widget_ensure_style (self);
+  if (priv->is_style_dirty)
+    st_widget_recompute_style (self, NULL);
 }
 
 static void
@@ -525,6 +527,7 @@ st_widget_style_changed (StWidget *widget)
 {
   StWidgetPrivate *priv = st_widget_get_instance_private (widget);
   StThemeNode *old_theme_node = NULL;
+
 
   priv->is_style_dirty = TRUE;
   if (priv->theme_node)
@@ -1770,7 +1773,7 @@ st_widget_ensure_style (StWidget *widget)
   if (priv->is_style_dirty)
     {
       st_widget_recompute_style (widget, NULL);
-      notify_children_of_style_change (CLUTTER_ACTOR (widget));
+      notify_children_of_style_change (CLUTTER_ACTOR (widget)); // I kinda think this isn't needed
     }
 }
 
