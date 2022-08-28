@@ -1435,7 +1435,7 @@ clip_to_allocation: true,
     }
 
     prepareToLeaveOverview() {
-        this._clearSkipTaskbarSignals();
+   //     this._clearSkipTaskbarSignals();
 
         for (let i = 0; i < this._windows.length; i++)
             this._windows[i].remove_all_transitions();
