@@ -547,11 +547,12 @@ var SearchResultsView = GObject.registerClass({
 
         this._scrollView = new St.ScrollView({
             overlay_scrollbars: true,
-            style_class: 'search-display vfade',
+            style_class: 'search-display',
             x_expand: true,
             y_expand: true,
         });
-        this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.ALWAYS);
+        this._scrollView.vscroll.hide();
         this._scrollView.add_actor(this._content);
 
         let action = new Clutter.PanAction({ interpolate: true });
