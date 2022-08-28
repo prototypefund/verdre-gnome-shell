@@ -654,6 +654,52 @@ this._boxPointer.clip_to_allocation = true;
         }));
 
         this.actor.add_child(this._overlay);
+
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this.actor.add_action(this._panGesture);
+    }
+
+    _panBegin(gesture, x, y) {
+        const menuActor = this.actor.get_children()[0];
+
+        menuActor.remove_transition('translation-y');
+
+        this._panHeight = menuActor.get_preferred_height(-1)[1] + Main.panel.height;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        const menuActor = this.actor.get_children()[0];
+
+        menuActor.translation_y += deltaY;
+        if (menuActor.translation_y > 0)
+            menuActor.translation_y = 0;
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const menuActor = this.actor.get_children()[0];
+
+        const remainingHeight = Math.abs(menuActor.translation_y);
+
+        if (velocityY < -0.9 || (remainingHeight < this._panHeight / 2 && velocityY <= 0)) {
+            menuActor.ease({
+                translation_y: -this._panHeight,
+                duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+                onStopped: () => this.close(false),
+            });
+        } else {
+            menuActor.ease({
+                translation_y: 0,
+                duration: Math.clamp((this._panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
+                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+            });
+        }
     }
 
     addItem(item, colSpan = 1) {
