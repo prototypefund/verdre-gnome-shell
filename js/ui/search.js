@@ -547,12 +547,14 @@ var SearchResultsView = GObject.registerClass({
 
         this._scrollView = new St.ScrollView({
             overlay_scrollbars: true,
-            style_class: 'search-display vfade',
+            style_class: 'search-display',
             x_expand: true,
             y_expand: true,
         });
-        this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.ALWAYS);
         this._scrollView.add_actor(this._content);
+
+        this._scrollView.vscroll.hide();
 
         const panGesture = new Clutter.PanGesture();
         panGesture.connect('pan-update', this._onPanUpdate.bind(this));
