@@ -76,7 +76,7 @@ class BaseIcon extends Shell.SquareBin {
         });
         this.set_child(this._box);
 
-        this.iconSize = ICON_SIZE;
+        this.iconSize = 64;
         this._iconBin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
 
         this._box.add_actor(this._iconBin);
