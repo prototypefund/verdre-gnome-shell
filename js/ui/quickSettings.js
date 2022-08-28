@@ -585,6 +585,7 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
     constructor(sourceActor, nColumns = 1) {
         super(sourceActor, 0, St.Side.TOP);
 
+
         this.actor = new St.Widget({reactive: true});
         this.actor.add_child(this._boxPointer);
         this.actor._delegate = this;
@@ -597,6 +598,7 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
         this._dimEffect = new Clutter.BrightnessContrastEffect({
             enabled: false,
         });
+this._boxPointer.clip_to_allocation = true;
         this._boxPointer.add_effect_with_name('dim', this._dimEffect);
         this.box.add_style_class_name('quick-settings');
 
