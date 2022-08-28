@@ -72,7 +72,7 @@ class BaseIcon extends St.BoxLayout {
             vertical: true,
         });
 
-        this.iconSize = ICON_SIZE;
+        this.iconSize = 64;
         this._iconBin = new St.Bin({ x_align: Clutter.ActorAlign.CENTER });
 
         this.add_child(this._iconBin);
