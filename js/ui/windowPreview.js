@@ -116,6 +116,7 @@ var WindowPreview = GObject.registerClass({
             pan_axis: Clutter.PanAxis.Y,
             max_n_points: 1,
         });
+        this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
         this._panGesture.connect('pan-begin', this._panBegin.bind(this));
         this._panGesture.connect('pan-update', this._panUpdate.bind(this));
         this._panGesture.connect('pan-end', this._panEnd.bind(this));
@@ -676,6 +677,16 @@ var WindowPreview = GObject.registerClass({
             this.showOverlay(true);
 
         this.emit('drag-end');
+    }
+
+    _panMayRecognize(gesture) {
+        const points = gesture.get_points();
+        if (!points[0])
+            return true;
+
+        const delta = points[0].last_coords.y - points[0].begin_coords.y;
+
+        return delta < 0;
     }
 
     _panBegin(gesture, x, y) {

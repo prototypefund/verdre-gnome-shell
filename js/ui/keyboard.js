@@ -1427,6 +1427,7 @@ var Keyboard = GObject.registerClass({
             pan_axis: Clutter.PanAxis.Y,
             max_n_points: 1,
         });
+        this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
         this._panGesture.connect('pan-begin', this._panBegin.bind(this));
         this._panGesture.connect('pan-update', this._panUpdate.bind(this));
         this._panGesture.connect('pan-end', this._panEnd.bind(this));
@@ -1434,6 +1435,19 @@ var Keyboard = GObject.registerClass({
         Main.uiGroup.add_action(this._panGesture); // don't add to stage so that Metagesture tracker doesn't complain
 
         this.connect('destroy', this._onDestroy.bind(this));
+    }
+
+    _panMayRecognize(gesture) {
+        const points = gesture.get_points();
+        if (!points[0])
+            return true;
+
+        if (!this.get_transformed_extents().contains_point(points[0].last_coords))
+            return true;
+
+        const delta = points[0].last_coords.y - points[0].begin_coords.y;
+
+        return delta > 0;
     }
 
     _panBegin(gesture, x, y) {
