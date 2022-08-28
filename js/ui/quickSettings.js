@@ -684,9 +684,9 @@ this._boxPointer.clip_to_allocation = true;
     _panEnd(gesture, velocityX, velocityY) {
         const menuActor = this.actor.get_children()[0];
 
-        const remainingHeight = Math.abs(menuActor.translation_y);
+        const remainingHeight = this._panHeight - Math.abs(menuActor.translation_y);
 
-        if (velocityY < -0.9 || (remainingHeight < this._panHeight / 2 && velocityY <= 0)) {
+        if (velocityY < -0.9 || (remainingHeight < this._panHeight * 0.75 && velocityY <= 0)) {
             menuActor.ease({
                 translation_y: -this._panHeight,
                 duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
@@ -697,7 +697,7 @@ this._boxPointer.clip_to_allocation = true;
             menuActor.ease({
                 translation_y: 0,
                 duration: Math.clamp((this._panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
-                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                mode: Clutter.AnimationMode.EASE_OUT_QUINT,
             });
         }
     }
