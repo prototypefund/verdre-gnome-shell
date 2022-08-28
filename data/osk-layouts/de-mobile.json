@@ -191,7 +191,7 @@
           },
           {
             "action": "emoji",
-            "iconName": "face-smile-symbolic",
+            "iconName": "smile-symbolic",
             "width": 1.5
           },
           {
@@ -399,7 +399,7 @@
           },
           {
             "action": "emoji",
-            "iconName": "face-smile-symbolic",
+            "iconName": "smile-symbolic",
             "width": 1.5
           },
           {
@@ -626,7 +626,7 @@
           },
           {
             "action": "emoji",
-            "iconName": "face-smile-symbolic"
+            "iconName": "smile-symbolic"
           },
           {
             "strings": [
@@ -830,7 +830,7 @@
           },
           {
             "action": "emoji",
-            "iconName": "face-smile-symbolic"
+            "iconName": "smile-symbolic"
           },
           {
             "strings": [
