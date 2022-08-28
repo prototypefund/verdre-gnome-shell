@@ -2235,6 +2235,7 @@ log("KEYBOARD: using cheap keyval press");
     }
 
     setSuggestionsVisible(visible) {
+this._suggestions.visible = false;
         this._suggestions?.setVisible(visible);
     }
 
