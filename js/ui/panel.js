@@ -498,11 +498,11 @@ class Panel extends St.Widget {
 
         const remainingHeight = Math.abs(menuActor.translation_y);
 
-        if (velocityY > 0.9 || (remainingHeight < this._panHeight / 2 && velocityY >= 0)) {
+        if (velocityY > 0.9 || (remainingHeight < this._panHeight * 0.75 && velocityY >= 0)) {
             menuActor.ease({
                 translation_y: 0,
                 duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
-                mode: Clutter.AnimationMode.EASE_OUT_BACK,
+                mode: Clutter.AnimationMode.EASE_OUT_QUINT,
 
             });
         } else {
