@@ -26,7 +26,7 @@ $app_icon_size: 96px;
   @include overview_icon($osd_fg_color);
 
   .overview-icon.overview-icon-with-label {
-    text-shadow: 0px 1px 3px 1px rgba(0,0,0,0.4);
+  //  text-shadow: 0px 1px 3px 1px rgba(0,0,0,0.4);
 
     > StBoxLayout {
       spacing: 2px;
