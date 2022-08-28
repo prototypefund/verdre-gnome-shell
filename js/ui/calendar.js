@@ -986,6 +986,7 @@ class CalendarMessageList extends St.Widget {
             x_expand: true,
             y_expand: true,
             y_align: Clutter.ActorAlign.START,
+clip_to_view: false,
         });
         this._sectionList.connectObject(
             'actor-added', this._sync.bind(this),
