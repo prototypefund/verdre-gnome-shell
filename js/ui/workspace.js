@@ -1576,7 +1576,7 @@ clip_to_allocation: true,
                 GObject.BindingFlags.SYNC_CREATE);
         }
 
-        if (this._windows.length === 0)
+        if (this._bottomPanelBox && this._windows.length === 0)
             this._bottomPanelBox.show();
 
         this._windows.push(clone);
@@ -1593,7 +1593,7 @@ clip_to_allocation: true,
 
         this._container.layout_manager.removeWindow(this._windows[index]);
 
-        if (this._windows.length === 1)
+        if (this._bottomPanelBox && this._windows.length === 1)
             this._bottomPanelBox.hide();
 
         return this._windows.splice(index, 1).pop();
