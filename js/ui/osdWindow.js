@@ -18,7 +18,7 @@ class OsdWindow extends Clutter.Actor {
             x_expand: true,
             y_expand: true,
             x_align: Clutter.ActorAlign.CENTER,
-            y_align: Clutter.ActorAlign.END,
+            y_align: Clutter.ActorAlign.START,
         });
 
         this._monitorIndex = monitorIndex;
