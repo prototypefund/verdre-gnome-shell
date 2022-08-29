@@ -733,11 +733,11 @@ imports.gi.Cogl.trace_generic_end();
         if (!this._shown)
             this._animateNotVisible();
 
-        this._syncGrab();
-
         this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
         this._singleFingerWorkspacesGesture.enabled = false;
+
+        this._syncGrab();
     }
 
     // hide:
