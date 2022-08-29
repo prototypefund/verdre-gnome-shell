@@ -723,7 +723,7 @@ var EmojiPager = GObject.registerClass({
     Signals: {
         'emoji': { param_types: [GObject.TYPE_STRING] },
         'page-changed': {
-            param_types: [GObject.TYPE_INT, GObject.TYPE_INT, GObject.TYPE_INT],
+            param_types: [GObject.TYPE_STRING, GObject.TYPE_INT, GObject.TYPE_INT],
         },
     },
 }, class EmojiPager extends St.Widget {
@@ -820,6 +820,8 @@ var EmojiPager = GObject.registerClass({
     }
 
     _onSwipeBegin(tracker) {
+        this.remove_transition('delta');
+
         this._width = this.width;
         const points = [-1, 0, 1];
         tracker.confirmSwipe(this._width, points, 0, 0);
@@ -828,12 +830,17 @@ var EmojiPager = GObject.registerClass({
     _onSwipeEnd(tracker, duration, endProgress, endCb) {
         this.remove_all_transitions();
         if (endProgress === 0) {
-            this.ease_property('delta', 0, {duration});
+            this.ease_property('delta', 0, {
+                mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
+                duration,
+                onStopped: () => endCb(),
+            });
         } else {
             const value = endProgress < 0
                 ? this._width + EMOJI_PAGE_SEPARATION
                 : -this._width - EMOJI_PAGE_SEPARATION;
             this.ease_property('delta', value, {
+                mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
                 duration,
                 onStopped: () => {
                     this.setCurrentPage(this.getFollowingPage());
@@ -893,7 +900,7 @@ var EmojiPager = GObject.registerClass({
          * not having all rows/cols filled in.
          */
         let expander = new Clutter.Actor();
-        gridLayout.attach(expander, 0, 0, this._nCols, this._nRows);
+        gridLayout.attach(expander, 0, 0, this._nCols * KEY_SIZE, this._nRows * KEY_SIZE);
 
         let page = this._pages[nPage];
         let col = 0;
@@ -908,12 +915,12 @@ var EmojiPager = GObject.registerClass({
                 this.emit('emoji', str);
             });
 
-            gridLayout.attach(key, col, row, 1, 1);
+            gridLayout.attach(key, col, row, KEY_SIZE, KEY_SIZE);
 
-            col++;
-            if (col >= this._nCols) {
+            col += KEY_SIZE;
+            if (col >= this._nCols * KEY_SIZE) {
                 col = 0;
-                row++;
+                row += KEY_SIZE;
             }
         }
 
@@ -950,7 +957,7 @@ var EmojiPager = GObject.registerClass({
         }
 
         let page = this._pages[nPage];
-        this.emit('page-changed', page.section.label, page.page, page.nPages);
+        this.emit('page-changed', page.section.first, page.page, page.nPages);
     }
 
     setCurrentSection(section, nPage) {
@@ -965,8 +972,8 @@ var EmojiPager = GObject.registerClass({
     }
 
     setRatio(nCols, nRows) {
-        this._nCols = Math.floor(nCols * 0.75);
-        this._nRows = Math.floor(nRows * 0.75);
+        this._nCols = Math.floor(nCols);
+        this._nRows = Math.floor(nRows);
         this._initPagingInfo();
     }
 });
@@ -976,6 +983,7 @@ var EmojiSelection = GObject.registerClass({
         'emoji-selected': { param_types: [GObject.TYPE_STRING] },
         'close-request': {},
         'toggle': {},
+        'keyval': { param_types: [GObject.TYPE_UINT] },
     },
 }, class EmojiSelection extends St.Widget {
     _init() {
@@ -993,15 +1001,13 @@ var EmojiSelection = GObject.registerClass({
         });
 
         this._sections = [
-            { first: 'grinning face', label: '🙂️' },
-            { first: 'selfie', label: '👍️' },
-            { first: 'monkey face', label: '🌷️' },
-            { first: 'grapes', label: '🍴️' },
-            { first: 'globe showing Europe-Africa', label: '✈️' },
-            { first: 'jack-o-lantern', label: '🏃️' },
-            { first: 'muted speaker', label: '🔔️' },
-            { first: 'ATM sign', label: '❤️' },
-            { first: 'chequered flag', label: '🚩️' },
+            { first: 'grinning face', iconName: 'emoji-people-symbolic' },
+            { first: 'monkey face', iconName: 'emoji-nature-symbolic' },
+            { first: 'grapes', iconName: 'emoji-food-symbolic' },
+            { first: 'globe showing Europe-Africa', iconName: 'emoji-travel-symbolic' },
+            { first: 'jack-o-lantern', iconName: 'emoji-activities-symbolic' },
+            { first: 'muted speaker', iconName: 'emoji-objects-symbolic' },
+            { first: 'ATM sign', iconName: 'emoji-symbols-symbolic' },
         ];
 
         this._gridLayout = gridLayout;
@@ -1043,14 +1049,14 @@ var EmojiSelection = GObject.registerClass({
         super.vfunc_map();
     }
 
-    _onPageChanged(sectionLabel, page, nPages) {
+    _onPageChanged(sectionFirst, page, nPages) {
         this._curPage = page;
         this._pageIndicator.setNPages(nPages);
         this._updateIndicatorPosition();
 
         for (let i = 0; i < this._sections.length; i++) {
             let sect = this._sections[i];
-            sect.button.setLatched(sectionLabel == sect.label);
+            sect.button.setLatched(sectionFirst === sect.first);
         }
     }
 
@@ -1108,18 +1114,32 @@ var EmojiSelection = GObject.registerClass({
 
         key = new Key({label: 'ABC'}, []);
         key.add_style_class_name('default-key');
+        key.add_style_class_name('bottom-row-key');
         key.connect('released', () => this.emit('toggle'));
-        row.appendKey(key, 1.5);
+        row.appendKey(key, 1);
 
         for (let i = 0; i < this._sections.length; i++) {
             let section = this._sections[i];
 
-            key = new Key({label: section.label}, []);
-            key.connect('released', () => this._emojiPager.setCurrentSection(section, 0));
-            row.appendKey(key);
+            const pageKey = new Key({
+                iconName: section.iconName,
+            }, []);
+            pageKey.add_style_class_name('bottom-row-key');
+            pageKey.connect('released', () => {
+                this._emojiPager.setCurrentSection(section, 0)
+            });
+            row.appendKey(pageKey, 1);
 
-            section.button = key;
+            section.button = pageKey;
         }
+
+        key = new Key({iconName: 'edit-clear-symbolic'}, []);
+        key.add_style_class_name('default-key');
+        key.add_style_class_name('bottom-row-key');
+        key.connect('released', () => {
+            this.emit('keyval', Clutter.KEY_BackSpace);
+        });
+        row.appendKey(key, 1);
 
     /*    key = new Key({iconName: 'go-down-symbolic'});
         key.add_style_class_name('default-key');
@@ -1141,7 +1161,12 @@ var EmojiSelection = GObject.registerClass({
     }
 
     setRatio(nCols, nRows) {
-        this._emojiPager.setRatio(Math.floor(nCols), (Math.floor(nRows) - 1));
+
+        nCols = Math.floor(nCols);
+        // minus two rows to adjust for the pagination dots and bottom row
+        nRows = Math.floor(nRows) - 2;
+
+        this._emojiPager.setRatio(nCols, nRows);
         this._bottomRow.setRatio(nCols, 1);
 
         // (Re)attach actors so the emoji panel fits the ratio and
@@ -1151,8 +1176,10 @@ var EmojiSelection = GObject.registerClass({
         if (this._bottomRow.get_parent())
             this.remove_child(this._bottomRow);
 
-        this._gridLayout.attach(this._pagerBox, 0, 0, 1, Math.floor(nRows) - 1);
-        this._gridLayout.attach(this._bottomRow, 0, Math.floor(nRows) - 1, 1, 1);
+        const nGridRows = nRows * KEY_SIZE + 1;
+
+        this._gridLayout.attach(this._pagerBox, 0, 0, 2, nGridRows);
+        this._gridLayout.attach(this._bottomRow, 0, nGridRows, 2, 2);
     }
 });
 
@@ -1602,6 +1629,10 @@ var Keyboard = GObject.registerClass({
         this._emojiSelection.connect('emoji-selected', (selection, emoji) => {
             this._keyboardController.commitString(emoji);
         });
+        this._emojiSelection.connectObject('keyval', (_emojiSelection, keyval) => {
+            this._keyboardController.keyvalPress(keyval);
+            this._keyboardController.keyvalRelease(keyval);
+        }, this);
 
         this._emojiSelection.hide();
         this._aspectContainer.add_child(this._emojiSelection);

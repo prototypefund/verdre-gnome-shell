@@ -126,11 +126,12 @@ $app_icon_size: 96px;
   }
 }
 
-.page-indicators {
+// the osk also has page indicators, we only want margin here
+#overviewGroup .page-indicators {
   margin-top: 12px;
 }
 
-#uiGroup.mobile .page-indicators {
+#uiGroup.mobile #overviewGroup .page-indicators {
   margin-bottom: 18px;
 }
 
