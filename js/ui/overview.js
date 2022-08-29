@@ -735,6 +735,7 @@ imports.gi.Cogl.trace_generic_end();
 
         this._syncGrab();
 
+        this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
         this._singleFingerWorkspacesGesture.enabled = false;
     }
