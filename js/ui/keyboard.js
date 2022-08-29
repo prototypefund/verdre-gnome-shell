@@ -2157,6 +2157,7 @@ log("KEYBOARD: using cheap keyval press");
         this._animateShow();
 
         this._setEmojiActive(false);
+        this._setActiveLayer(0);
 
         this._panGesture.enabled = true;
     }
