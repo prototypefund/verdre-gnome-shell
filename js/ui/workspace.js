@@ -625,60 +625,50 @@ var WorkspaceLayout = GObject.registerClass({
     vfunc_allocate(container, box) {
         const containerBox = container.allocation;
         const [containerWidth, containerHeight] = containerBox.get_size();
-        const containerAllocationChanged =
-            this._lastBox === null || !this._lastBox.equal(containerBox);
 
-        // If the containers size changed, we can no longer keep around
-        // the old windowSlots, so we must unfreeze the layout.
-        //
-        // However, if the overview animation is in progress, don't unfreeze
-        // the layout. This is needed to prevent windows "snapping" to their
-        // new positions during the overview closing animation when the
-        // allocation subtly expands every frame.
-        if (this._layoutFrozen && containerAllocationChanged && !Main.overview.animationInProgress) {
-            this._layoutFrozen = false;
-            this.notify('layout-frozen');
-        }
-
-        const { ControlsState } = OverviewControls;
-        const { currentState } =
-            this._overviewAdjustment.getStateTransitionParams();
-        const inSessionTransition = currentState <= ControlsState.WINDOW_PICKER;
-
-        const window = this._sortedWindows[0];
+        let containerAllocationChanged, inSessionTransition;
 
         if (Main.layoutManager.is_phone) {
             container.clip_to_allocation = true;
-        } else if (inSessionTransition || !window) {
-            container.remove_clip();
         } else {
-            const [, bottomOversize] = window.chromeHeights();
-            const [containerX, containerY] = containerBox.get_origin();
+            containerAllocationChanged =
+                this._lastBox === null || !this._lastBox.equal(containerBox);
 
-            const extraHeightProgress =
-                currentState - OverviewControls.ControlsState.WINDOW_PICKER;
-
-            const extraClipHeight = bottomOversize * (1 - extraHeightProgress);
-
-            container.set_clip(containerX, containerY,
-                containerWidth, containerHeight + extraClipHeight);
-        }
-
-        let layoutChanged = false;
-        if (!this._layoutFrozen || !this._lastBox) {
-            if (this._needsLayout) {
-                this._layout = this._createBestLayout(this._workarea);
-                this._needsLayout = false;
-                layoutChanged = true;
+            // If the containers size changed, we can no longer keep around
+            // the old windowSlots, so we must unfreeze the layout.
+            //
+            // However, if the overview animation is in progress, don't unfreeze
+            // the layout. This is needed to prevent windows "snapping" to their
+            // new positions during the overview closing animation when the
+            // allocation subtly expands every frame.
+            if (this._layoutFrozen && containerAllocationChanged && !Main.overview.animationInProgress) {
+                this._layoutFrozen = false;
+                this.notify('layout-frozen');
             }
 
-            if (layoutChanged || containerAllocationChanged) {
-                this._windowSlotsBox = box.copy();
-                this._windowSlots = this._getWindowSlots(this._windowSlotsBox);
+            const { ControlsState } = OverviewControls;
+            const { currentState } =
+                this._overviewAdjustment.getStateTransitionParams();
+            inSessionTransition = currentState <= ControlsState.WINDOW_PICKER;
+
+            const window = this._sortedWindows[0];
+
+            if (inSessionTransition || !window) {
+                container.remove_clip();
+            } else {
+                const [, bottomOversize] = window.chromeHeights();
+                const [containerX, containerY] = containerBox.get_origin();
+
+                const extraHeightProgress =
+                    currentState - OverviewControls.ControlsState.WINDOW_PICKER;
+
+                const extraClipHeight = bottomOversize * (1 - extraHeightProgress);
+
+                container.set_clip(containerX, containerY,
+                    containerWidth, containerHeight + extraClipHeight);
             }
         }
 
-        const slotsScale = box.get_width() / this._windowSlotsBox.get_width();
         const workareaX = this._workarea.x;
         const workareaY = this._workarea.y;
         const workareaWidth = this._workarea.width;
@@ -688,40 +678,85 @@ var WorkspaceLayout = GObject.registerClass({
 
         const childBox = new Clutter.ActorBox();
 
-        const nSlots = this._windowSlots.length;
-        for (let i = 0; i < nSlots; i++) {
-            let [x, y, width, height, child] = this._windowSlots[i];
-            if (!child.visible)
-                continue;
+        if (Main.layoutManager.is_phone) {
+            for (const child of container) {
+                if (!child.visible)
+                    continue;
 
-            x *= slotsScale;
-            y *= slotsScale;
-            width *= slotsScale;
-            height *= slotsScale;
+                let x, y, width, height;
 
-            const windowInfo = this._windows.get(child);
+                const windowInfo = this._windows.get(child);
 
-            let workspaceBoxX, workspaceBoxY;
-            let workspaceBoxWidth, workspaceBoxHeight;
+                let workspaceBoxX, workspaceBoxY;
+                let workspaceBoxWidth, workspaceBoxHeight;
 
-            if (windowInfo.metaWindow.showing_on_its_workspace()) {
-                workspaceBoxX = (child.boundingBox.x - workareaX) * allocationScale;
-                workspaceBoxY = (child.boundingBox.y - workareaY) * allocationScale;
-                workspaceBoxWidth = child.boundingBox.width * allocationScale;
-                workspaceBoxHeight = child.boundingBox.height * allocationScale;
-            } else {
-                workspaceBoxX = workareaX * allocationScale;
-                workspaceBoxY = workareaY * allocationScale;
-                workspaceBoxWidth = 0;
-                workspaceBoxHeight = 0;
-            }
+                if (windowInfo.metaWindow.showing_on_its_workspace()) {
+                    workspaceBoxX = (child.boundingBox.x - workareaX) * allocationScale;
+                    workspaceBoxY = (child.boundingBox.y - workareaY) * allocationScale;
+                    workspaceBoxWidth = child.boundingBox.width * allocationScale;
+                    workspaceBoxHeight = child.boundingBox.height * allocationScale;
+                } else {
+                    workspaceBoxX = workareaX * allocationScale;
+                    workspaceBoxY = workareaY * allocationScale;
+                    workspaceBoxWidth = 0;
+                    workspaceBoxHeight = 0;
+                }
 
-            if (Main.layoutManager.is_phone) {
                 x = workspaceBoxX;
                 y = workspaceBoxY;
                 width = workspaceBoxWidth;
                 height = workspaceBoxHeight;
-            } else {
+
+                childBox.set_origin(x, y);
+                childBox.set_size(width, height);
+
+                child.allocate(childBox);
+            }
+        } else {
+            let layoutChanged = false;
+            if (!this._layoutFrozen || !this._lastBox) {
+                if (this._needsLayout) {
+                    this._layout = this._createBestLayout(this._workarea);
+                    this._needsLayout = false;
+                    layoutChanged = true;
+                }
+
+                if (layoutChanged || containerAllocationChanged) {
+                    this._windowSlotsBox = box.copy();
+                    this._windowSlots = this._getWindowSlots(this._windowSlotsBox);
+                }
+            }
+
+            const slotsScale = box.get_width() / this._windowSlotsBox.get_width();
+
+            const nSlots = this._windowSlots.length;
+            for (let i = 0; i < nSlots; i++) {
+                let [x, y, width, height, child] = this._windowSlots[i];
+                if (!child.visible)
+                    continue;
+
+                x *= slotsScale;
+                y *= slotsScale;
+                width *= slotsScale;
+                height *= slotsScale;
+
+                const windowInfo = this._windows.get(child);
+
+                let workspaceBoxX, workspaceBoxY;
+                let workspaceBoxWidth, workspaceBoxHeight;
+
+                if (windowInfo.metaWindow.showing_on_its_workspace()) {
+                    workspaceBoxX = (child.boundingBox.x - workareaX) * allocationScale;
+                    workspaceBoxY = (child.boundingBox.y - workareaY) * allocationScale;
+                    workspaceBoxWidth = child.boundingBox.width * allocationScale;
+                    workspaceBoxHeight = child.boundingBox.height * allocationScale;
+                } else {
+                    workspaceBoxX = workareaX * allocationScale;
+                    workspaceBoxY = workareaY * allocationScale;
+                    workspaceBoxWidth = 0;
+                    workspaceBoxHeight = 0;
+                }
+
                 // Don't allow the scaled floating size to drop below
                 // the target layout size.
                 // We only want to apply this when the scaled floating size is
@@ -736,42 +771,42 @@ var WorkspaceLayout = GObject.registerClass({
                 y = Util.lerp(workspaceBoxY, y, stateAdjustementValue);
                 width = Util.lerp(workspaceBoxWidth, width, stateAdjustementValue);
                 height = Util.lerp(workspaceBoxHeight, height, stateAdjustementValue);
-            }
 
-            childBox.set_origin(x, y);
-            childBox.set_size(width, height);
+                childBox.set_origin(x, y);
+                childBox.set_size(width, height);
 
-            if (windowInfo.currentTransition) {
-                windowInfo.currentTransition.get_interval().set_final(childBox);
+                if (windowInfo.currentTransition) {
+                    windowInfo.currentTransition.get_interval().set_final(childBox);
 
-                // The timeline of the transition might not have been updated
-                // before this allocation cycle, so make sure the child
-                // still updates needs_allocation to FALSE.
-                // Unfortunately, this relies on the fast paths in
-                // clutter_actor_allocate(), otherwise we'd start a new
-                // transition on the child, replacing the current one.
-                child.allocate(child.allocation);
-                continue;
-            }
-
-            // We want layout changes (ie. larger changes to the layout like
-            // reshuffling the window order) to be animated, but small changes
-            // like changes to the container size to happen immediately (for
-            // example if the container height is being animated, we want to
-            // avoid animating the children allocations to make sure they
-            // don't "lag behind" the other animation).
-            if (layoutChanged && !Main.overview.animationInProgress) {
-                const transition = animateAllocation(child, childBox);
-                if (transition) {
-                    windowInfo.currentTransition = transition;
-                    windowInfo.currentTransition.connect('stopped', () => {
-                        windowInfo.currentTransition = null;
-                    });
+                    // The timeline of the transition might not have been updated
+                    // before this allocation cycle, so make sure the child
+                    // still updates needs_allocation to FALSE.
+                    // Unfortunately, this relies on the fast paths in
+                    // clutter_actor_allocate(), otherwise we'd start a new
+                    // transition on the child, replacing the current one.
+                    child.allocate(child.allocation);
+                    continue;
                 }
-            } else {
-                child.allocate(childBox);
+
+                // We want layout changes (ie. larger changes to the layout like
+                // reshuffling the window order) to be animated, but small changes
+                // like changes to the container size to happen immediately (for
+                // example if the container height is being animated, we want to
+                // avoid animating the children allocations to make sure they
+                // don't "lag behind" the other animation).
+                if (layoutChanged && !Main.overview.animationInProgress) {
+                    const transition = animateAllocation(child, childBox);
+                    if (transition) {
+                        windowInfo.currentTransition = transition;
+                        windowInfo.currentTransition.connect('stopped', () => {
+                            windowInfo.currentTransition = null;
+                        });
+                    }
+                } else {
+                    child.allocate(childBox);
+                }
             }
-        }
+            }
 
         this._lastBox = containerBox.copy();
     }
