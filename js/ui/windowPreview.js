@@ -111,7 +111,7 @@ var WindowPreview = GObject.registerClass({
         const clickGesture = new Clutter.ClickGesture();
         clickGesture.connect('clicked', () => this._activate());
         this.add_action(clickGesture);
-
+/*
         this._panGesture = new WindowPreviewCloseGesture({
             pan_axis: Clutter.PanAxis.Y,
             max_n_points: 1,
@@ -122,7 +122,7 @@ var WindowPreview = GObject.registerClass({
         this._panGesture.connect('pan-end', this._panEnd.bind(this));
         this._panGesture.connect('pan-cancel', this._panCancel.bind(this));
         this.add_action(this._panGesture);
-
+*/
   //      Main.overview._workspacesSwipeTracker.require_failure_of(this._panGesture);
 //        Main.overview._overviewSwipeTracker.require_failure_of(this._panGesture);
 
