@@ -1122,6 +1122,7 @@ class Workspace extends St.Widget {
             style_class: 'window-picker',
             pivot_point: new Graphene.Point({ x: 0.5, y: 0.5 }),
             layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.START }),
+            reactive: true,
 //background_color: Clutter.color_from_string("green")[1],
         });
 
@@ -1247,8 +1248,63 @@ clip_to_allocation: true,
 
         // DND requires this to be set
         this._delegate = this;
+
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this.add_action(this._panGesture);
     }
 
+    _panMayRecognize(gesture) {
+        const points = gesture.get_points();
+        if (!points[0])
+            return true;
+
+        const delta = points[0].last_coords.y - points[0].begin_coords.y;
+
+        return delta < 0;
+    }
+
+    _panBegin(gesture, x, y) {
+        this.remove_transition('translation-y');
+        this.remove_transition('opacity');
+
+        this._panHeight = this.get_transformed_extents().size.height;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        this.translation_y += deltaY;
+        if (this.translation_y > 0)
+            this.translation_y = 0;
+
+        this.opacity = 255 * (1 - Math.min(Math.abs(this.translation_y / this._panHeight), 1));
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const remainingHeight = this._panHeight - Math.abs(this.translation_y);
+
+        if (velocityY < -0.9 || (remainingHeight < this._panHeight / 2 && velocityY < -0.5) || remainingHeight <= 0) {
+            this.ease({
+                translation_y: -this._panHeight,
+                opacity: 0,
+                duration: Math.clamp(Math.abs(velocityY) / remainingHeight, 100, 350),
+                mode: Clutter.AnimationMode.LINEAR,
+                onComplete: () => this._windows.forEach((w) => w._deleteAll()),
+            });
+        } else {
+            this.ease({
+                translation_y: 0,
+                opacity: 255,
+                duration: Math.clamp((1 - (remainingHeight / this._panHeight)) * 250, 100, 350),
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            });
+        }
+    }
 
     _shouldLeaveOverview() {
         if (!this.metaWorkspace || this.metaWorkspace.active)
@@ -1564,17 +1620,6 @@ clip_to_allocation: true,
             clone.setStackAbove(null);
         else
             clone.setStackAbove(this._windows[this._windows.length - 1]);
-
-        // Pan gesture of the bottommost windowPreview should have the
-        // bottom bar stick to the window
-        if (this._windows.length === 0 && this._bottomPanelBox) {
-            clone.bind_property('translation-y',
-                this._bottomPanelBox, 'translation-y',
-                GObject.BindingFlags.SYNC_CREATE);
-            clone.bind_property('opacity',
-                this._bottomPanelBox, 'opacity',
-                GObject.BindingFlags.SYNC_CREATE);
-        }
 
         if (this._bottomPanelBox && this._windows.length === 0)
             this._bottomPanelBox.show();
