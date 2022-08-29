@@ -235,7 +235,7 @@ else
         this._searchEntry.allocate(childBox);
         this._searchEntry.restore_easing_state();
         if (this.empty) {
-            availableHeight -= searchHeight + spacing * 4;
+            availableHeight -= searchHeight + spacing;
         } else {
             availableHeight -= searchHeight + spacing;
         }
