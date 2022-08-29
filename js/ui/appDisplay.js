@@ -3100,7 +3100,7 @@ var AppIcon = GObject.registerClass({
                 this.animateLaunch();
             }
         }
-log("OPENING NEW WIN ON WS: " + workspaceIndex);
+
         if (openNewWindow)
             this.app.open_new_window(workspaceIndex);
         else

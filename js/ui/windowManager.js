@@ -551,8 +551,6 @@ log("WS: nope, it's the default one");
     }
 
     _maybeMoveToOwnWorkspace(window) {
-log("WS:  updated should have own workspaces: " + this._windowData.get(window).shouldHaveOwnWorkspace);
-
         if (this._windowData.get(window).shouldHaveOwnWorkspace) {
             const windowWorkspace = window.get_workspace();
             let workspaceHasOtherWindows = false;
@@ -572,7 +570,7 @@ log("WS:  updated should have own workspaces: " + this._windowData.get(window).s
             }
         }
 
-    return false;
+        return false;
     }
 
     _animateOutStartupOverlay(workspace) {
@@ -591,7 +589,6 @@ log("WS:  updated should have own workspaces: " + this._windowData.get(window).s
 
     _windowAddedToWorkspace(workspace, window) {
         if (!window._laterDone) {
-log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " delaying " + window.title);
             /* Give newly opened windows some time to sort things out. If we
              * passed a specific workspace the window should open on, it only
              * gets moved to this workspace after 'window-added' got emitted, we
@@ -608,7 +605,7 @@ log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + "
             return;
         }
 
-log("WS: " + workspace.workspace_index + " WIN ADDED " + workspace.n_windows + " inside later " + window.title);
+log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n windows " + workspace.n_windows);
         let windowData = this._windowData.get(window);
         if (!windowData) {
             this._windowData.set(window, {
@@ -974,13 +971,14 @@ log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence
 
             if (isStartingUp) {
                if (workspace._newTilingWorkspaceTimeoutId) {
-                    log("WS: STARTING UP : was app workspace, that worked, neat");
+                    log("WS: STARTUP: found new startup sequ for tiling workspace, that worked, neat");
                     GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
                     delete workspace._newTilingWorkspaceTimeoutId;
                 }
 
                 workspace._appStartingUp = true;
             } else if (workspace._appStartingUp) {
+                log("WS: STARTUP: startup sequence got completed or removed, app might have started");
                 delete workspace._appStartingUp;
                 this._maybeRemoveWorkspace(workspace);
             }
