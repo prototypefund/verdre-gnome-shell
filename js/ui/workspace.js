@@ -1170,6 +1170,8 @@ class Workspace extends St.Widget {
         this._background =
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
 
+        this._background.clip_to_allocation = true;
+
         if (this._bottomPanelBox) {
             this._background.add_child(this._bottomPanelBox);
             this._background.bottom_panel_actor = this._bottomPanelBox;
@@ -1520,6 +1522,9 @@ clip_to_allocation: true,
         if (overlayClone) {
             this._background.add_child(overlayClone);
             this._background.app_opening_overlay_actor = overlayClone;
+
+            this.opacity = 255;
+            this.translation_y = 0;
         }
 
         super.vfunc_map();
@@ -1535,6 +1540,9 @@ clip_to_allocation: true,
             GLib.source_remove(this._layoutFrozenId);
             this._layoutFrozenId = 0;
         }
+
+        if (this._windows.length === 0 && !this._background.app_opening_overlay_actor)
+            this.opacity = 0;
 
         this._container.layout_manager.layout_frozen = true;
         Main.overview.connectObject(
@@ -1623,6 +1631,11 @@ clip_to_allocation: true,
 
         if (this._bottomPanelBox && this._windows.length === 0)
             this._bottomPanelBox.show();
+
+        if (this._windows.length === 0) {
+            this.opacity = 255;
+            this.translation_y = 0;
+        }
 
         this._windows.push(clone);
 

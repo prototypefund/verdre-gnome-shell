@@ -14,6 +14,7 @@ $window_close_button_padding: 3px;
   // Space between window thumbnails
   spacing: $window_picker_spacing;
 
+  box-shadow: 0 6px 12px 6px transparentize(darken($osd_bg_color, 30%), 0.7);
 //  box-shadow: 0 4px 16px 4px transparentize(darken($osd_bg_color, 30%), 0.7);
 }
 
