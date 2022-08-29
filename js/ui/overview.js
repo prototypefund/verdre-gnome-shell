@@ -196,11 +196,20 @@ var Overview = class extends Signals.EventEmitter {
 
     _sessionUpdated() {
         const { hasOverview } = Main.sessionMode;
-        if (!hasOverview)
+
+
+        if (this._visible && !hasOverview) {
+            this._wasVisible = true;
             this.hide();
+        }
 
         this.isDummy = !hasOverview;
         this._createOverview();
+
+        if (hasOverview && this._wasVisible) {
+            delete this._wasVisible;
+            this.show(2);
+        }
     }
 
     // The members we construct that are implemented in JS might
