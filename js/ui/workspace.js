@@ -1405,13 +1405,13 @@ class Workspace extends St.Widget {
 
         this._skipTaskbarSignals.set(metaWin,
             metaWin.connect('notify::skip-taskbar', () => {
-                if (metaWin.skip_taskbar)
+                if (!this._isOverviewWindow(metaWin))
                     this._doRemoveWindow(metaWin);
                 else
                     this._doAddWindow(metaWin);
             }));
 
-        if (!this._isOverviewWindow(metaWin)) {
+        if (metaWin.is_attached_dialog()) {
             if (metaWin.get_transient_for() == null)
                 return;
 
@@ -1541,7 +1541,7 @@ class Workspace extends St.Widget {
     }
 
     _isOverviewWindow(window) {
-        return !window.skip_taskbar && !window._hideFromOverview;
+        return ((!window.is_attached_dialog() && window.window_type === Meta.WindowType.MODAL_DIALOG) || !window.skip_taskbar) && !window._hideFromOverview;
     }
 
     // Create a clone of a (non-desktop) window and add it to the window list
