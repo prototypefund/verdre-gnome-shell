@@ -7,7 +7,7 @@
 .tmp-overlay {
   background-color: #fafafa;
  // border-radius: 10px;
-  box-shadow: 0 6px 12px 6px transparentize(darken($osd_bg_color, 30%), 0.7);
+  box-shadow: 0 4px 11px 4px transparentize(darken($osd_bg_color, 30%), 0.7);
 
   &.dark-mode-enabled {
     background-color: #242424;
