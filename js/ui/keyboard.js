@@ -1551,11 +1551,11 @@ var Keyboard = GObject.registerClass({
             if (windowActor) {
                 windowActor.ease({
                     // subtract the bottom panel here because we don't want the window to include the panel
-                    y: this._focusWindowStartY - panHeight - bottomPanelHeight,
+                    y: this._focusWindowStartY - (panHeight + bottomPanelHeight),
                     duration: KEYBOARD_ANIMATION_TIME,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     onStopped: () => {
-                        windowActor.y = this._focusWindowStartY - panHeight - bottomPanelHeight;
+                        windowActor.y = this._focusWindowStartY - (panHeight + bottomPanelHeight);
                      //   this._windowSlideAnimationComplete(window, finalY);
                     },
                 });
