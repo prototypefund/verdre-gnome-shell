@@ -2620,7 +2620,7 @@ var AppFolderDialog = GObject.registerClass({
             const actor =
                 global.stage.get_actor_at_pos(Clutter.PickMode.ALL, coords.x, coords.y);
 
-            if (!this._viewBox.contains(actor))
+            if (!this._viewBox.contains(actor) && !Main.layoutManager.keyboardBox.contains(actor))
                 this.popdown();
 
             return Clutter.EVENT_PROPAGATE;
@@ -3034,6 +3034,15 @@ var AppFolderDialog = GObject.registerClass({
         this.show();
 
         this.emit('open-state-changed', true);
+    }
+
+    vfunc_collect_event_actors(target, forEvent) {
+        if (Main.layoutManager.keyboardBox.contains(target) ||
+            !!target._extendedKeys || !!target.extendedKey) {
+            return Main.uiGroup.get_event_actors(target, forEvent);
+        } else {
+            return this.get_event_actors(target, forEvent);
+        }
     }
 
     popdown(callback) {
