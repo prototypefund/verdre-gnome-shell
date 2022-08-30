@@ -1321,11 +1321,11 @@ const NMToggle = GObject.registerClass({
         this._itemBinding = new GObject.BindingGroup();
         this._itemBinding.bind('icon-name',
             this, 'icon-name', GObject.BindingFlags.DEFAULT);
-        this._itemBinding.bind_full('name',
+     /*   this._itemBinding.bind_full('name',
             this, 'label', GObject.BindingFlags.DEFAULT,
             (bind, source) => [true, this._transformLabel(source)],
             null);
-
+*/
         this.connect('clicked', () => this.activate());
     }
 
@@ -1709,6 +1709,8 @@ class NMWirelessToggle extends NMDeviceToggle {
             else
                 this._stopScanning();
         });
+
+        this.label = 'Wi-Fi'
 
         this.menu.setHeader('network-wireless-symbolic', _('Wi–Fi'));
         this.menu.addHeaderSuffix(this._scanningSpinner);
