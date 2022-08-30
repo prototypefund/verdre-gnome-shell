@@ -976,9 +976,24 @@ log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence
                     delete workspace._newTilingWorkspaceTimeoutId;
                 }
 
+                workspace._startupSequenceTimeoutId = GLib.timeout_add(
+                    GLib.PRIORITY_DEFAULT, 10000, () => {
+                        log("WS: the damn startup sequence didn't finish");
+                        delete workspace._appStartingUp;
+                        this._maybeRemoveWorkspace(workspace);
+
+                        return GLib.SOURCE_REMOVE;
+                    });
+
                 workspace._appStartingUp = true;
             } else if (workspace._appStartingUp) {
                 log("WS: STARTUP: startup sequence got completed or removed, app might have started");
+
+                if (workspace._startupSequenceTimeoutId) {
+                    GLib.source_remove(workspace._startupSequenceTimeoutId);
+                    delete workspace._startupSequenceTimeoutId;
+                }
+
                 delete workspace._appStartingUp;
                 this._maybeRemoveWorkspace(workspace);
             }
