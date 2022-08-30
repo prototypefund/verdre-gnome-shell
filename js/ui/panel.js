@@ -364,7 +364,7 @@ class QuickSettings extends PanelMenu.Button {
         this._darkMode = new imports.ui.status.darkMode.Indicator();
         this._powerProfiles = new imports.ui.status.powerProfiles.Indicator();
         this._rfkill = new imports.ui.status.rfkill.Indicator();
-        this._autoRotate = new imports.ui.status.autoRotate.Indicator();
+      //  this._autoRotate = new imports.ui.status.autoRotate.Indicator();
         this._unsafeMode = new UnsafeModeIndicator();
 
         this._indicators.add_child(this._brightness);
@@ -379,7 +379,7 @@ class QuickSettings extends PanelMenu.Button {
         if (this._bluetooth)
             this._indicators.add_child(this._bluetooth);
         this._indicators.add_child(this._rfkill);
-        this._indicators.add_child(this._autoRotate);
+   //     this._indicators.add_child(this._autoRotate);
         this._indicators.add_child(this._volume);
         this._indicators.add_child(this._unsafeMode);
         this._indicators.add_child(this._system);
@@ -399,7 +399,7 @@ class QuickSettings extends PanelMenu.Button {
         this._addItems(this._nightLight.quickSettingsItems);
         this._addItems(this._darkMode.quickSettingsItems);
         this._addItems(this._rfkill.quickSettingsItems);
-        this._addItems(this._autoRotate.quickSettingsItems);
+   //     this._addItems(this._autoRotate.quickSettingsItems);
         this._addItems(this._unsafeMode.quickSettingsItems);
     }
 
