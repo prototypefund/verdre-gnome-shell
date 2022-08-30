@@ -2463,18 +2463,7 @@ var AppFolderDialog = GObject.registerClass({
 
         this.add_constraint(new Layout.MonitorConstraint({ primary: true }));
 
-        const clickGesture = new Clutter.ClickGesture();
-        clickGesture.connect('clicked', () => {
-            const coords = clickGesture.get_coords();
-            const actor =
-                global.stage.get_actor_at_pos(Clutter.PickMode.ALL, coords.x, coords.y);
 
-            if (actor === this)
-                this.popdown();
-
-            return Clutter.EVENT_PROPAGATE;
-        });
-        this.add_action(clickGesture);
 
         this._source = source;
         this._folder = folder;
@@ -2507,6 +2496,19 @@ var AppFolderDialog = GObject.registerClass({
         this._viewBox.add_child(this._view);
 
         global.focus_manager.add_group(this);
+
+        const clickGesture = new Clutter.ClickGesture();
+        clickGesture.connect('clicked', () => {
+            const coords = clickGesture.get_coords();
+            const actor =
+                global.stage.get_actor_at_pos(Clutter.PickMode.ALL, coords.x, coords.y);
+
+            if (!this._viewBox.contains(actor))
+                this.popdown();
+
+            return Clutter.EVENT_PROPAGATE;
+        });
+        this.add_action(clickGesture);
 
         this._grabHelper = new GrabHelper.GrabHelper(this, {
             actionMode: Shell.ActionMode.POPUP,
