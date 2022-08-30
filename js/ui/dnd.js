@@ -109,7 +109,7 @@ var DndGesture = GObject.registerClass({
 
     vfunc_set_actor(actor) {
         // If our actor is being destroyed, cancel the gesture. The superclass
-        // will do the same for us, but it will log a warning.
+        // will do the same for us, but it would log a warning.
         if (this._actor && this.state === Clutter.GestureState.RECOGNIZING)
             this.set_state(Clutter.GestureState.CANCELLED);
 
@@ -455,6 +455,8 @@ log("DRAG: someone called startDrag");
                     logError(e, "Skipping drag target");
                 }
                 if (accepted) {
+                    this.set_state(Clutter.GestureState.COMPLETED);
+
                     // If it accepted the drop without taking the actor,
                     // handle it ourselves.
                     if (this._dragActor && this._dragActor.get_parent() == Main.uiGroup) {
