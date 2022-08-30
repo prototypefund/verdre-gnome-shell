@@ -490,10 +490,13 @@ this._boxPointer.y_align = Clutter.ActorAlign.START;
             coordinate: Clutter.BindCoordinate.ALL,
         }));
 
-        const hideSubkeysGesture = new Clutter.ClickGesture({
+        const hideSubkeysGesture = new KeyClickGesture({
             name: 'OSK subkeys hide gesture',
         });
-        hideSubkeysGesture.connect('clicked', () => this._hideSubkeys());
+        hideSubkeysGesture.connect('press', () => {
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE,
+                () => { this._hideSubkeys(); return GLib.SOURCE_REMOVE; });
+        });
         this._coverActor.add_action(hideSubkeysGesture);
 
         Main.layoutManager.keyboardBox.add_child(this._coverActor);
