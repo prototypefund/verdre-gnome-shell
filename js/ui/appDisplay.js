@@ -2445,8 +2445,10 @@ class FolderIcon extends AppViewItem {
     _onDestroy() {
         super._onDestroy();
 
-        if (this._dialog)
+        if (this._dialog) {
+            this._dialog.hide();
             this._dialog.destroy();
+        }
         else
             this.view?.destroy();
     }
