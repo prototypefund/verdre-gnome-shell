@@ -307,14 +307,14 @@ background-color: transparentize(#cccccc, 0.7);
   } @else {
     .overview-icon { background-color: transparentize($color, .81);}
   }
-  &:hover .overview-icon { background-color: transparentize($color, .9);}
+//  &:hover .overview-icon { background-color: transparentize($color, .9);}
 
-  &:selected .overview-icon,
+/*  &:selected .overview-icon,
   &:focus .overview-icon {
     background-color: transparentize($color, .87);
     &:hover .overview-icon { background-color: transparentize($color, .84);}
     &:active .overview-icon { background-color: transparentize($color, .87);}
-  }
+  }*/
   &:active .overview-icon { background-color: transparentize($color, .84);}
   &:outlined .overview-icon,
   &:checked .overview-icon {
