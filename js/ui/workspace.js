@@ -1076,6 +1076,8 @@ class Workspace extends St.Widget {
         this._background =
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
 
+        this._background.clip_to_allocation = true;
+
         if (Main.layoutManager.bottomPanelBox.height > 0) {
             this._bottomPanelBox = new St.Bin({
                 name: 'bottomPanelBox',
@@ -1126,6 +1128,9 @@ class Workspace extends St.Widget {
         if (overlayClone) {
             this._background.add_child(overlayClone);
             this._background.app_opening_overlay_actor = overlayClone;
+
+            this.opacity = 255;
+            this.translation_y = 0;
         }
         this.add_child(this._background);
 
@@ -1497,6 +1502,9 @@ class Workspace extends St.Widget {
             this._layoutFrozenId = 0;
         }
 
+        if (this._windows.length === 0 && !this._background.app_opening_overlay_actor)
+            this.opacity = 0;
+
         this._container.layout_manager.layout_frozen = true;
         Main.overview.connectObject(
             'hidden', this._doneLeavingOverview.bind(this), this);
@@ -1582,6 +1590,11 @@ class Workspace extends St.Widget {
 
         if (this._bottomPanelBox && this._windows.length === 0)
             this._bottomPanelBox.show();
+
+        if (this._windows.length === 0) {
+            this.opacity = 255;
+            this.translation_y = 0;
+        }
 
         this._windows.push(clone);
 
