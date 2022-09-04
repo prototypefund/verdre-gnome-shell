@@ -311,6 +311,10 @@ var LayoutManager = GObject.registerClass({
             factor: 1,
         }));
 
+        this.connect('notify::is-phone', () => {
+            this.bottomPanelBox.height = this.is_phone ? -1 : 0;
+        });
+
         this.modalDialogGroup = new St.Widget({
             name: 'modalDialogGroup',
             layout_manager: new Clutter.BinLayout(),
