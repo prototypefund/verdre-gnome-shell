@@ -591,6 +591,10 @@ var NotificationBanner = GObject.registerClass({
 
         return this.addButton(button, callback);
     }
+
+    canHide() {
+        return true;
+    }
 });
 
 var SourceActor = GObject.registerClass(
@@ -1244,7 +1248,8 @@ var MessageTray = GObject.registerClass({
         this._banner = this._notification.createBanner();
         this._banner.connectObject(
             'done-displaying', this._escapeTray.bind(this),
-            'unfocused', () => this._updateState(), this);
+            'unfocused', () => this._updateState(),
+            'hide', () => this._hideNotification(false), this);
 
         this._bannerBin.add_actor(this._banner);
 
