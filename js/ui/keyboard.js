@@ -670,7 +670,7 @@ var FocusTracker = class extends Signals.EventEmitter {
 
     _setCurrentWindow(window) {
         this._currentWindow?.disconnectObject(this);
-
+log("KEYBOARD: setting cur window to " + window);
         this._currentWindow = window;
 
         if (this._currentWindow) {
@@ -693,15 +693,23 @@ var FocusTracker = class extends Signals.EventEmitter {
                 frameRect.width, frameRect.height);
 
             const rectInsideFrameRect = grapheneFrameRect.intersection(rect)[0];
-            if (!rectInsideFrameRect)
+            if (!rectInsideFrameRect) {
+log("KEYBOARD: rect not equal to fr rect");
                 return;
+}
+
+
         }
+//IM could have been disabled in the mean time
+    //    if (this._rect && this._rect.equal(rect)) {
+//log("KEYBOARD: rect equal to old one");
+  //          return;
+//}
 
-        if (this._rect && this._rect.equal(rect))
-            return;
-
+log("KEYBORAD: emitting position ccahnged");
         this._rect = rect;
         this.emit('position-changed');
+
     }
 
     getCurrentRect() {
@@ -1395,7 +1403,8 @@ var Keyboard = GObject.registerClass({
 
         this._focusTracker = new FocusTracker();
         this._focusTracker.connectObject(
-            'position-changed', this._onFocusPositionChanged.bind(this),
+            'position-changed', this._onFocusChanged.bind(this),
+            'window-changed', this._onFocusChanged.bind(this),
             'window-grabbed', this._onFocusWindowMoving.bind(this), this);
 
         this._windowMovedId = this._focusTracker.connect('window-moved',
@@ -1548,7 +1557,7 @@ var Keyboard = GObject.registerClass({
         super.visible = visible;
     }
 
-    _onFocusPositionChanged(focusTracker) {
+    _onFocusChanged(focusTracker) {
         let rect = focusTracker.getCurrentRect();
         this.setCursorLocation(focusTracker.currentWindow, rect.x, rect.y, rect.width, rect.height);
     }
@@ -2355,8 +2364,8 @@ this._suggestions.visible = false;
     setCursorLocation(window, x, y, w, h) {
         let monitor = Main.layoutManager.keyboardMonitor;
 
-        if (window && monitor) {
-            const keyboardHeight = this.get_transformed_extents().size.height;
+        if (window && monitor && window.get_monitor() === monitor.index) {
+            const keyboardHeight = this.height;
             const keyboardY1 = (monitor.y + monitor.height) - keyboardHeight;
 
             if (this._focusWindow === window) {
@@ -2366,11 +2375,15 @@ this._suggestions.visible = false;
                 return;
             }
 
-            if (y + h >= keyboardY1)
+            if (y + h >= keyboardY1) {
+log("KEYBOARD: there's y overlap, setting window");
                 this._setFocusWindow(window);
-            else
+            } else {
+log("KEYBOARD: no y olverlap");
                 this._setFocusWindow(null);
+}
         } else {
+log("KEYBOARD: no window");
             this._setFocusWindow(null);
         }
     }
