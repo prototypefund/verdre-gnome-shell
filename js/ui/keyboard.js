@@ -34,8 +34,8 @@ class AspectContainer extends St.Widget {
         this._ratio = 1;
     }
 
-    setRatio(relWidth, relHeight) {
-        this._ratio = relWidth / relHeight;
+    setRatio(ratio) {
+        this._ratio = ratio;
         this.queue_relayout();
     }
 
@@ -87,6 +87,7 @@ class KeyContainer extends St.Widget {
             x_expand: true,
             y_expand: true,
             reactive: true,
+        //    name: 'keysContainer',
         });
         this._gridLayout = gridLayout;
         this._currentRow = 0;
@@ -131,8 +132,6 @@ class KeyContainer extends St.Widget {
     layoutButtons() {
         let nCol = 0, nRow = 0;
 
-//        this._keyContainerGesture.setLayout(this._rows.length, this._maxCols);
-
         for (let i = 0; i < this._rows.length; i++) {
             let row = this._rows[i];
 
@@ -172,7 +171,7 @@ class KeyContainer extends St.Widget {
         }
     }
 
-    getRatio() {
+    getSize() {
         return [this._maxCols, this._rows.length];
     }
 });
@@ -353,7 +352,7 @@ var KeyClickGesture = GObject.registerClass({
     vfunc_other_gesture_may_start(otherGesture, shouldStart) {
         if (otherGesture instanceof KeyClickGesture) {
             log("found another key click gest should " + shouldStart);
-            this.set_state(Clutter.GestureState.RECOGNIZED);
+            this.set_state(Clutter.GestureState.COMPLETED);
             return true;
         }
 
@@ -373,6 +372,9 @@ var KeyContainerGesture = GObject.registerClass({
         this._width = 0;
 
         this._pressedKey = null;
+        this._currentPoint = null;
+        this._inLongPressDrag = false;
+        this._keyLongPressTimeout = 0;
     }
 
     _findNearestRowOrCol(array, index) {
@@ -393,27 +395,25 @@ var KeyContainerGesture = GObject.registerClass({
         }
 
         if (prevIndex !== null) {
-            if (prevIndex + array[prevIndex].size >= index) { log("POINT: direct hit");
-                return array[prevIndex]; } // direct hit
+            if (prevIndex + array[prevIndex].size >= index)
+                return array[prevIndex];// direct hit
 
             if (nextIndex !== null) {
                 const distanceToPrev = index - prevIndex;
                 const distanceToNext = nextIndex - index;
 
-                if (distanceToNext < distanceToPrev) { log("POINT: next is nearest");
-                    return array[nextIndex]; }
-                else { log("POINT: prev is nearest");
-                    return array[prevIndex]; }
+                if (distanceToNext < distanceToPrev)
+                    return array[nextIndex];
+                else
+                    return array[prevIndex];
             }
 
-             log("POINT: no next");
             return array[prevIndex];
         }
 
-        if (nextIndex !== null) { log("POINT: no prev, ret next");
-            return array[nextIndex]; }
+        if (nextIndex !== null)
+            return array[nextIndex];
 
-log("POINT found nothing");
         return null;
     }
 
@@ -422,29 +422,72 @@ log("POINT found nothing");
 
         const [success, x, y] =
             this.actor.transform_stage_point(point.begin_coords.x, point.begin_coords.y);
-        if (!success)
+        if (!success) {
+            this.set_state(Clutter.GestureState.CANCELLED);
             return;
+        }
 
         const rowHeight = this.actor.height / this._height;
         const rowIndex = y / rowHeight;
         const row = this._findNearestRowOrCol(this._rows, rowIndex);
-        if (!row)
+        if (!row) {
+            this.set_state(Clutter.GestureState.CANCELLED);
             return;
+        }
 
         const colWidth = this.actor.width / this._width;
         const colIndex = x / colWidth;
         const col = this._findNearestRowOrCol(row.cols, colIndex);
-        if (!col)
+        if (!col) {
+            this.set_state(Clutter.GestureState.CANCELLED);
             return;
+        }
 
+        // If a key is already pressed down by another finger, release it
+        if (this._pressedKey) {
+            this._pressedKey.release();
 
+            if (this._keyLongPressTimeout) {
+                GLib.source_remove(this._keyLongPressTimeout);
+                this._keyLongPressTimeout = 0;
+            }
+
+            this._pressedKey = null;
+            this._currentPoint = null;
+            this._inLongPressDrag = false;
+        }
+
+        this._currentPoint = point.index;
         this._pressedKey = col.key;
         this._pressedKey.press();
-        log("POINT pressed KEY " + this._pressedKey);
+
+        this._keyLongPressTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, KEY_LONG_PRESS_TIME, () => {
+            this._inLongPressDrag = this._pressedKey.longPressBegin();
+            if (this._inLongPressDrag) {
+                this.set_state(Clutter.GestureState.RECOGNIZING);
+
+                const points = this.get_points();
+                if (points[0])
+                    this._pressedKey.longPressMoved(global.stage.get_event_actor(points[0].latest_event));
+            }
+
+            this._keyLongPressTimeout = 0;
+            return GLib.SOURCE_REMOVE;
+        });
+
     }
 
-    vfunc_crossing_event(point, type, time, flags, sourceActor, relatedActor) {
-        if (!this._pressedKey)
+  //  vfunc_crossing_event(point, type, time, flags, sourceActor, relatedActor) {
+    vfunc_points_moved(points) {
+        const point = points[0];
+        if (point.index !== this._currentPoint)
+            return;
+
+        if (!this._pressedKey) {
+            throw new Error('no pressed key on points moved');
+        }
+
+        if (this._inLongPressDrag)
             return;
 
         const [success, x, y] =
@@ -460,24 +503,64 @@ log("POINT found nothing");
             const colIndex = x / colWidth;
             const col = this._findNearestRowOrCol(row.cols, colIndex);
             if (col) {
-                if (this._pressedKey === col.key) {
-        log("POINT pressed KEY still same");
+                if (this._pressedKey === col.key)
                     return;
-}
             }
         }
 
-        this._pressedKey.cancel();
-        this._pressedKey = null;
-        log("POINT pressed KEY unset it");
+        this.set_state(Clutter.GestureState.CANCELLED);
     }
 
     vfunc_points_ended(points) {
-        if (!this._pressedKey)
+        const point = points[0];
+
+        if (point.index !== this._currentPoint)
             return;
 
-        this._pressedKey.release();
-        this._pressedKey = null;
+        if (!this._pressedKey)
+            throw new Error('POINT no pressed key on points ended');
+
+        this.set_state(Clutter.GestureState.COMPLETED);
+    }
+
+    vfunc_points_cancelled(points) {
+        this.set_state(Clutter.GestureState.CANCELLED);
+    }
+
+    vfunc_crossing_event(point, type, time, flags, sourceActor, relatedActor) {
+        if (point.index !== this._currentPoint)
+            return;
+
+        if (type === Clutter.EventType.ENTER && this._inLongPressDrag)
+            this._pressedKey.longPressMoved(sourceActor);
+    }
+
+    vfunc_state_changed(oldState, newState) {
+        if (newState === Clutter.GestureState.CANCELLED)
+            this._pressedKey.cancel();
+
+        if (newState === Clutter.GestureState.COMPLETED)
+            this._pressedKey.release();
+
+        if (newState === Clutter.GestureState.COMPLETED ||
+            newState === Clutter.GestureState.CANCELLED) {
+            if (this._keyLongPressTimeout) {
+                GLib.source_remove(this._keyLongPressTimeout);
+                this._keyLongPressTimeout = 0;
+            }
+
+            this._pressedKey = null;
+            this._currentPoint = null;
+            this._inLongPressDrag = false;
+
+            // Move to WAITING manually and don't wait until remaining points are removed
+            this.set_state(Clutter.GestureState.WAITING);
+        }
+    }
+
+    vfunc_should_be_influenced_by(otherGesture, cancel, inhibit) {
+        // doesn't make sense to ever inhibit this one
+        return [cancel, false];
     }
 
     addKey(key, colIndex, rowIndex, width, height) {
@@ -487,8 +570,6 @@ log("POINT found nothing");
         const row = this._rows[rowIndex];
 
         row.cols[colIndex] = { size: width, key };
-
-        log("added key: " + this._rows[rowIndex].cols[colIndex])
 
         if (this._height < rowIndex + height)
             this._height = rowIndex + height;
@@ -508,10 +589,10 @@ var Key = GObject.registerClass({
     },
 }, class Key extends St.Button {
     _init(params, extendedKeys = []) {
-        const {label, iconName, commitString, keyval} = {keyval: 0, ...params};
+        const {label, iconName, commitString, keyval, useInternalClickGesture} =
+            {keyval: 0, useInternalClickGesture: true, ...params};
 
         super._init({ style_class: 'key-container' });
-        this.get_click_gesture().enabled = false;
 
         this._keyBin = this._makeKey(commitString, label, iconName);
 
@@ -523,87 +604,70 @@ var Key = GObject.registerClass({
 
         this._extendedKeys = extendedKeys;
         this._extendedKeyboard = null;
-/*
-        const keyClickGesture = new KeyClickGesture();
-        keyClickGesture.connect('press', () => {
-            this.add_style_pseudo_class('active');
-            this.emit('pressed');
-        });
-        keyClickGesture.connect('release', () => {
-            this.remove_style_pseudo_class('active');
 
-            let finalKeyval = parseInt(keyval, 16);
-            if (!finalKeyval && commitString)
-                finalKeyval = this._getKeyvalFromString(commitString);
-            console.assert(finalKeyval !== undefined, 'Need keyval or commitString');
+        this._commitString = commitString;
+        this._keyval = keyval;
 
-            this.emit('commit', finalKeyval, commitString || '');
-            this.emit('released');
-        });
-        keyClickGesture.connect('cancel', () => {
-            this.remove_style_pseudo_class('active');
-            this.emit('cancelled');
-        });
-        this.add_action(keyClickGesture);
-
-        const longPressAndDragGesture = new LongPressAndDragGesture({
-            long_press_duration: KEY_LONG_PRESS_TIME,
-        });
-        longPressAndDragGesture.connect('long-press-begin', () => {
-            this.emit('long-press');
-
-            if (this._extendedKeys.length > 0) {
-                this._ensureExtendedKeysPopup();
-                this._showSubkeys();
-            }
-        });
-        longPressAndDragGesture.connect('drag-moved', (gesture, actor) => {
-            this._currentExtendedKeyButton?.remove_style_pseudo_class('active');
-
-            this._currentExtendedKeyButton =
-                this._extendedKeyboard?.contains(actor) ? actor : null;
-
-            this._currentExtendedKeyButton?.add_style_pseudo_class('active');
-        });
-        longPressAndDragGesture.connect('long-press-end', () => {
-            if (!this._currentExtendedKeyButton)
-                return;
-
-            const extendedKey = this._currentExtendedKeyButton.extendedKey;
-            this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey || '');
-
-            this._currentExtendedKeyButton.remove_style_pseudo_class('active');
-            delete this._currentExtendedKeyButton;
-            this._hideSubkeys();
-        });
-
-        if (this._extendedKeys.length === 0)
-            longPressAndDragGesture.can_not_cancel(keyClickGesture);
-
-        this.add_action(longPressAndDragGesture);
-*/
+        if (useInternalClickGesture)
+            this.connect('clicked', () => this.release());
+        else
+            this.get_click_gesture().enabled = false;
     }
 
     press() {
-            this.add_style_pseudo_class('active');
-            this.emit('pressed');
+        this.add_style_pseudo_class('active');
+        this.emit('pressed');
     }
 
     release() {
-            this.remove_style_pseudo_class('active');
+        this.remove_style_pseudo_class('active');
 
-            let finalKeyval = parseInt(keyval, 16);
-            if (!finalKeyval && commitString)
-                finalKeyval = this._getKeyvalFromString(commitString);
-            console.assert(finalKeyval !== undefined, 'Need keyval or commitString');
+        if (this.checked) {
+            if (this._currentExtendedKeyButton) {
+                const extendedKey = this._currentExtendedKeyButton.extendedKey;
+                this.emit('commit', this._getKeyvalFromString(extendedKey), extendedKey || '');
 
-            this.emit('commit', finalKeyval, commitString || '');
-            this.emit('released');
+                this._currentExtendedKeyButton.remove_style_pseudo_class('active');
+                delete this._currentExtendedKeyButton;
+                this._hideSubkeys();
+            }
+
+            return;
+        }
+
+        let finalKeyval = parseInt(this._keyval, 16);
+        if (!finalKeyval && this._commitString)
+            finalKeyval = this._getKeyvalFromString(this._commitString);
+        console.assert(finalKeyval !== undefined, 'Need keyval or commitString');
+
+        this.emit('commit', finalKeyval, this._commitString || '');
+        this.emit('released');
     }
 
     cancel() {
-            this.remove_style_pseudo_class('active');
-            this.emit('cancelled');
+        this.remove_style_pseudo_class('active');
+        this.emit('cancelled');
+    }
+
+    longPressBegin() {
+        this.emit('long-press');
+
+        if (this._extendedKeys.length > 0) {
+            this._ensureExtendedKeysPopup();
+            this._showSubkeys();
+            return true;
+        }
+
+        return false;
+    }
+
+    longPressMoved(newActor) {
+        this._currentExtendedKeyButton?.remove_style_pseudo_class('active');
+
+        this._currentExtendedKeyButton =
+            this._extendedKeyboard?.contains(newActor) ? newActor : null;
+
+        this._currentExtendedKeyButton?.add_style_pseudo_class('active');
     }
 
     get iconName() {
@@ -1151,7 +1215,7 @@ var EmojiPager = GObject.registerClass({
         }
     }
 
-    setRatio(nCols, nRows) {
+    setSize(nCols, nRows) {
         this._nCols = Math.floor(nCols);
         this._nRows = Math.floor(nRows);
         this._initPagingInfo();
@@ -1292,17 +1356,21 @@ var EmojiSelection = GObject.registerClass({
 
         row.appendRow();
 
-        key = new Key({label: 'ABC'}, []);
+        key = new Key({
+            label: 'ABC',
+            useInternalClickGesture: false,
+        }, []);
         key.add_style_class_name('default-key');
         key.add_style_class_name('bottom-row-key');
         key.connect('released', () => this.emit('toggle'));
-        row.appendKey(key, 1);
+        row.appendKey(key, 1.5);
 
         for (let i = 0; i < this._sections.length; i++) {
             let section = this._sections[i];
 
             const pageKey = new Key({
                 iconName: section.iconName,
+                useInternalClickGesture: false,
             }, []);
             pageKey.add_style_class_name('bottom-row-key');
             pageKey.connect('released', () => {
@@ -1313,13 +1381,16 @@ var EmojiSelection = GObject.registerClass({
             section.button = pageKey;
         }
 
-        key = new Key({iconName: 'edit-clear-symbolic'}, []);
+        key = new Key({
+            iconName: 'edit-clear-symbolic',
+            useInternalClickGesture: false,
+        }, []);
         key.add_style_class_name('default-key');
         key.add_style_class_name('bottom-row-key');
         key.connect('released', () => {
             this.emit('keyval', Clutter.KEY_BackSpace);
         });
-        row.appendKey(key, 1);
+        row.appendKey(key, 1.5);
 
     /*    key = new Key({iconName: 'go-down-symbolic'});
         key.add_style_class_name('default-key');
@@ -1330,36 +1401,26 @@ var EmojiSelection = GObject.registerClass({
         row.appendKey(key);*/
         row.layoutButtons();
 
-        const actor = new AspectContainer({
+      /*  const actor = new AspectContainer({
             layout_manager: new Clutter.BinLayout(),
             x_expand: true,
             y_expand: true,
         });
         actor.add_child(row);
-
-        return actor;
+*/
+        return row;
     }
 
-    setRatio(nCols, nRows) {
+    setSize(nCols, nRows) {
+        const bottomRowHeight = 1;
+        const pagerHeight = nRows - bottomRowHeight;
 
-        nCols = Math.floor(nCols);
-        // minus two rows to adjust for the pagination dots and bottom row
-        nRows = Math.floor(nRows) - 2;
+        this._gridLayout.attach(this._pagerBox, 0, 0, 1, pagerHeight * KEY_SIZE);
+        this._gridLayout.attach(this._bottomRow, 0, pagerHeight * KEY_SIZE, 1, bottomRowHeight * KEY_SIZE);
+    }
 
-        this._emojiPager.setRatio(nCols, nRows);
-        this._bottomRow.setRatio(nCols, 1);
-
-        // (Re)attach actors so the emoji panel fits the ratio and
-        // the bottom row is ensured to take 1 row high.
-        if (this._pagerBox.get_parent())
-            this.remove_child(this._pagerBox);
-        if (this._bottomRow.get_parent())
-            this.remove_child(this._bottomRow);
-
-        const nGridRows = nRows * KEY_SIZE + 1;
-
-        this._gridLayout.attach(this._pagerBox, 0, 0, 2, nGridRows);
-        this._gridLayout.attach(this._bottomRow, 0, nGridRows, 2, 2);
+    setNEmojis(nCols, nRows) {
+        this._emojiPager.setSize(nCols, nRows);
     }
 });
 
@@ -1616,6 +1677,7 @@ var Keyboard = GObject.registerClass({
         this._panGesture = new Clutter.PanGesture({
             pan_axis: Clutter.PanAxis.Y,
             max_n_points: 1,
+            begin_threshold: 25,
         });
         this._panGesture.connect('may-recognize', this._panMayRecognize.bind(this));
         this._panGesture.connect('pan-begin', this._panBegin.bind(this));
@@ -1898,6 +1960,7 @@ var Keyboard = GObject.registerClass({
                 label: key.label,
                 iconName: key.iconName,
                 keyval: key.keyval,
+                useInternalClickGesture: false,
             }, strings);
 
             if (key.width !== null)
@@ -1963,6 +2026,9 @@ var Keyboard = GObject.registerClass({
             if (key.action || key.keyval)
                 button.add_style_class_name('default-key');
 
+            if (key.action)
+                button.add_style_class_name('action-' + key.action);
+
             layout.appendKey(button, width);
         }
     }
@@ -2012,7 +2078,6 @@ var Keyboard = GObject.registerClass({
     }
 
     _toggleDelete(enabled) {
-log("KEYBOARD: ENABLING DELETE: " + enabled);
         if (this._deleteEnabled === enabled)
             return;
 
@@ -2022,7 +2087,6 @@ log("KEYBOARD: ENABLING DELETE: " + enabled);
         if (true || !Main.inputMethod.currentFocus ||
             Main.inputMethod.hasPreedit() ||
             Main.inputMethod.terminalMode) {
-log("KEYBOARD: using cheap keyval press");
             /* If there is no IM focus or are in the middle of preedit,
              * fallback to keypresses */
             if (enabled)
@@ -2191,11 +2255,11 @@ log("KEYBOARD: using cheap keyval press");
         const forWidth = this.get_theme_node().adjust_for_width(monitor.width);
         const [, natHeight] = this.get_preferred_height(forWidth);
 
-        /* If the requested height is smaller than 1/3rd of the monitor height,
-         * we'll extend the height to the full 1/3rd of the monitor.
-         */
-        if (natHeight > monitor.height * 0.5)
-            this.height = monitor.height * 0.5;
+        const maxHeight = Main.layoutManager.isPhone
+            ? monitor.height * 0.55 : monitor.height / 3;
+
+        if (natHeight > maxHeight)
+            this.height = maxHeight;
         else
             this.height = natHeight;
     }
@@ -2282,17 +2346,26 @@ log("KEYBOARD: using cheap keyval press");
         });
         this._updateCurrentPageVisible();
 
-        let [width, height] = this._currentPage.getRatio();
+        let [nCols, nRows] = this._currentPage.getSize();
+
+        this._emojiSelection.setSize(nCols, nRows);
+
+
         const monitor = Main.layoutManager.keyboardMonitor;
+       // on phones we make keys taller than wide
         if (monitor && Main.layoutManager.isPhone) {
             if (monitor.width > monitor.height)
-                width *= 1.5;
+                nCols *= 1.5;
             else
-                height *= 1.5;
+                nRows *= 1.5;
         }
-            
-        this._aspectContainer.setRatio(width, height);
-        this._emojiSelection.setRatio(width, height);
+
+        this._aspectContainer.setRatio(nCols / nRows);
+
+        const { scaleFactor } = St.ThemeContext.get_for_stage(global.stage);
+        const emojiSize = 34 * scaleFactor;
+        const emojiPageHeight = this._suggestions.visible ? this.height * 0.5 : this.height * 0.7;
+        this._emojiSelection.setNEmojis(Math.floor(nCols), Math.floor(emojiPageHeight / emojiSize));
     }
 
     _clearKeyboardRestTimer() {
@@ -2458,7 +2531,7 @@ log("KEYBOARD: using cheap keyval press");
     }
 
     setSuggestionsVisible(visible) {
-this._suggestions.visible = false;
+        this._suggestions.visible = visible;
         this._suggestions?.setVisible(visible);
     }
 

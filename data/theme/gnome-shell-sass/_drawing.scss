@@ -107,7 +107,7 @@
   // active key
   @else if $t==active {
     color: $tc;
-    background-color: lighten($c, 10%);
+    background-color: lighten($c, 30%);
   }
 
   // checked key

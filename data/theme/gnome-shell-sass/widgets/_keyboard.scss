@@ -28,27 +28,32 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
   padding-left: 0px;
   padding-right: 0px;
   padding-bottom: 0px;
+
+  #keysContainer {
+  padding-left: 8px;
+  padding-right: 8px;
+  }
 }
 
-// the clickable container for individual keys
-.key-container {
+#uiGroup.mobile .key-container {
   padding-left: 2px;
   padding-right: 2px;
   padding-top: 4px;
   padding-bottom: 4px;
+}
 
-  &.leftmost-column { padding-left: 3px; }
-  &.rightmost-column { padding-right: 3px; } /*
-  &.bottommost-row { padding-bottom: 4px; padding-top: 4px }
-*/
+// the clickable container for individual keys
+.key-container {
+  padding: 4px;
+
   // the actual visible key
   .visible-key {
     @include fontsize($base_font_size + 5);
     font-weight: bold;
 //    min-height: $key_size;
   //  min-width: $key_size;
-    border-width: 1px;
-    border-style: solid;
+   // border-width: 1px;
+   // border-style: solid;
     border-radius: $key_border_radius;
  //   box-shadow: 0 1px 0 0 $shadow_color;
 
@@ -57,30 +62,20 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
     // size of icons on keys
     StIcon { icon-size: 24px; }
   }
- 
-  &.emoji {
-    .visible-key {
-      @include keyboard_key(undecorated, transparent, transparent);
-    }
-  }
 
   &:focus {
     .visible-key { @include keyboard_key(focus); }
   }
-
   &:hover {
     .visible-key { @include keyboard_key(hover, $key_bg_color, $osd_fg_color); }
   }
-
   &:active {
     .visible-key { @include keyboard_key(active, $key_bg_color, $osd_fg_color); }
   }
-
   &:checked {
     .visible-key { @include keyboard_key(active, $key_bg_color, $osd_fg_color); }
   }
-
-  &:grayed { //FIXMEy
+  &:grayed {
     .visible-key {
       background-color: darken($bg_color, 3%);
       color: $osd_fg_color;
@@ -131,20 +126,9 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
     }
   }
 
-  &.shift-key-lowercase {}
-  
-  // pressed shift has different style
-  &.shift-key-uppercase {
+  &.action-levelSwitch {
     .visible-key {
-      background-color: lighten($key_bg_color, 20%);
-      color: $osd_bg_color;
-    }
-
-    &:hover {
-      .visible-key {
-        background-color: lighten($key_bg_color, 25%);
-        color: lighten($osd_bg_color, 5%);
-      }
+      @include fontsize($base_font_size + 2);
     }
   }
 }
@@ -175,22 +159,39 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
 // emoji
 .emoji-panel {
   .key-container {
+    &.emoji {
+      padding-left: 2px;
+      padding-right: 2px;
+      padding-top: 2px;
+      padding-bottom: 2px;
+
+      .visible-key {
+        @include keyboard_key(undecorated, transparent, transparent);
+      }
+
+      &:hover {
+        .visible-key { @include keyboard_key(hover, $key_bg_color, $osd_fg_color); }
+      }
+      &:active {
+        .visible-key { @include keyboard_key(active, $key_bg_color, $osd_fg_color); }
+      }
+      &:checked {
+        .visible-key { @include keyboard_key(active, $key_bg_color, $osd_fg_color); }
+      }
+    }
+
     &.bottom-row-key {
       .visible-key {
-
         @include keyboard_key(normal, transparent, $osd_fg_color);
         StIcon { icon-size: 16px; }
 
-        @include fontsize($base_font_size );
+        @include fontsize($base_font_size + 2);
       }
     }
 
     &.bottom-row-key {
       &:hover {
         .visible-key { @include keyboard_key(hover, $default_key_bg_color, $osd_fg_color); }
-      }
-      &:active {
-    //    .visible-key { @include keyboard_key(active, $default_key_bg_color, $osd_fg_color); }
       }
       &:latched {
         .visible-key { @include keyboard_key(checked, $default_key_bg_color, $osd_fg_color); }
@@ -203,7 +204,7 @@ $default_key_bg_color: if($variant=='light', darken($key_bg_color, 11%), darken(
 .word-suggestions {
   @include fontsize($base_font_size + 1);
   spacing: 12px;
-  min-height: 17pt;
+  min-height: 9pt;
   padding: $base_padding*2;
   color: $osd_fg_color;
 
