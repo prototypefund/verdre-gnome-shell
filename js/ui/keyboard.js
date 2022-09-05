@@ -22,7 +22,7 @@ const SHOW_KEYBOARD = 'screen-keyboard-enabled';
 const EMOJI_PAGE_SEPARATION = 32;
 
 /* KeyContainer puts keys in a grid where a 1:1 key takes this size */
-const KEY_SIZE = 2;
+const KEY_SIZE = 4;
 
 const KEY_RELEASE_TIMEOUT = 50;
 const BACKSPACE_WORD_DELETE_THRESHOLD = 50;
@@ -86,6 +86,7 @@ class KeyContainer extends St.Widget {
             layout_manager: gridLayout,
             x_expand: true,
             y_expand: true,
+            reactive: true,
         });
         this._gridLayout = gridLayout;
         this._currentRow = 0;
@@ -94,6 +95,9 @@ class KeyContainer extends St.Widget {
 
         this._currentRow = null;
         this._rows = [];
+
+        this._keyContainerGesture = new KeyContainerGesture(this._rows);
+        this.add_action(this._keyContainerGesture);
     }
 
     appendRow() {
@@ -127,6 +131,8 @@ class KeyContainer extends St.Widget {
     layoutButtons() {
         let nCol = 0, nRow = 0;
 
+//        this._keyContainerGesture.setLayout(this._rows.length, this._maxCols);
+
         for (let i = 0; i < this._rows.length; i++) {
             let row = this._rows[i];
 
@@ -134,9 +140,9 @@ class KeyContainer extends St.Widget {
             if (nCol == 0) {
                 let diff = this._maxCols - row.width;
                 if (diff >= 1)
-                    nCol = diff * KEY_SIZE / 2;
+                    nCol = diff * 0.5;
                 else
-                    nCol = diff * KEY_SIZE;
+                    nCol = diff;
             }
 
             for (let j = 0; j < row.keys.length; j++) {
@@ -151,20 +157,23 @@ class KeyContainer extends St.Widget {
                 else if (j === row.keys.length - 1)
                     keyInfo.key.add_style_class_name('rightmost-column');
 
-                let width = keyInfo.width * KEY_SIZE;
-                let height = keyInfo.height * KEY_SIZE;
+                const layoutCol = nCol * KEY_SIZE;
+                const layoutRow = nRow * KEY_SIZE;
+                const layoutWidth = keyInfo.width * KEY_SIZE;
+                const layoutHeight = keyInfo.height * KEY_SIZE;
 
-                this._gridLayout.attach(keyInfo.key, nCol, nRow, width, height);
-                nCol += width;
+                this._gridLayout.attach(keyInfo.key, layoutCol, layoutRow, layoutWidth, layoutHeight);
+                this._keyContainerGesture.addKey(keyInfo.key, layoutCol, layoutRow, layoutWidth, layoutHeight);
+                nCol += keyInfo.width;
             }
 
-            nRow += KEY_SIZE;
+            nRow += 1;
             nCol = 0;
         }
     }
 
     getRatio() {
-        return [this._maxCols, this._rows.length * 1.5];
+        return [this._maxCols, this._rows.length];
     }
 });
 
@@ -352,6 +361,143 @@ var KeyClickGesture = GObject.registerClass({
     }
 });
 
+var KeyContainerGesture = GObject.registerClass({
+    Signals: {
+    },
+}, class KeyContainerGesture extends Clutter.Gesture {
+    _init(rows) {
+        super._init();
+
+        this._rows = [];
+        this._height = 0;
+        this._width = 0;
+
+        this._pressedKey = null;
+    }
+
+    _findNearestRowOrCol(array, index) {
+        let prevIndex = null;
+        for (let i = Math.floor(index); i >= 0; i--) {
+            if (array[i]) {
+                prevIndex = i;
+                break;
+            }
+        }
+
+        let nextIndex = null;
+        for (let i = Math.ceil(index); i < array.length; i++) {
+            if (array[i]) {
+                nextIndex = i;
+                break;
+            }
+        }
+
+        if (prevIndex !== null) {
+            if (prevIndex + array[prevIndex].size >= index) { log("POINT: direct hit");
+                return array[prevIndex]; } // direct hit
+
+            if (nextIndex !== null) {
+                const distanceToPrev = index - prevIndex;
+                const distanceToNext = nextIndex - index;
+
+                if (distanceToNext < distanceToPrev) { log("POINT: next is nearest");
+                    return array[nextIndex]; }
+                else { log("POINT: prev is nearest");
+                    return array[prevIndex]; }
+            }
+
+             log("POINT: no next");
+            return array[prevIndex];
+        }
+
+        if (nextIndex !== null) { log("POINT: no prev, ret next");
+            return array[nextIndex]; }
+
+log("POINT found nothing");
+        return null;
+    }
+
+    vfunc_points_began(points) {
+        const point = points[0];
+
+        const [success, x, y] =
+            this.actor.transform_stage_point(point.begin_coords.x, point.begin_coords.y);
+        if (!success)
+            return;
+
+        const rowHeight = this.actor.height / this._height;
+        const rowIndex = y / rowHeight;
+        const row = this._findNearestRowOrCol(this._rows, rowIndex);
+        if (!row)
+            return;
+
+        const colWidth = this.actor.width / this._width;
+        const colIndex = x / colWidth;
+        const col = this._findNearestRowOrCol(row.cols, colIndex);
+        if (!col)
+            return;
+
+
+        this._pressedKey = col.key;
+        this._pressedKey.press();
+        log("POINT pressed KEY " + this._pressedKey);
+    }
+
+    vfunc_crossing_event(point, type, time, flags, sourceActor, relatedActor) {
+        if (!this._pressedKey)
+            return;
+
+        const [success, x, y] =
+            this.actor.transform_stage_point(point.latest_coords.x, point.latest_coords.y);
+        if (!success)
+            return;
+
+        const rowHeight = this.actor.height / this._height;
+        const rowIndex = y / rowHeight;
+        const row = this._findNearestRowOrCol(this._rows, rowIndex);
+        if (row) {
+            const colWidth = this.actor.width / this._width;
+            const colIndex = x / colWidth;
+            const col = this._findNearestRowOrCol(row.cols, colIndex);
+            if (col) {
+                if (this._pressedKey === col.key) {
+        log("POINT pressed KEY still same");
+                    return;
+}
+            }
+        }
+
+        this._pressedKey.cancel();
+        this._pressedKey = null;
+        log("POINT pressed KEY unset it");
+    }
+
+    vfunc_points_ended(points) {
+        if (!this._pressedKey)
+            return;
+
+        this._pressedKey.release();
+        this._pressedKey = null;
+    }
+
+    addKey(key, colIndex, rowIndex, width, height) {
+        if (!this._rows[rowIndex])
+            this._rows[rowIndex] = { size: height, cols: [] };
+
+        const row = this._rows[rowIndex];
+
+        row.cols[colIndex] = { size: width, key };
+
+        log("added key: " + this._rows[rowIndex].cols[colIndex])
+
+        if (this._height < rowIndex + height)
+            this._height = rowIndex + height;
+
+        if (this._width < colIndex + width)
+            this._width = colIndex + width;
+    }
+});
+
 var Key = GObject.registerClass({
     Signals: {
         'long-press': {},
@@ -377,7 +523,7 @@ var Key = GObject.registerClass({
 
         this._extendedKeys = extendedKeys;
         this._extendedKeyboard = null;
-
+/*
         const keyClickGesture = new KeyClickGesture();
         keyClickGesture.connect('press', () => {
             this.add_style_pseudo_class('active');
@@ -435,6 +581,29 @@ var Key = GObject.registerClass({
             longPressAndDragGesture.can_not_cancel(keyClickGesture);
 
         this.add_action(longPressAndDragGesture);
+*/
+    }
+
+    press() {
+            this.add_style_pseudo_class('active');
+            this.emit('pressed');
+    }
+
+    release() {
+            this.remove_style_pseudo_class('active');
+
+            let finalKeyval = parseInt(keyval, 16);
+            if (!finalKeyval && commitString)
+                finalKeyval = this._getKeyvalFromString(commitString);
+            console.assert(finalKeyval !== undefined, 'Need keyval or commitString');
+
+            this.emit('commit', finalKeyval, commitString || '');
+            this.emit('released');
+    }
+
+    cancel() {
+            this.remove_style_pseudo_class('active');
+            this.emit('cancelled');
     }
 
     get iconName() {
@@ -2025,9 +2194,9 @@ log("KEYBOARD: using cheap keyval press");
         /* If the requested height is smaller than 1/3rd of the monitor height,
          * we'll extend the height to the full 1/3rd of the monitor.
          */
-      //  if (natHeight > monitor.height * (2/3))
-        //    this.height = monitor.height * (2/3);
-       // else
+        if (natHeight > monitor.height * 0.5)
+            this.height = monitor.height * 0.5;
+        else
             this.height = natHeight;
     }
 
@@ -2112,8 +2281,18 @@ log("KEYBOARD: using cheap keyval press");
             this._currentPage = null;
         });
         this._updateCurrentPageVisible();
-        this._aspectContainer.setRatio(...this._currentPage.getRatio());
-        this._emojiSelection.setRatio(...this._currentPage.getRatio());
+
+        let [width, height] = this._currentPage.getRatio();
+        const monitor = Main.layoutManager.keyboardMonitor;
+        if (monitor && Main.layoutManager.isPhone) {
+            if (monitor.width > monitor.height)
+                width *= 1.5;
+            else
+                height *= 1.5;
+        }
+            
+        this._aspectContainer.setRatio(width, height);
+        this._emojiSelection.setRatio(width, height);
     }
 
     _clearKeyboardRestTimer() {
