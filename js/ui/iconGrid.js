@@ -512,7 +512,6 @@ var IconGridLayout = GObject.registerClass({
     }
 
     resetOverflowRelocations(newPage, newPosition) {
-log("GRID: doing reset of relocations");
         const nPages = this._pages.length;
         for (let pageIndex = 0; pageIndex < nPages; pageIndex++) {
             const page = this._pages[pageIndex];
@@ -521,7 +520,6 @@ log("GRID: doing reset of relocations");
                 const item = page.visibleChildren[itemIndex];
 
                 if (item._relocated) {
-log("GRID: moving back item on page " + pageIndex + " to page " + item._relocated[0] + " pos " + item._relocated[1]);
                     this._removeItemData(item);
                     this._addItemToPage(item, item._relocated[0], item._relocated[1]);
                     delete item._relocated;
@@ -574,7 +572,6 @@ if (newPage === pageIndex && itemIndex <= newPosition)
 
             this._removeItemData(overflowItem);
             this._addItemToPage(overflowItem, pageIndex + 1, 0);
-log("GRID: spilling over icon on page " + pageIndex + " i " + overflowIndex);
 //if (!overflowItem._relocated)
   //  overflowItem._relocated = [pageIndex, overflowIndex - nExtraItems];
         }

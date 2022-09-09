@@ -416,7 +416,6 @@ var WorkspaceTracker = GObject.registerClass({
         } else {
             this._useSingleWindowWorkspaces = this.singleWindowWorkspaces;
         }
-log("WS: CHANGE single window: " + this._useSingleWindowWorkspaces);
 
         if (this._useSingleWindowWorkspaces) {
             for (const w of this._windowData.keys()) {
@@ -471,31 +470,25 @@ log("WS: CHANGE single window: " + this._useSingleWindowWorkspaces);
     _maybeRemoveWorkspace(workspace) {
         const workspaceManager = global.workspace_manager;
 
-log("WS: MAYBE remove removing ws " + workspace.workspace_index);
 
         if (this._updatesBlocked) {
-log("WS: nope, updates are blocked");
             return;
 }
 
 
         if (workspace._appStartingUp) {
-log("WS: nope, has a startup sequence");
             return;
 }
 
         if (workspace._splashscreenGraceTimeoutId) {
-log("WS: nope, there's a grace timeout");
             return;
 }
 
         if (this._workspaceHasOwnWindows(workspace)) {
-log("WS: nope, its occupied");
             return;
 }
         if (this._useSingleWindowWorkspaces) {
             if (workspace._newTilingWorkspaceTimeoutId) {
-    log("WS: nope, has window added timeout");
                 return;
     }
 
@@ -515,7 +508,6 @@ log("WS: nope, its occupied");
                 workspaceManager.remove_workspace(workspace, 0);
             else {
                 this.notify('zero-open-windows');
-                log("WS: nope, it's the default one");
             }
         } else {
             if (workspace.active ||
@@ -582,7 +574,6 @@ log("WS: nope, its occupied");
             };
 
             if (workspaceHasOtherWindows) {
-                log("WS: WINDOW ADDED: moving the window to new workspace");
                 this._moveWindowToNewWorkspace(window, window.get_workspace().workspace_index + 1);
                 return true;
             }
@@ -629,13 +620,11 @@ log("WS: nope, its occupied");
             return;
         }
 
-log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n windows " + workspace.n_windows);
         let windowData = this._windowData.get(window);
         if (!windowData) {
             this._windowData.set(window, {
                 connections: [
                     window.connect('transient-for-changed', () => {
-    log("WS: transient for change");
                         this._windowData.get(window).shouldHaveOwnWorkspace =
                             this._windowShouldHaveOwnWorkspace(window);
 
@@ -650,7 +639,6 @@ log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n win
                         }
                     }),
                     window.connect('notify::window-type', () => {
-    log("WS: window type change");
                         this._windowData.get(window).shouldHaveOwnWorkspace =
                             this._windowShouldHaveOwnWorkspace(window);
 
@@ -801,7 +789,6 @@ log("WindowManager: shown");
             return;
 
         if (workspace._splashscreenGraceTimeoutId) {
-log("WS: WINDOW ADDED: removing grace timeout thingy");
             GLib.source_remove(workspace._splashscreenGraceTimeoutId);
             delete workspace._splashscreenGraceTimeoutId;
         }
@@ -809,7 +796,6 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
 
         if (this._useSingleWindowWorkspaces) {
             if (workspace._newTilingWorkspaceTimeoutId) {
-    log("WS: WINDOW ADDED: was app workspace, that worked, neat");
                 GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
                 delete workspace._newTilingWorkspaceTimeoutId;
             }
@@ -869,7 +855,6 @@ log("WindowManager: already visible not maximizing");
 
     _windowRemovedFromWorkspace(workspace, window) {
         if (!window._laterDone) {
-log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows + " we pretend nothing happened");
             Meta.later_remove(window._addedLater);
             delete window._addedLater;
 
@@ -888,7 +873,6 @@ log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows 
 
         const workspaceEmpty = !this._workspaceHasOwnWindows(workspace);
 
-log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows + " " + window.title + " empty " + workspaceEmpty);
 
         if (workspaceEmpty) {
             if (workspace._splashscreenGraceTimeoutId)
@@ -899,17 +883,14 @@ log("WS: " + workspace.workspace_index + " WIN REMOVED, " + workspace.n_windows 
              * the app maps another window.
              */
             if (window.window_type === Meta.WindowType.SPLASHSCREEN) {
-log("WS: we have 0, delaying to later because splashscreen");
                 workspace._splashscreenGraceTimeoutId = GLib.timeout_add(
                     GLib.PRIORITY_DEFAULT, SPLASHSCREEN_GRACE_TIME_MS, () => {
-log("WS: alright now is later");
                         delete workspace._splashscreenGraceTimeoutId;
                         this._maybeRemoveWorkspace(workspace);
 
                         return GLib.SOURCE_REMOVE;
                     });
             } else {
-log("WS: we have 0, removing");
 
                 if (window._content && !Main.overview.visible) {
                     let actorClone = new St.Widget({ content: window._content, });
@@ -967,7 +948,6 @@ log("WS: we have 0, removing");
             workspaceManager.append_new_workspace(false, time);
             newWorkspaceIndex = workspaceManager.n_workspaces - 1;
         }
-log("WS: created app workspace index " + newWorkspaceIndex);
         const newWorkspace = this._workspaces[newWorkspaceIndex];
         if (!newWorkspace)
             throw new Error();
@@ -979,7 +959,6 @@ log("WS: created app workspace index " + newWorkspaceIndex);
          */
         newWorkspace._newTilingWorkspaceTimeoutId =
             GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
-    log("WS: app ws " + newWorkspaceIndex + " timed out, removing");
                 delete newWorkspace._newTilingWorkspaceTimeoutId;
                 this._maybeRemoveWorkspace(newWorkspace);
 
@@ -1006,7 +985,6 @@ log("WS: created app workspace index " + newWorkspaceIndex);
 
     _workspaceAdded(workspaceManager, index) {
         const newWorkspace = workspaceManager.get_workspace_by_index(index);
-log("WS: added " + index);
 
         this._workspaces.splice(index, 0, newWorkspace);
 
@@ -1016,7 +994,6 @@ log("WS: added " + index);
     }
 
     _workspaceRemoved(workspaceManager, index) {
-log("WS: removed " + index);
         if (!this._workspaces[index])
             throw new Error();
 
@@ -1042,7 +1019,6 @@ log("WS: removed " + index);
         const workspaceManager = global.workspace_manager;
 
         if (!this._useSingleWindowWorkspaces) {
-log("WS: switched, maybe reming index " + fromIndex);
             this._maybeRemoveWorkspace(workspaceManager.get_workspace_by_index(fromIndex));
 }
     }
@@ -1058,7 +1034,6 @@ log("WS: switched, maybe reming index " + fromIndex);
          * the wrong workspace.
          */
 
-log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence.get_workspace() + " comp " + startupSequence.get_completed());
 
         const sequences = Shell.WindowTracker.get_default().get_startup_sequences();
    /*     const workspacesStartingUp = [];
@@ -1101,14 +1076,12 @@ log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence
 
             if (isStartingUp) {
                if (workspace._newTilingWorkspaceTimeoutId) {
-                    log("WS: STARTUP: found new startup sequ for tiling workspace, that worked, neat");
                     GLib.source_remove(workspace._newTilingWorkspaceTimeoutId);
                     delete workspace._newTilingWorkspaceTimeoutId;
                 }
 
                 workspace._startupSequenceTimeoutId = GLib.timeout_add(
                     GLib.PRIORITY_DEFAULT, 10000, () => {
-                        log("WS: the damn startup sequence didn't finish");
                         delete workspace._appStartingUp;
                         this._maybeRemoveWorkspace(workspace);
 
@@ -1117,7 +1090,6 @@ log("WS: startup sequence changed " + startupSequence + " ws " + startupSequence
 
                 workspace._appStartingUp = true;
             } else if (workspace._appStartingUp) {
-                log("WS: STARTUP: startup sequence got completed or removed, app might have started");
 
                 if (workspace._startupSequenceTimeoutId) {
                     GLib.source_remove(workspace._startupSequenceTimeoutId);
