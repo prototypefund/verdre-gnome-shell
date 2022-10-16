@@ -60,8 +60,8 @@ var GnomeShell = class {
      *
      */
     Eval(code) {
-        if (!global.context.unsafe_mode)
-            return [false, ''];
+//        if (!global.context.unsafe_mode)
+  //          return [false, ''];
 
         let returnValue;
         let success;
