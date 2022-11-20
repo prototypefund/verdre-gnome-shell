@@ -367,6 +367,8 @@ var KeyContainerGesture = GObject.registerClass({
     _init(rows) {
         super._init();
 
+        this.set_wait_points_removed(false);
+
         this._rows = [];
         this._height = 0;
         this._width = 0;
@@ -552,9 +554,6 @@ var KeyContainerGesture = GObject.registerClass({
             this._pressedKey = null;
             this._currentPoint = null;
             this._inLongPressDrag = false;
-
-            // Move to WAITING manually and don't wait until remaining points are removed
-            this.set_state(Clutter.GestureState.WAITING);
         }
     }
 
