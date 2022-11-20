@@ -446,6 +446,7 @@ var Overview = class extends Signals.EventEmitter {
             this.emit('showing');
 
         this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
+        this._singleFingerWorkspacesGesture.allowSwipeAnywhere = true;
     }
 
     _overviewGestureUpdate(tracker, progress) {
@@ -732,7 +733,8 @@ var Overview = class extends Signals.EventEmitter {
 
         this._singleFingerOverviewGesture.allowSwipeAnywhere = true;
         this._threeFingerWorkspacesGesture.allowLongSwipes = true;
-        this._singleFingerWorkspacesGesture.enabled = false;
+        this._singleFingerWorkspacesGesture.allowSwipeAnywhere = true;
+     //   this._singleFingerWorkspacesGesture.enabled = false;
     }
 
     // hide:
@@ -781,7 +783,7 @@ var Overview = class extends Signals.EventEmitter {
         Meta.enable_unredirect_for_display(global.display);
 
         this._threeFingerWorkspacesGesture.allowLongSwipes = false;
-        this._singleFingerWorkspacesGesture.enabled = true;
+        this._singleFingerWorkspacesGesture.allowSwipeAnywhere = false;
         this._singleFingerOverviewGesture.allowSwipeAnywhere = false;
 
         this._coverPane.hide();
