@@ -1254,16 +1254,43 @@ class Workspace extends St.Widget {
         this.opacity = 255 * (1 - Math.min(Math.abs(this.translation_y / this._panHeight), 1));
     }
 
+    _closingWorkspaceFailed() {
+        delete this._closingWorkspace;
+        if (this._closeTimeoutId) {
+            GLib.source_remove(this._closeTimeoutId);
+            delete this._closeTimeoutId;
+        }
+
+        this.ease({
+            translation_y: 0,
+            opacity: 255,
+            duration: 150,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+    }
+
     _panEnd(gesture, velocityX, velocityY) {
         const remainingHeight = this._panHeight - Math.abs(this.translation_y);
 
         if (velocityY < -0.9 || (remainingHeight < this._panHeight / 2 && velocityY < -0.5) || remainingHeight <= 0) {
+            this._closingWorkspace = true;
+
             this.ease({
                 translation_y: -this._panHeight,
                 opacity: 0,
                 duration: Math.clamp(Math.abs(velocityY) / remainingHeight, 100, 350),
                 mode: Clutter.AnimationMode.LINEAR,
-                onComplete: () => this._windows.forEach((w) => w._deleteAll()),
+                onComplete: () => {
+                    this._closeTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
+                        1500, () => {
+                            if (this._closingWorkspace)
+                                this._closingWorkspaceFailed();
+
+                            return GLib.SOURCE_REMOVE;
+                        });
+
+                    this._windows.forEach(w => w._deleteAll());
+                },
             });
         } else {
             this.ease({
@@ -1373,6 +1400,9 @@ class Workspace extends St.Widget {
         if (!this._isMyWindow(metaWin))
             return;
 
+        if (this._closingWorkspace)
+            this._closingWorkspaceFailed();
+
         this._skipTaskbarSignals.set(metaWin,
             metaWin.connect('notify::skip-taskbar', () => {
                 if (metaWin.skip_taskbar)
@@ -1481,6 +1511,11 @@ class Workspace extends St.Widget {
         }
 
         this._windows = [];
+
+        if (this._closeTimeoutId) {
+            GLib.source_remove(this._closeTimeoutId);
+            delete this._closeTimeoutId;
+        }
 
         if (this.metaWorkspace._appOpeningOverlay)
             this.metaWorkspace._appOpeningOverlay.maybeShow();
