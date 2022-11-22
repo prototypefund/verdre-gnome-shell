@@ -482,7 +482,9 @@ log("WS: nope, its occupied");
         if (window.above)
             return true;
 
-        /* Workaround for windows that are too big for the screen */
+        if (!window.maximized_vertically || !window.maximized_horizontally)
+            return true;
+
         // allow grabbing if the window has a width thats bigger
         // than the workarea so it can at least be moved horizontally...
         // vertically that wouldnt really help because window can
@@ -490,9 +492,6 @@ log("WS: nope, its occupied");
         const frameRect = window.get_frame_rect();
         const workArea = window.get_work_area_current_monitor();
         if (frameRect.width > workArea.width || frameRect.height > workArea.height)
-            return true;
-
-        if (!window.maximized_vertically && !window.maximized_horizontally)
             return true;
 
         return false;
@@ -527,11 +526,6 @@ log("WS: nope, its occupied");
             workspace._appOpeningOverlay.animateOutAndDestroy();
 
             delete workspace._appOpeningOverlay;
-        }
-
-        if (workspace._animateOutTimeoutId) {
-            GLib.source_remove(workspace._animateOutTimeoutId);
-            delete workspace._animateOutTimeoutId;
         }
     }
 
@@ -585,17 +579,64 @@ log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n win
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
+                    window.connect('notify::maximized-horizontally', () => {
+                        const frameRect = window.get_frame_rect();
+                        const workArea = window.get_work_area_current_monitor();
+                        const rectGood = frameRect.width === workArea.width && frameRect.height === workArea.height; 
+
+                        if (workspace._waitForWindowToMaximize && ((window.maximized_vertically && window.maximized_horizontally && rectGood) || window.fullscreen)) {
+                            delete workspace._waitForWindowToMaximize;
+                            if (workspace._animateOutTimeoutId) {
+                                GLib.source_remove(workspace._animateOutTimeoutId);
+                                delete workspace._animateOutTimeoutId;
+                            }
+
+                            if (!workspace._waitForWindowToShow)
+                                this._animateOutStartupOverlay(workspace);
+                        }
+
+                        if (this._useSingleWindowWorkspaces)
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
+                    }),
+                    window.connect('notify::maximized-vertically', () => {
+                        const frameRect = window.get_frame_rect();
+                        const workArea = window.get_work_area_current_monitor();
+                        const rectGood = frameRect.width === workArea.width && frameRect.height === workArea.height; 
+
+                        if (workspace._waitForWindowToMaximize && ((window.maximized_vertically && window.maximized_horizontally && rectGood) || window.fullscreen)) {
+                            delete workspace._waitForWindowToMaximize;
+                            if (workspace._animateOutTimeoutId) {
+                                GLib.source_remove(workspace._animateOutTimeoutId);
+                                delete workspace._animateOutTimeoutId;
+                            }
+
+                            if (!workspace._waitForWindowToShow)
+                                this._animateOutStartupOverlay(workspace);
+                        }
+
+                        if (this._useSingleWindowWorkspaces)
+                            window.set_can_grab(this._windowShouldBeGrabbable(window));
+                    }),
                     window.connect('size-changed', () => {
-                        if ((window.maximized_vertically && window.maximized_horizontally) || window.fullscreen)
-                            this._animateOutStartupOverlay(workspace);
+                        const frameRect = window.get_frame_rect();
+                        const workArea = window.get_work_area_current_monitor();
+                        const rectGood = frameRect.width === workArea.width && frameRect.height === workArea.height; 
+
+                        if (workspace._waitForWindowToMaximize && ((window.maximized_vertically && window.maximized_horizontally && rectGood) || window.fullscreen)) {
+                            delete workspace._waitForWindowToMaximize;
+                            if (workspace._animateOutTimeoutId) {
+                                GLib.source_remove(workspace._animateOutTimeoutId);
+                                delete workspace._animateOutTimeoutId;
+                            }
+
+                            if (!workspace._waitForWindowToShow)
+                                this._animateOutStartupOverlay(workspace);
+                        }
 
                         if (this._useSingleWindowWorkspaces)
                             window.set_can_grab(this._windowShouldBeGrabbable(window));
                     }),
                     window.connect('can-maximize-changed', () => {
-                        log("WS: can-maximize changed: " + window.can_maximize());
-                        log("WS: maximized v " + window.maximized_vertically + " h " + window.maximized_horizontally);
-
                         if (window.can_maximize() && (!window.maximized_vertically || !window.maximized_horizontally))
                             window.maximize(Meta.MaximizeFlags.BOTH);
                     }),
@@ -608,8 +649,27 @@ log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n win
                         this._windowData.delete(window);
                     }),
                     window.connect('shown', () => {
-                        if (!workspace._animateOutTimeoutId)
+                        if (!workspace._waitForWindowToShow)
+                            return;
+
+                        delete workspace._waitForWindowToShow;
+
+                        const frameRect = window.get_frame_rect();
+                        const workArea = window.get_work_area_current_monitor();
+                        const rectGood = frameRect.width === workArea.width && frameRect.height === workArea.height; 
+
+                        if (!workspace._waitForWindowToMaximize) {
                             this._animateOutStartupOverlay(workspace);
+                        } else {
+                            // If we're still waiting for maximize, give window
+                            // 1s to change size after showing.
+                            workspace._animateOutTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                                delete workspace._waitForWindowToMaximize;
+                                delete workspace._animateOutTimeoutId;
+                                this._animateOutStartupOverlay(workspace);
+                                return GLib.SOURCE_REMOVE;
+                            });
+                        }
                     }),
                 ],
             });
@@ -618,7 +678,6 @@ log("WS: " + workspace.workspace_index + " WIN ADDED: " + window.title + " n win
         }
 
         windowData.shouldHaveOwnWorkspace = this._windowShouldHaveOwnWorkspace(window);
-
 
         if (!Meta.prefs_get_dynamic_workspaces())
             return;
@@ -644,28 +703,31 @@ log("WS: WINDOW ADDED: removing grace timeout thingy");
             if (this._maybeMoveToOwnWorkspace(window))
                 return; // let the new workspaces 'window-added' handler maximize the window
 
-            // we deliberately ignore can_maximiue() here because we're most likely too early 
-            // and no features have been calculated yet, so it would return TRUE anyway
             const shouldMaximize = windowData.shouldHaveOwnWorkspace &&
-                !(window.maximized_vertically && window.maximized_horizontally);
+                (!window.maximized_vertically || !window.maximized_horizontally);
+
+            workspace._waitForWindowToShow = window.get_compositor_private()?.visible;
 
             if (shouldMaximize) {
-log("WS: telling window to maxi, can: " + window.can_maximize());
+                workspace._waitForWindowToMaximize = true;
                 window.maximize(Meta.MaximizeFlags.BOTH);
 
-              //  window._waitForSizeChange = true;
-
-                /* everything is shit and we can't trust noone */
-                workspace._animateOutTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
-log("WS fuck, we landed in the damn timeout");
-                    delete workspace._animateOutTimeoutId;
-                    this._animateOutStartupOverlay(workspace);
-                    return GLib.SOURCE_REMOVE;
-                });
-            } else if (window.get_compositor_private()?.visible) {
-                this._animateOutStartupOverlay(workspace);
+                if (!workspace._waitForWindowToShow) {
+                    // If we're still waiting for maximize, give window
+                    // 1s to change size after showing.
+                    workspace._animateOutTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+                        delete workspace._waitForWindowToMaximize;
+                        delete workspace._animateOutTimeoutId;
+                        this._animateOutStartupOverlay(workspace);
+                        return GLib.SOURCE_REMOVE;
+                    });
+                }
             } else {
-                // we'll wait for the "shown" signal and then animate out
+                if (!workspace._waitForWindowToShow) {
+                    this._animateOutStartupOverlay(workspace);
+                } else {
+                    // we'll wait for the "shown" signal and then animate out
+                }
             }
 
             window.set_can_grab(this._windowShouldBeGrabbable(window));
