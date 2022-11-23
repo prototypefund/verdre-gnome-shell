@@ -860,7 +860,6 @@ this.queue_relayout();
     animateToOverview(state, callback) {
         this._ignoreShowAppsButtonToggle = true;
 
-        this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
         this._emptyStateMaybeChanged(true);
@@ -934,7 +933,6 @@ this.queue_relayout();
 
         tracker.confirmSwipe(distance, points, progress, cancelProgress, wasEasingTo);
         this._workspacesDisplay.show();
-        this._searchController.prepareToEnterOverview();
         this._stateAdjustment.gestureInProgress = true;
     }
 
@@ -977,7 +975,6 @@ this.queue_relayout();
     }
 
     workspacesGestureBegin(tracker, monitor) {
-        this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
         this._emptyStateMaybeChanged(true);
@@ -997,7 +994,6 @@ this.queue_relayout();
         const { workspaceManager } = global;
         const active = workspaceManager.get_active_workspace_index();
 
-        this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
         this._workspaceAdjustment.remove_transition('value');
@@ -1028,7 +1024,6 @@ this.queue_relayout();
     async runStartupAnimation(callback) {
         this._ignoreShowAppsButtonToggle = true;
 
-        this._searchController.prepareToEnterOverview();
         this._workspacesDisplay.show();
 
         const initialState = Main.layoutManager.is_phone

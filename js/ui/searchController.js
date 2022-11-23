@@ -110,11 +110,6 @@ var SearchController = GObject.registerClass({
         });
     }
 
-    prepareToEnterOverview() {
-        this.reset();
-        this._setSearchActive(false);
-    }
-
     vfunc_unmap() {
         this.reset();
 
