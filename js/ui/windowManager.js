@@ -851,10 +851,6 @@ log("WindowManager: already visible not maximizing");
             if (!this._updatesBlocked && workspace.workspace_index === this._workspaces.length - 1)
                 workspaceManager.append_new_workspace(false, global.get_current_time());
         }
-
-        // doesn't hurt to notify this a bit more often than necessary
-        if (this._workspaces.length === 1)
-            this.notify('zero-open-windows');
     }
 
     _windowRemovedFromWorkspace(workspace, window) {
