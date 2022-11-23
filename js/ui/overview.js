@@ -778,7 +778,15 @@ var Overview = class extends Signals.EventEmitter {
         this.emit('hiding');
     }
 
-    _hideDone() {
+    async _hideDone() {
+            const workspaceStartupAnimation =
+                Main.wm.workspaceTracker.getStartupAnimationForWorkspace(global.workspace_manager.get_active_workspace());
+
+            log("OVVVVV: hiding, animation " + workspaceStartupAnimation + " ws index " + global.workspace_manager.get_active_workspace().index());
+
+            if (workspaceStartupAnimation)
+                await workspaceStartupAnimation.waitAnimateInFinished();
+
         // Re-enable unredirection
         Meta.enable_unredirect_for_display(global.display);
 
@@ -801,8 +809,15 @@ var Overview = class extends Signals.EventEmitter {
             this.emit('hidden');
             this._animateVisible(OverviewControls.ControlsState.WINDOW_PICKER);
         } else {
-            Main.layoutManager.hideOverview();
-            this.emit('hidden');
+
+
+            if (this._shown) {
+                this.emit('hidden');
+                this._animateVisible(OverviewControls.ControlsState.WINDOW_PICKER);
+            } else {
+                Main.layoutManager.hideOverview();
+                this.emit('hidden');
+            }
         }
 
         Main.panel.style = null;

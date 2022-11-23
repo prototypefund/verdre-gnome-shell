@@ -1000,6 +1000,10 @@ log("WS: created app workspace index " + newWorkspaceIndex);
         return newWorkspace;
     }
 
+    getStartupAnimationForWorkspace(workspace) {
+        return workspace._appOpeningOverlay;
+    }
+
     _workspaceAdded(workspaceManager, index) {
         const newWorkspace = workspaceManager.get_workspace_by_index(index);
 log("WS: added " + index);
@@ -2200,7 +2204,7 @@ var WindowManager = class {
             shellwm.completed_map(actor);
             return;
         }
-
+log("WINDOW MAPPING animate");
         switch (actor._windowType) {
         case Meta.WindowType.NORMAL:
             if (this.workspaceTracker.singleWindowWorkspaces) {
