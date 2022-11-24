@@ -524,7 +524,7 @@ class Panel extends St.Widget {
     }
 
     _panCancel(gesture) {
-
+        this.statusArea.quickSettings.menu.close(false);
     }
 
     vfunc_get_preferred_width(_forHeight) {
