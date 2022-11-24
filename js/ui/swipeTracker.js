@@ -586,7 +586,7 @@ var SwipeTracker = GObject.registerClass({
             velocity = ANIMATION_BASE_VELOCITY;
 
         const nPoints = Math.max(1, Math.ceil(Math.abs(this._progress - endProgress)));
-        const maxDuration = MAX_ANIMATION_DURATION * Math.log2(1 + nPoints);
+        const maxDuration = MAX_ANIMATION_DURATION;
 
         let duration = Math.abs((this._progress - endProgress) / velocity * DURATION_MULTIPLIER);
         if (duration > 0)

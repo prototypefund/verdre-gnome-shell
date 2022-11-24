@@ -147,7 +147,7 @@ var AppMenu = class AppMenu extends PopupMenu.PopupMenu {
             global.settings.is_writable('favorite-apps') &&
             this._parentalControlsManager.shouldShowApp(appInfo);
 
-        this._toggleFavoriteItem.visible = canFavorite;
+        this._toggleFavoriteItem.visible = false//canFavorite;
 
         if (!canFavorite)
             return;

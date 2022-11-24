@@ -164,7 +164,7 @@ st_scroll_view_get_property (GObject    *object,
 /**
  * st_scroll_view_update_fade_effect:
  * @scroll: a #StScrollView
- * @fade_margins: a #ClutterMargin defining the vertical fade effects, in pixels.
+ * @fade_margins: (nullable): a #ClutterMargin defining the vertical fade effects, in pixels.
  *
  * Sets the fade effects in all four edges of the view. A value of 0
  * disables the effect.
@@ -176,8 +176,9 @@ st_scroll_view_update_fade_effect (StScrollView  *scroll,
   StScrollViewPrivate *priv = ST_SCROLL_VIEW (scroll)->priv;
 
   /* A fade amount of other than 0 enables the effect. */
-  if (fade_margins->left != 0. || fade_margins->right != 0. ||
-      fade_margins->top != 0. || fade_margins->bottom != 0.)
+  if (fade_margins &&
+      (fade_margins->left != 0. || fade_margins->right != 0. ||
+       fade_margins->top != 0. || fade_margins->bottom != 0.))
     {
       if (priv->fade_effect == NULL)
         {
