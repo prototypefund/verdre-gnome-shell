@@ -8,10 +8,11 @@
     <file>bg.json</file>
     <file>by.json</file>
     <file>ca.json</file>
-    <file>ch.json</file>
     <file>ch+fr.json</file>
+    <file>ch.json</file>
     <file>cz.json</file>
     <file>de.json</file>
+    <file>de-mobile.json</file>
     <file>dk.json</file>
     <file>ee.json</file>
     <file>epo.json</file>
@@ -56,8 +57,9 @@
     <file>tr.json</file>
     <file>ua.json</file>
     <file>uk.json</file>
-    <file>us.json</file>
     <file>us-extended.json</file>
+    <file>us.json</file>
+    <file>us-mobile.json</file>
     <file>vn.json</file>
     <file>za.json</file>
     <file>emoji.json</file>
