@@ -3,13 +3,12 @@
 
 $panel_bg_color: #000;
 $panel_fg_color: if($variant == 'light', lighten($bg_color, 10%), darken($fg_color, 5%));
-$panel_height: 2.2em;
 $panel_transition_duration: 250ms; // same as the overview transition duration
 
 #panel {
   background-color: $panel_bg_color;
   font-weight: bold;
-  height: $panel_height;
+  height: 2.2em;
   @extend %numeric;
   transition-duration: $panel_transition_duration;
 
@@ -207,6 +206,29 @@ $panel_transition_duration: 250ms; // same as the overview transition duration
   // indicator for active
   .screencast-indicator,
   .remote-access-indicator { color: $warning_color; }
+}
+
+#uiGroup.mobile #panel {
+  height: 1.8em;
+
+  .panel-button {
+    border: none;
+
+    -natural-hpadding: $base_padding;
+    -minimum-hpadding: $base_padding;
+
+    &.clock-display {
+      .clock {
+        border: none;
+      }
+    }
+
+    .system-status-icon {
+      icon-size: 16px;
+      padding: 0;
+      margin: 0 $base_margin;
+    }
+  }
 }
 
 // App Menu

@@ -832,6 +832,8 @@ class InputSourceIndicator extends PanelMenu.Button {
     _init() {
         super._init(0.5, _("Keyboard"));
 
+this.hide();
+
         this.connect('destroy', this._onDestroy.bind(this));
 
         this._menuItems = {};
@@ -925,7 +927,7 @@ class InputSourceIndicator extends PanelMenu.Button {
             return;
         }
 
-        this.show();
+       // this.show();
 
         this._buildPropSection(newSource.properties);
 
