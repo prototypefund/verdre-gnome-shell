@@ -1120,7 +1120,9 @@ var LayoutManager = GObject.registerClass({
     }
 
     _updateIsPhone() {
-        const isPhone = this._checkIsPhone();
+        let isPhone = this._checkIsPhone();
+        if (this._forceInvertIsPhone)
+            isPhone = !isPhone;
 
         if (this._isPhone === isPhone)
             return;
@@ -1133,6 +1135,15 @@ var LayoutManager = GObject.registerClass({
         this._isPhone = isPhone;
 
         this.notify('is-phone');
+    }
+
+    set forceInvertIsPhone(forceInvertIsPhone) {
+        this._forceInvertIsPhone = forceInvertIsPhone;
+        this._updateIsPhone();
+    }
+
+    get forceInvertIsPhone() {
+        return this._forceInvertIsPhone;
     }
 });
 

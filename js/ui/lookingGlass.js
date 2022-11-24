@@ -37,6 +37,11 @@ var AUTO_COMPLETE_GLOBAL_KEYWORDS = _getAutoCompleteGlobalKeywords();
 
 const LG_ANIMATION_TIME = 500;
 
+const SHELL_RUNTIME_DEBUG_FLAGS = {
+    'MetaContext unsafe-mode': 'global.context.unsafe_mode',
+    'Invert is-phone value': 'Main.layoutManager.forceInvertIsPhone',
+};
+
 const CLUTTER_DEBUG_FLAG_CATEGORIES = new Map([
     // Paint debugging can easily result in a non-responsive session
     ['DebugFlag', { argPos: 0, exclude: ['PAINT'] }],
@@ -1183,22 +1188,23 @@ class MutterTopicDebugFlag extends DebugFlag {
     }
 });
 
-var UnsafeModeDebugFlag = GObject.registerClass(
-class UnsafeModeDebugFlag extends DebugFlag {
-    _init() {
-        super._init('unsafe-mode');
+var ShellRuntimeDebugFlag = GObject.registerClass(
+class ShellRuntimeDebugFlag extends DebugFlag {
+    _init(label, propertyString) {
+        super._init(label);
+        this._propertyString = propertyString;
     }
 
     _isEnabled() {
-        return global.context.unsafe_mode;
+        return eval(this._propertyString);
     }
 
     _enable() {
-        global.context.unsafe_mode = true;
+        eval(`${this._propertyString} = true`);
     }
 
     _disable() {
-        global.context.unsafe_mode = false;
+        eval(`${this._propertyString} = false`);
     }
 });
 
@@ -1210,6 +1216,11 @@ class DebugFlags extends St.BoxLayout {
             vertical: true,
             x_align: Clutter.ActorAlign.CENTER,
         });
+
+        // Shell runtime debug flags
+        this._addHeader('Shell runtime flags');
+        for (const [label, property] of Object.entries(SHELL_RUNTIME_DEBUG_FLAGS))
+            this.add_child(new ShellRuntimeDebugFlag(label, property));
 
         // Clutter debug flags
         for (const [categoryName, props] of CLUTTER_DEBUG_FLAG_CATEGORIES.entries()) {
@@ -1230,10 +1241,6 @@ class DebugFlags extends St.BoxLayout {
         this._addHeader('MetaDebugTopic');
         for (const flagName of this._getFlagNames(Meta.DebugTopic))
             this.add_child(new MutterTopicDebugFlag(flagName));
-
-        // MetaContext::unsafe-mode
-        this._addHeader('MetaContext');
-        this.add_child(new UnsafeModeDebugFlag());
     }
 
     _addHeader(title) {
