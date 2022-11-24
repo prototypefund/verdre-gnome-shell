@@ -686,7 +686,7 @@ var MessageListSection = GObject.registerClass({
     _init() {
         super._init({
             style_class: 'message-list-section',
-            clip_to_allocation: true,
+          //  clip_to_allocation: true,
             vertical: true,
             x_expand: true,
         });

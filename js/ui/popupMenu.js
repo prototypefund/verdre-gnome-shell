@@ -1384,8 +1384,8 @@ var PopupMenuManager = class {
 
             if (hoveredMenu && hoveredMenu !== menu)
                 this._changeMenu(hoveredMenu);
-        } else if ((event.type() === Clutter.EventType.BUTTON_PRESS ||
-                    event.type() === Clutter.EventType.TOUCH_BEGIN) &&
+        } else if ((event.type() === Clutter.EventType.BUTTON_RELEASE ||
+                    event.type() === Clutter.EventType.TOUCH_END) &&
                    !actor.contains(targetActor)) {
             menu.close(BoxPointer.PopupAnimation.FULL);
         }

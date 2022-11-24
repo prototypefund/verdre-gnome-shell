@@ -1,6 +1,7 @@
 /* exported QuickToggle, QuickMenuToggle, QuickSlider, QuickSettingsMenu, SystemIndicator */
 const {Atk, Clutter, Gio, GLib, GObject, Graphene, Meta, Pango, St} = imports.gi;
 
+const Calendar = imports.ui.calendar;
 const Main = imports.ui.main;
 const PopupMenu = imports.ui.popupMenu;
 const {Slider} = imports.ui.slider;
@@ -582,7 +583,7 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
     constructor(sourceActor, nColumns = 1) {
         super(sourceActor, 0, St.Side.TOP);
 
-        this.actor = new St.Widget({reactive: true, width: 0, height: 0});
+        this.actor = new St.Widget({reactive: true});
         this.actor.add_child(this._boxPointer);
         this.actor._delegate = this;
 
@@ -594,6 +595,7 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
         this._dimEffect = new Clutter.BrightnessContrastEffect({
             enabled: false,
         });
+this._boxPointer.clip_to_allocation = true;
         this._boxPointer.add_effect_with_name('dim', this._dimEffect);
         this.box.add_style_class_name('quick-settings');
 
@@ -618,6 +620,10 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
         });
         this.box.add_child(this._grid);
         this._grid.add_child(placeholder);
+
+        this._messageList = new Calendar.CalendarMessageList();
+        this._messageList.x_align = Clutter.ActorAlign.FILL;
+        this.box.add_child(this._messageList);
 
         const yConstraint = new Clutter.BindConstraint({
             coordinate: Clutter.BindCoordinate.Y,
@@ -648,6 +654,52 @@ var QuickSettingsMenu = class extends PopupMenu.PopupMenu {
         }));
 
         this.actor.add_child(this._overlay);
+
+        this._panGesture = new Clutter.PanGesture({
+            pan_axis: Clutter.PanAxis.Y,
+            max_n_points: 1,
+        });
+        this._panGesture.connect('pan-begin', this._panBegin.bind(this));
+        this._panGesture.connect('pan-update', this._panUpdate.bind(this));
+        this._panGesture.connect('pan-end', this._panEnd.bind(this));
+        this.actor.add_action(this._panGesture);
+    }
+
+    _panBegin(gesture, x, y) {
+        const menuActor = this.actor.get_children()[0];
+
+        menuActor.remove_transition('translation-y');
+
+        this._panHeight = menuActor.get_preferred_height(-1)[1] + Main.panel.height;
+    }
+
+    _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
+        const menuActor = this.actor.get_children()[0];
+
+        menuActor.translation_y += deltaY;
+        if (menuActor.translation_y > 0)
+            menuActor.translation_y = 0;
+    }
+
+    _panEnd(gesture, velocityX, velocityY) {
+        const menuActor = this.actor.get_children()[0];
+
+        const remainingHeight = this._panHeight - Math.abs(menuActor.translation_y);
+
+        if (velocityY < -0.9 || (remainingHeight < this._panHeight * 0.75 && velocityY <= 0)) {
+            menuActor.ease({
+                translation_y: -this._panHeight,
+                duration: Math.clamp(remainingHeight / Math.abs(velocityY), 160, 450),
+                mode: Clutter.AnimationMode.EASE_OUT_EXPO,
+                onStopped: () => this.close(false),
+            });
+        } else {
+            menuActor.ease({
+                translation_y: 0,
+                duration: Math.clamp((this._panHeight - remainingHeight) / Math.abs(velocityY), 100, 250),
+                mode: Clutter.AnimationMode.EASE_OUT_QUINT,
+            });
+        }
     }
 
     addItem(item, colSpan = 1) {

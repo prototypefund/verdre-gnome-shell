@@ -924,8 +924,8 @@ class CalendarMessageList extends St.Widget {
             y_expand: true,
         });
 
-        this._placeholder = new Placeholder();
-        this.add_actor(this._placeholder);
+     //   this._placeholder = new Placeholder();
+     //   this.add_actor(this._placeholder);
 
         let box = new St.BoxLayout({
             vertical: true,
@@ -936,7 +936,6 @@ class CalendarMessageList extends St.Widget {
 
         this._scrollView = new St.ScrollView({
             style_class: 'vfade',
-            overlay_scrollbars: true,
             x_expand: true, y_expand: true,
         });
         this._scrollView.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
@@ -977,16 +976,17 @@ class CalendarMessageList extends St.Widget {
         });
         hbox.add_actor(this._clearButton);
 
-        this._placeholder.bind_property('visible',
+      /*  this._placeholder.bind_property('visible',
             this._clearButton, 'visible',
             GObject.BindingFlags.INVERT_BOOLEAN);
-
+*/
         this._sectionList = new St.BoxLayout({
             style_class: 'message-list-sections',
             vertical: true,
             x_expand: true,
             y_expand: true,
             y_align: Clutter.ActorAlign.START,
+clip_to_view: false,
         });
         this._sectionList.connectObject(
             'actor-added', this._sync.bind(this),
@@ -1023,7 +1023,7 @@ class CalendarMessageList extends St.Widget {
             return;
 
         let empty = sections.every(s => s.empty || !s.visible);
-        this._placeholder.visible = empty;
+    //    this._placeholder.visible = empty;
 
         let canClear = sections.some(s => s.canClear && s.visible);
         this._clearButton.reactive = canClear;

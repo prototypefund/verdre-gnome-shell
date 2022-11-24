@@ -8,6 +8,16 @@ StScrollView {
 StScrollBar {
   padding: 0;
 
+  &.vertical {
+    margin-left: $base_padding;
+    margin-right: $base_padding;
+  }
+
+  &.horizontal {
+    margin-top: $base_padding;
+    margin-bottom: $base_padding;
+  }
+
   StScrollView & {
     min-width: 8px;
     min-height: 8px;
