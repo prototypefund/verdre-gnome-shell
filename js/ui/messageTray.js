@@ -591,6 +591,10 @@ var NotificationBanner = GObject.registerClass({
 
         return this.addButton(button, callback);
     }
+
+    canHide() {
+        return true;
+    }
 });
 
 var SourceActor = GObject.registerClass(
@@ -903,6 +907,16 @@ var MessageTray = GObject.registerClass({
                               Shell.ActionMode.OVERVIEW,
                               this._expandActiveNotification.bind(this));
 
+        this._lastDeviceIsTouchscreen = false;
+        global.backend.connect('last-device-changed', (backend, device) => {
+            if (device.device_type === Clutter.InputDeviceType.TOUCHSCREEN_DEVICE)
+                this._lastDeviceIsTouchscreen = true;
+            else if (device.device_type === Clutter.InputDeviceType.POINTER_DEVICE ||
+                     device.device_type === Clutter.InputDeviceType.TOUCHPAD_DEVICE ||
+                     device.device_type === Clutter.InputDeviceType.TABLET_DEVICE)
+                this._lastDeviceIsTouchscreen = false;
+        });
+
         this._sources = new Set();
 
         this._sessionUpdated();
@@ -1191,7 +1205,8 @@ var MessageTray = GObject.registerClass({
                            this._notificationTimeoutId == 0 &&
                            this._notification.urgency != Urgency.CRITICAL &&
                            !this._banner.focused &&
-                           !this._pointerInNotification) || this._notificationExpired;
+                           !this._pointerInNotification &&
+                           !this._banner.interactedWithTouchGesture) || this._notificationExpired;
             let mustClose = this._notificationRemoved || !hasNotifications || expired;
 
             if (mustClose) {
@@ -1233,7 +1248,8 @@ var MessageTray = GObject.registerClass({
         this._banner = this._notification.createBanner();
         this._banner.connectObject(
             'done-displaying', this._escapeTray.bind(this),
-            'unfocused', () => this._updateState(), this);
+            'unfocused', () => this._updateState(),
+            'hide', () => this._hideNotification(false), this);
 
         this._bannerBin.add_actor(this._banner);
 
@@ -1268,7 +1284,8 @@ var MessageTray = GObject.registerClass({
         // We auto-expand notifications with CRITICAL urgency, or for which the relevant setting
         // is on in the control center.
         if (this._notification.urgency == Urgency.CRITICAL ||
-            this._notification.source.policy.forceExpanded)
+            this._notification.source.policy.forceExpanded ||
+            this._lastDeviceIsTouchscreen)
             this._expandBanner(true);
 
         // We tween all notifications to full opacity. This ensures that both new notifications and
