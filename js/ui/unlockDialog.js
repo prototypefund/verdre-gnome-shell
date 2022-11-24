@@ -516,9 +516,12 @@ var UnlockDialog = GObject.registerClass({
 
         this._activePage = null;
 
-        const clickGesture = new Clutter.ClickGesture();
-        clickGesture.connect('clicked', () => this._showPrompt());
-        this.add_action(clickGesture);
+        this._clickGesture = new Clutter.ClickGesture();
+        this._clickGesture.set_allowed_device_types([
+            Clutter.InputDeviceType.POINTER_DEVICE,
+        ]);
+        this._clickGesture.connect('clicked', () => this._showPrompt());
+        this.add_action(this._clickGesture);
 
         // Background
         this._backgroundGroup = new Clutter.Actor();
@@ -716,6 +719,8 @@ var UnlockDialog = GObject.registerClass({
 
         this._activePage = this._clock;
 
+        this._clickGesture.enabled = true;
+
         this._adjustment.ease(0, {
             duration: CROSSFADE_TIME,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
@@ -730,6 +735,8 @@ var UnlockDialog = GObject.registerClass({
             return;
 
         this._activePage = this._promptBox;
+
+        this._clickGesture.enabled = false;
 
         this._adjustment.ease(1, {
             duration: CROSSFADE_TIME,
@@ -814,6 +821,8 @@ var UnlockDialog = GObject.registerClass({
         this._activePage = endProgress
             ? this._promptBox
             : this._clock;
+
+        this._clickGesture.enabled = this._activePage === this._clock;
 
         this._adjustment.ease(endProgress, {
             mode: Clutter.AnimationMode.EASE_OUT_CUBIC,
