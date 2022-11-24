@@ -148,6 +148,12 @@ function addContextMenu(entry, params) {
         _onButtonPressEvent(actor, event, entry);
     });
 
+    const longPressGesture = new Clutter.LongPressGesture();
+    longPressGesture.connect('long-press-begin', () =>
+        entry.menu.open(BoxPointer.PopupAnimation.FULL));
+
+    entry.add_action(longPressGesture);
+
     entry.connect('popup-menu', actor => _onPopup(actor, entry));
 
     entry.connect('destroy', () => {
