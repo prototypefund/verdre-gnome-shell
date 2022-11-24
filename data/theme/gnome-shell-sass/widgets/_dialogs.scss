@@ -7,6 +7,8 @@
 .modal-dialog {
   @extend %bubble_panel;
 
+  margin-bottom: 160px;
+
   .modal-dialog-content-box {
     margin: 32px 40px;
     spacing: 32px;

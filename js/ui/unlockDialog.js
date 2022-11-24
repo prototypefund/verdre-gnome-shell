@@ -400,7 +400,7 @@ class UnlockDialogLayout extends Clutter.LayoutManager {
         let [width, height] = box.get_size();
 
         let tenthOfHeight = height / 10.0;
-        let thirdOfHeight = height / 3.0;
+        let thirdOfHeight = height / 5.0;
 
         let [, , stackWidth, stackHeight] =
             this._stack.get_preferred_size();
