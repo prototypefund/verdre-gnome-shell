@@ -1145,6 +1145,10 @@ var LayoutManager = GObject.registerClass({
     get forceInvertIsPhone() {
         return this._forceInvertIsPhone;
     }
+
+    get starting_up() {
+        return this._startingUp;
+    }
 });
 
 
