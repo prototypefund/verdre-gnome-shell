@@ -3138,13 +3138,21 @@ var AppIcon = GObject.registerClass({
                             this.app.state == Shell.AppState.RUNNING &&
                             (isCtrlPressed || isMiddleButton);
 
-        if (this.app.state == Shell.AppState.STOPPED || openNewWindow)
-            this.animateLaunch();
+        let workspaceIndex = -1;
+        if (this.app.state == Shell.AppState.STOPPED || openNewWindow) {
+            const workspace = Main.wm.workspaceTracker.maybeCreateWorkspaceForWindow(event.get_time(), this.app, this.icon.icon);
+            if (workspace) {
+                workspace.activate(event.get_time());
+                workspaceIndex = workspace.workspace_index;
+            } else {
+                this.animateLaunch();
+            }
+        }
 
         if (openNewWindow)
-            this.app.open_new_window(-1);
+            this.app.open_new_window(workspaceIndex);
         else
-            this.app.activate();
+            this.app.activate_full(workspaceIndex, 0);
 
         Main.overview.hide();
     }

@@ -22,8 +22,6 @@ var SLIDE_ANIMATION_TIME = 200;
 // placeholder exactly.
 var WORKSPACE_CUT_SIZE = 10;
 
-var WORKSPACE_KEEP_ALIVE_TIME = 100;
-
 var MUTTER_SCHEMA = 'org.gnome.mutter';
 
 /* A layout manager that requests size only for primary_actor, but then allocates
@@ -911,16 +909,6 @@ var ThumbnailsBox = GObject.registerClass({
                     workspace: newWorkspaceIndex,
                     timestamp: time,
                 });
-            }
-
-            if (source.app || (!source.app && source.shellWorkspaceLaunch)) {
-                // This new workspace will be automatically removed if the application fails
-                // to open its first window within some time, as tracked by Shell.WindowTracker.
-                // Here, we only add a very brief timeout to avoid the _immediate_ removal of the
-                // workspace while we wait for the startup sequence to load.
-                let workspaceManager = global.workspace_manager;
-                Main.wm.keepWorkspaceAlive(workspaceManager.get_workspace_by_index(newWorkspaceIndex),
-                                           WORKSPACE_KEEP_ALIVE_TIME);
             }
 
             // Start the animation on the workspace (which is actually

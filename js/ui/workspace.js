@@ -1088,6 +1088,15 @@ class Workspace extends St.Widget {
             new WorkspaceBackground(monitorIndex, layoutManager.stateAdjustment);
         this.add_child(this._background);
 
+        Main.wm.workspaceTracker.bind_property('single-window-workspaces',
+            this._background, 'visible',
+            GObject.BindingFlags.INVERT_BOOLEAN | GObject.BindingFlags.SYNC_CREATE);
+
+        if (metaWorkspace._appOpeningOverlay) {
+            metaWorkspace._appOpeningOverlay.hide();
+            this.add_child(new Clutter.Clone({ source: metaWorkspace._appOpeningOverlay }));
+        }
+
         // Window previews
         this._container = new Clutter.Actor({
             reactive: true,
@@ -1358,10 +1367,16 @@ class Workspace extends St.Widget {
         }
 
         this._windows = [];
+
+        if (this.metaWorkspace._appOpeningOverlay)
+            this.metaWorkspace._appOpeningOverlay.maybeShow();
     }
 
     _doneLeavingOverview() {
         this._container.layout_manager.layout_frozen = false;
+
+        if (this.metaWorkspace._appOpeningOverlay)
+            this.metaWorkspace._appOpeningOverlay.maybeShow();
     }
 
     _doneShowingOverview() {
