@@ -583,12 +583,22 @@ var WorkspaceTracker = GObject.registerClass({
     }
 
     _maybeMaximizeWindow(window) {
-        if (!this._windowData.get(window).shouldHaveOwnWorkspace ||
-            (window.maximized_vertically && window.maximized_horizontally) ||
-            !window.can_maximize())
+        if (!this._windowData.get(window).shouldHaveOwnWorkspace)
             return false;
 
-        window.maximize(Meta.MaximizeFlags.BOTH);
+        const vert = window.can_maximize_vertically();
+        const horiz = window.can_maximize_horizontally();
+    log("WindowManager: maybe max vert " + vert + " horiz " + horiz);
+
+        if (vert && horiz)
+            window.maximize(Meta.MaximizeFlags.BOTH);
+        else if (vert) {
+            window.maximize(Meta.MaximizeFlags.VERTICAL);
+            window.move_frame(false, 0, 0);
+        } else if (horiz) {
+            window.maximize(Meta.MaximizeFlags.HORIZONTAL);
+            window.move_frame(false, 0, 0);
+        }
 
         return true;
     }
@@ -803,7 +813,7 @@ log("WindowManager: shown");
             if (this._maybeMoveToOwnWorkspace(window))
                 return; // let the new workspaces 'window-added' handler maximize the window
 
-            const didMaximize = this._maybeMaximizeWindow(window);
+            this._maybeMaximizeWindow(window);
 
 log("WindowManager: window added is visi " + window.get_compositor_private()?.visible + " can max " + window.can_maximize() + " v " + window.maximized_vertically + " h " + window.maximized_horizontally);
 
@@ -811,11 +821,6 @@ log("WindowManager: window added is visi " + window.get_compositor_private()?.vi
             const workArea = window.get_work_area_current_monitor();
             const rectGood = frameRect.width === workArea.width && frameRect.height === workArea.height;
             let shouldWaitForSizeChange = window.maximized_vertically && window.maximized_horizontally && !rectGood;
-
-            // We need to include didMaximize because max_vert and max_horiz
-            // don't always change right after calling maximize(): mutter might
-            // defer the maximize wait until the window is placed.
-            shouldWaitForSizeChange |= didMaximize;
 
 log("WindowManager: window added after v " + window.maximized_vertically + " h " + window.maximized_horizontally  + " rect " + rectGood);
 
