@@ -1615,7 +1615,9 @@ var Keyboard = GObject.registerClass({
             // keyboard on RTL locales.
             text_direction: Clutter.TextDirection.LTR,
             vertical: true,
+            request_mode: Clutter.RequestMode.HEIGHT_FOR_WIDTH,
         });
+
         this._focusInExtendedKeys = false;
         this._emojiActive = false;
 
@@ -2266,26 +2268,36 @@ var Keyboard = GObject.registerClass({
 
         return [numOfHorizSlots, numOfVertSlots];
     }
+/*
+    vfunc_get_preferred_height(forWidth) {
+        let monitor = Main.layoutManager.keyboardMonitor;
+        const maxHeight = Main.layoutManager.isPhone
+            ? monitor.height * 0.55 : monitor.height / 3;
+
+        const [minH, natH] = super.vfunc_get_preferred_height(forWidth);
+
+        return [minH, natH];
+    }
+*/
+    vfunc_allocate(box) {
+        const monitor = Main.layoutManager.keyboardMonitor;
+
+        if (monitor) {
+            const maxHeight = Main.layoutManager.isPhone
+                ? monitor.height * 0.55 : monitor.height / 3;
+
+            if (box.get_height() > maxHeight)
+                box.y1 = box.y2 - maxHeight;
+        }
+
+        super.vfunc_allocate(box);
+    }
 
     _relayout() {
         let monitor = Main.layoutManager.keyboardMonitor;
 
         if (!monitor)
             return;
-
-        this.width = monitor.width;
-
-        this.height = -1;
-        const forWidth = this.get_theme_node().adjust_for_width(monitor.width);
-        const [, natHeight] = this.get_preferred_height(forWidth);
-
-        const maxHeight = Main.layoutManager.isPhone
-            ? monitor.height * 0.55 : monitor.height / 3;
-
-        if (natHeight > maxHeight)
-            this.height = maxHeight;
-        else
-            this.height = natHeight;
     }
 
     _updateKeys() {

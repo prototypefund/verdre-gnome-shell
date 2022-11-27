@@ -323,7 +323,7 @@ var LayoutManager = GObject.registerClass({
         this.uiGroup.add_actor(this.modalDialogGroup);
 
         this.keyboardBox = new St.Widget({
-            layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.FILL }),
+            layout_manager: new Clutter.BinLayout({ y_align: Clutter.BinAlignment.FILL, x_align: Clutter.BinAlignment.FILL, }),
             name: 'keyboardBox',
             visible: false,
         });
