@@ -2754,9 +2754,6 @@ var KeyboardController = class extends Signals.EventEmitter {
     }
 
     getCurrentGroup() {
-        if (Main.inputMethod.terminalMode)
-            return 'us-extended';
-
         // Special case for Korean, if Hangul mode is disabled, use the 'us' keymap
         if (this._currentSource.id === 'hangul') {
             const inputSourceManager = InputSourceManager.getInputSourceManager();
@@ -2770,10 +2767,15 @@ var KeyboardController = class extends Signals.EventEmitter {
             }
         }
 
-        if (Main.layoutManager.isPhone)
-            return this._currentSource.xkbId + '-mobile';
+        let group = this._currentSource.xkbId;
 
-        return this._currentSource.xkbId;
+        if (Main.inputMethod.terminalMode)
+            group += '-extended';
+
+        if (Main.layoutManager.isPhone)
+            group += '-mobile';
+
+        return group;
     }
 
     commitString(string, fromKey) {
