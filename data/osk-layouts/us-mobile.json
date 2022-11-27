@@ -195,18 +195,36 @@
           {
             "action": "emoji",
             "iconName": "smile-symbolic",
-            "width": 1.5
+            "width": 1
+          },
+          {
+            "strings": [
+              ","
+            ]
           },
           {
             "strings": [
               " "
             ],
-            "width": 5
+            "width": 4
+          },
+          {
+            "strings": [
+              ".",
+              "#",
+              "!",
+              ",",
+              "?",
+              "-",
+              ":",
+              "'",
+              "@"
+            ]
           },
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
-            "width": 2
+            "width": 1.5
           }
         ]
       ]
@@ -406,18 +424,36 @@
           {
             "action": "emoji",
             "iconName": "smile-symbolic",
-            "width": 1.5
+            "width": 1
+          },
+          {
+            "strings": [
+              ","
+            ]
           },
           {
             "strings": [
               " "
             ],
-            "width": 5
+            "width": 4
+          },
+          {
+            "strings": [
+              ".",
+              "#",
+              "!",
+              ",",
+              "?",
+              "-",
+              ":",
+              "'",
+              "@"
+            ]
           },
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
-            "width": 2
+            "width": 1.5
           }
         ]
       ]
@@ -527,11 +563,6 @@
           },
           {
             "strings": [
-              "/"
-            ]
-          },
-          {
-            "strings": [
               "-",
               "_",
               "–",
@@ -559,6 +590,11 @@
               ">",
               "}",
               "]"
+            ]
+          },
+          {
+            "strings": [
+              "/"
             ]
           }
         ],
@@ -632,7 +668,8 @@
           },
           {
             "action": "emoji",
-            "iconName": "smile-symbolic"
+            "iconName": "smile-symbolic",
+            "width": 1
           },
           {
             "strings": [
@@ -643,7 +680,7 @@
             "strings": [
               " "
             ],
-            "width": 3.5
+            "width": 4
           },
           {
             "strings": [
@@ -654,7 +691,7 @@
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
-            "width": 2
+            "width": 1.5
           }
         ]
       ]
@@ -754,9 +791,7 @@
           },
           {
             "strings": [
-              "°",
-              "′",
-              "″"
+              "_"
             ]
           },
           {
@@ -776,18 +811,25 @@
             "strings": [
               "}"
             ]
+          },
+          {
+            "strings": [
+              "\\"
+            ]
           }
         ],
         [
           {
             "action": "levelSwitch",
-            "label": "?123",
+            "label": "123",
             "level": 2,
             "width": 1.5
           },
           {
             "strings": [
-              "\\"
+              "°",
+              "′",
+              "″"
             ]
           },
           {
@@ -835,29 +877,35 @@
           },
           {
             "action": "emoji",
-            "iconName": "smile-symbolic"
+            "iconName": "smile-symbolic",
+            "width": 1
           },
           {
             "strings": [
-              ","
+              "<",
+              "‹",
+              "≤",
+              "«"
             ]
           },
           {
             "strings": [
               " "
             ],
-            "width": 3.5
+            "width": 4
           },
           {
             "strings": [
-              ".",
-              "…"
+              ">",
+              "›",
+              "≥",
+              "»"
             ]
           },
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
-            "width": 2
+            "width": 1.5
           }
         ]
       ]

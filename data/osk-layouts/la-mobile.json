@@ -7,179 +7,202 @@
         [
           {
             "strings": [
-              "q"
+              "ຢ",
+              "໑"
             ]
           },
           {
             "strings": [
-              "w"
+              "ຟ",
+              "໒"
             ]
           },
           {
             "strings": [
-              "e",
-              "é",
-              "è",
-              "ê",
-              "ë",
-              "ė"
+              "ໂ",
+              "໓"
             ]
           },
           {
             "strings": [
-              "r"
+              "ຖ",
+              "໔"
             ]
           },
           {
             "strings": [
-              "t"
+              "ຸ"
             ]
           },
           {
             "strings": [
-              "z"
+              "ູ"
             ]
           },
           {
             "strings": [
-              "u",
-              "ü",
-              "û",
-              "ù",
-              "ú",
-              "ū"
+              "ຄ",
+              "໕"
             ]
           },
           {
             "strings": [
-              "i"
+              "ຕ",
+              "໖"
             ]
           },
           {
             "strings": [
-              "o",
-              "ö",
-              "ô",
-              "ò",
-              "ó",
-              "õ",
-              "œ",
-              "ø",
-              "ō"
+              "ຈ",
+              "໗"
             ]
           },
           {
             "strings": [
-              "p"
+              "ຂ",
+              "໘"
+            ]
+          },
+          {
+            "strings": [
+              "ຊ",
+              "໙"
+            ]
+          },
+          {
+            "strings": [
+              "ໍ"
             ]
           }
         ],
         [
           {
             "strings": [
-              "a",
-              "ä",
-              "â",
-              "à",
-              "á",
-              "æ",
-              "ã",
-              "å",
-              "ā"
+              "ົ"
             ]
           },
           {
             "strings": [
-              "s",
-              "ß",
-              "ś",
-              "š"
+              "ໄ",
+              "໐"
             ]
           },
           {
             "strings": [
-              "d"
+              "ຳ"
             ]
           },
           {
             "strings": [
-              "f"
+              "ພ"
             ]
           },
           {
             "strings": [
-              "g"
+              "ະ"
             ]
           },
           {
             "strings": [
-              "h"
+              "ິ"
             ]
           },
           {
             "strings": [
-              "j"
+              "ີ"
             ]
           },
           {
             "strings": [
-              "k"
+              "ຮ"
             ]
           },
           {
             "strings": [
-              "l"
+              "ນ"
+            ]
+          },
+          {
+            "strings": [
+              "ຍ"
+            ]
+          },
+          {
+            "strings": [
+              "ບ"
+            ]
+          },
+          {
+            "strings": [
+              "ລ"
             ]
           }
         ],
         [
           {
-            "action": "levelSwitch",
-            "iconName": "keyboard-shift-symbolic",
-            "level": 1,
-            "width": 1.5
-          },
-          {
             "strings": [
-              "y"
+              "ັ"
             ]
           },
           {
             "strings": [
-              "x"
+              "ຫ"
             ]
           },
           {
             "strings": [
-              "c"
+              "ກ"
             ]
           },
           {
             "strings": [
-              "v"
+              "ດ"
             ]
           },
           {
             "strings": [
-              "b"
+              "ເ"
             ]
           },
           {
             "strings": [
-              "n",
-              "ñ",
-              "ń"
+              "້"
             ]
           },
           {
             "strings": [
-              "m"
+              "່"
+            ]
+          },
+          {
+            "strings": [
+              "າ"
+            ]
+          },
+          {
+            "strings": [
+              "ສ"
+            ]
+          },
+          {
+            "strings": [
+              "ວ"
+            ]
+          },
+          {
+            "strings": [
+              "ງ"
+            ]
+          },
+          {
+            "strings": [
+              "“"
             ]
           },
           {
             "action": "delete",
             "iconName": "edit-clear-symbolic",
-            "width": 1.5
+            "width": 1
           }
         ],
         [
@@ -196,14 +219,71 @@
           },
           {
             "strings": [
-              ","
+              "ຜ"
             ]
           },
           {
             "strings": [
               " "
             ],
-            "width": 4
+            "width": 5
+          },
+          {
+            "strings": [
+              "ແ"
+            ]
+          },
+          {
+            "strings": [
+              "ອ"
+            ]
+          },
+          {
+            "strings": [
+              "ຶ"
+            ]
+          },
+          {
+            "strings": [
+              "ື"
+            ]
+          },
+          {
+            "strings": [
+              "ທ"
+            ]
+          },
+          {
+            "strings": [
+              "ມ"
+            ]
+          },
+          {
+            "strings": [
+              "ໃ"
+            ]
+          },
+          {
+            "strings": [
+              "ຝ"
+            ]
+          },
+          {
+            "iconName": "keyboard-enter-symbolic",
+            "keyval": "0xff0d",
+            "width": 1.5
+          }
+        ],
+        [
+          {
+            "strings": [
+              ","
+            ]
+          },
+          {
+            "strings": [
+              " "
+            ]
           },
           {
             "strings": [
@@ -217,237 +297,6 @@
               "'",
               "@"
             ]
-          },
-          {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
-          }
-        ]
-      ]
-    },
-    {
-      "level": "shift",
-      "mode": "latched",
-      "rows": [
-        [
-          {
-            "strings": [
-              "Q"
-            ]
-          },
-          {
-            "strings": [
-              "W"
-            ]
-          },
-          {
-            "strings": [
-              "E",
-              "É",
-              "È",
-              "Ê",
-              "Ë",
-              "Ė"
-            ]
-          },
-          {
-            "strings": [
-              "R"
-            ]
-          },
-          {
-            "strings": [
-              "T"
-            ]
-          },
-          {
-            "strings": [
-              "Z"
-            ]
-          },
-          {
-            "strings": [
-              "U",
-              "Ü",
-              "Û",
-              "Ù",
-              "Ú",
-              "Ū"
-            ]
-          },
-          {
-            "strings": [
-              "I"
-            ]
-          },
-          {
-            "strings": [
-              "O",
-              "Ö",
-              "Ô",
-              "Ò",
-              "Ó",
-              "Õ",
-              "Œ",
-              "Ø",
-              "Ō"
-            ]
-          },
-          {
-            "strings": [
-              "P"
-            ]
-          }
-        ],
-        [
-          {
-            "strings": [
-              "A",
-              "Ä",
-              "Â",
-              "À",
-              "Á",
-              "Æ",
-              "Ã",
-              "Å",
-              "Ā"
-            ]
-          },
-          {
-            "strings": [
-              "S",
-              "SS",
-              "Ś",
-              "Š"
-            ]
-          },
-          {
-            "strings": [
-              "D"
-            ]
-          },
-          {
-            "strings": [
-              "F"
-            ]
-          },
-          {
-            "strings": [
-              "G"
-            ]
-          },
-          {
-            "strings": [
-              "H"
-            ]
-          },
-          {
-            "strings": [
-              "J"
-            ]
-          },
-          {
-            "strings": [
-              "K"
-            ]
-          },
-          {
-            "strings": [
-              "L"
-            ]
-          }
-        ],
-        [
-          {
-            "action": "levelSwitch",
-            "iconName": "keyboard-shift-symbolic",
-            "level": 0,
-            "width": 1.5
-          },
-          {
-            "strings": [
-              "Y"
-            ]
-          },
-          {
-            "strings": [
-              "X"
-            ]
-          },
-          {
-            "strings": [
-              "C"
-            ]
-          },
-          {
-            "strings": [
-              "V"
-            ]
-          },
-          {
-            "strings": [
-              "B"
-            ]
-          },
-          {
-            "strings": [
-              "N",
-              "Ñ",
-              "Ń"
-            ]
-          },
-          {
-            "strings": [
-              "M"
-            ]
-          },
-          {
-            "action": "delete",
-            "iconName": "edit-clear-symbolic",
-            "width": 1.5
-          }
-        ],
-        [
-          {
-            "action": "levelSwitch",
-            "label": "123",
-            "level": 2,
-            "width": 1.5
-          },
-          {
-            "action": "emoji",
-            "iconName": "smile-symbolic",
-            "width": 1
-          },
-          {
-            "strings": [
-              ","
-            ]
-          },
-          {
-            "strings": [
-              " "
-            ],
-            "width": 4
-          },
-          {
-            "strings": [
-              ".",
-              "#",
-              "!",
-              ",",
-              "?",
-              "-",
-              ":",
-              "'",
-              "@"
-            ]
-          },
-          {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
           }
         ]
       ]
@@ -536,10 +385,11 @@
           },
           {
             "strings": [
-              "€",
-              "¢",
-              "£",
+              "₭",
               "$",
+              "¢",
+              "€",
+              "£",
               "¥",
               "₱"
             ]
@@ -761,7 +611,7 @@
           },
           {
             "strings": [
-              "¥"
+              "€"
             ]
           },
           {
@@ -906,6 +756,6 @@
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "lo",
+  "name": "Lao"
 }

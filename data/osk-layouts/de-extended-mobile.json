@@ -6,6 +6,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "q"
             ]
@@ -232,6 +271,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "Q"
             ]
@@ -456,6 +534,45 @@
       "level": "opt",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [
@@ -694,6 +811,45 @@
       "level": "opt+shift",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [

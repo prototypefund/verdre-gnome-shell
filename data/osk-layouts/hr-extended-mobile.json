@@ -6,6 +6,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "q"
             ]
@@ -17,12 +56,7 @@
           },
           {
             "strings": [
-              "e",
-              "é",
-              "è",
-              "ê",
-              "ë",
-              "ė"
+              "e"
             ]
           },
           {
@@ -37,17 +71,15 @@
           },
           {
             "strings": [
-              "z"
+              "z",
+              "ž",
+              "ź",
+              "ż"
             ]
           },
           {
             "strings": [
-              "u",
-              "ü",
-              "û",
-              "ù",
-              "ú",
-              "ū"
+              "u"
             ]
           },
           {
@@ -57,15 +89,7 @@
           },
           {
             "strings": [
-              "o",
-              "ö",
-              "ô",
-              "ò",
-              "ó",
-              "õ",
-              "œ",
-              "ø",
-              "ō"
+              "o"
             ]
           },
           {
@@ -77,28 +101,21 @@
         [
           {
             "strings": [
-              "a",
-              "ä",
-              "â",
-              "à",
-              "á",
-              "æ",
-              "ã",
-              "å",
-              "ā"
+              "a"
             ]
           },
           {
             "strings": [
               "s",
-              "ß",
+              "š",
               "ś",
-              "š"
+              "ß"
             ]
           },
           {
             "strings": [
-              "d"
+              "d",
+              "đ"
             ]
           },
           {
@@ -151,7 +168,10 @@
           },
           {
             "strings": [
-              "c"
+              "c",
+              "č",
+              "ć",
+              "ç"
             ]
           },
           {
@@ -232,6 +252,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "Q"
             ]
@@ -243,12 +302,7 @@
           },
           {
             "strings": [
-              "E",
-              "É",
-              "È",
-              "Ê",
-              "Ë",
-              "Ė"
+              "E"
             ]
           },
           {
@@ -263,17 +317,15 @@
           },
           {
             "strings": [
-              "Z"
+              "Z",
+              "Ž",
+              "Ź",
+              "Ż"
             ]
           },
           {
             "strings": [
-              "U",
-              "Ü",
-              "Û",
-              "Ù",
-              "Ú",
-              "Ū"
+              "U"
             ]
           },
           {
@@ -283,15 +335,7 @@
           },
           {
             "strings": [
-              "O",
-              "Ö",
-              "Ô",
-              "Ò",
-              "Ó",
-              "Õ",
-              "Œ",
-              "Ø",
-              "Ō"
+              "O"
             ]
           },
           {
@@ -303,28 +347,21 @@
         [
           {
             "strings": [
-              "A",
-              "Ä",
-              "Â",
-              "À",
-              "Á",
-              "Æ",
-              "Ã",
-              "Å",
-              "Ā"
+              "A"
             ]
           },
           {
             "strings": [
               "S",
-              "SS",
+              "Š",
               "Ś",
-              "Š"
+              "SS"
             ]
           },
           {
             "strings": [
-              "D"
+              "D",
+              "Đ"
             ]
           },
           {
@@ -377,7 +414,10 @@
           },
           {
             "strings": [
-              "C"
+              "C",
+              "Č",
+              "Ć",
+              "Ç"
             ]
           },
           {
@@ -458,6 +498,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "1",
               "¹",
@@ -536,10 +615,10 @@
           },
           {
             "strings": [
-              "€",
+              "$",
               "¢",
               "£",
-              "$",
+              "€",
               "¥",
               "₱"
             ]
@@ -696,6 +775,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "~"
             ]
@@ -761,18 +879,17 @@
           },
           {
             "strings": [
+              "¢"
+            ]
+          },
+          {
+            "strings": [
+              "€"
+            ]
+          },
+          {
+            "strings": [
               "¥"
-            ]
-          },
-          {
-            "strings": [
-              "$",
-              "¢"
-            ]
-          },
-          {
-            "strings": [
-              "¢"
             ]
           },
           {
@@ -906,6 +1023,6 @@
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "hr",
+  "name": "Croatian"
 }

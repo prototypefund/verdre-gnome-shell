@@ -199,18 +199,25 @@ def find_layer(root, layer):
     return None;
 
 def create_mobile(root):
-    lowercase_level = find_layer(root, "")
+    default_level = find_layer(root, "")
     uppercase_level = find_layer(root, "shift")
     optkeys_level = find_layer(root, "opt")
     optshiftkeys_level = find_layer(root, "opt+shift")
 
-    lowercase_level["rows"][2].insert(0, create_action_key("levelSwitch", 1, None, "keyboard-shift-symbolic", 1.5))
-    lowercase_level["rows"][2].append(create_action_key("delete", None, None, "edit-clear-symbolic", 1.5))
 
-    lowercase_level["rows"][3].insert(0, create_action_key("levelSwitch", 2, "123", None, 1.5))
-    lowercase_level["rows"][3].insert(1, create_action_key("emoji", None, None, "smile-symbolic", 1))
-    lowercase_level["rows"][3][3] = create_char_key([" "], None, None, None, 4)
-    lowercase_level["rows"][3].append(create_char_key(None, "0xff0d", None, "keyboard-enter-symbolic", 1.5))
+    if (uppercase_level):
+        default_level["rows"][2].insert(0, create_action_key("levelSwitch", 1, None, "keyboard-shift-symbolic", 1.5))
+        default_level["rows"][2].append(create_action_key("delete", None, None, "edit-clear-symbolic", 1.5))
+    else:
+        default_level["rows"][2].append(create_action_key("delete", None, None, "edit-clear-symbolic", 1))
+
+    default_level["rows"][3].insert(0, create_action_key("levelSwitch", 2, "123", None, 1.5))
+    default_level["rows"][3].insert(1, create_action_key("emoji", None, None, "smile-symbolic", 1))
+    if (uppercase_level):
+        default_level["rows"][3][3] = create_char_key([" "], None, None, None, 4)
+    else:
+        default_level["rows"][3][3] = create_char_key([" "], None, None, None, 5)
+    default_level["rows"][3].append(create_char_key(None, "0xff0d", None, "keyboard-enter-symbolic", 1.5))
 
     if (uppercase_level):
         uppercase_level["rows"][2].insert(0, create_action_key("levelSwitch", 0, None, "keyboard-shift-symbolic", 1.5))
@@ -259,9 +266,9 @@ def create_mobile_terminal(mobile_root):
     terminal_row.append(create_char_key(None, "0xff09", "Tab", None, 2))
     terminal_row.append(create_modifier_key("0xffe3", "Ctrl", None, 2))
     terminal_row.append(create_modifier_key("0xffe9", "Alt", None, 2))
-    terminal_row.append(create_char_key(None, "0xff51", None, "go-previous-symbolic", 1))
     terminal_row.append(create_char_key(None, "0xff52", None, "go-up-symbolic", 1))
     terminal_row.append(create_char_key(None, "0xff54", None, "go-down-symbolic", 1))
+    terminal_row.append(create_char_key(None, "0xff51", None, "go-previous-symbolic", 1))
     terminal_row.append(create_char_key(None, "0xff53", None, "go-next-symbolic", 1))
 
     for level in mobile_root["levels"]:

@@ -6,6 +6,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "q"
             ]
@@ -19,10 +58,12 @@
             "strings": [
               "e",
               "é",
-              "è",
-              "ê",
               "ë",
-              "ė"
+              "ê",
+              "è",
+              "ę",
+              "ė",
+              "ē"
             ]
           },
           {
@@ -37,31 +78,39 @@
           },
           {
             "strings": [
-              "z"
+              "y",
+              "ĳ"
             ]
           },
           {
             "strings": [
               "u",
+              "ú",
               "ü",
               "û",
               "ù",
-              "ú",
               "ū"
             ]
           },
           {
             "strings": [
-              "i"
+              "i",
+              "í",
+              "ï",
+              "ì",
+              "î",
+              "į",
+              "ī",
+              "ĳ"
             ]
           },
           {
             "strings": [
               "o",
+              "ó",
               "ö",
               "ô",
               "ò",
-              "ó",
               "õ",
               "œ",
               "ø",
@@ -78,10 +127,10 @@
           {
             "strings": [
               "a",
+              "á",
               "ä",
               "â",
               "à",
-              "á",
               "æ",
               "ã",
               "å",
@@ -90,10 +139,7 @@
           },
           {
             "strings": [
-              "s",
-              "ß",
-              "ś",
-              "š"
+              "s"
             ]
           },
           {
@@ -141,7 +187,7 @@
           },
           {
             "strings": [
-              "y"
+              "z"
             ]
           },
           {
@@ -232,6 +278,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "Q"
             ]
@@ -245,10 +330,12 @@
             "strings": [
               "E",
               "É",
-              "È",
-              "Ê",
               "Ë",
-              "Ė"
+              "Ê",
+              "È",
+              "Ę",
+              "Ė",
+              "Ē"
             ]
           },
           {
@@ -263,31 +350,39 @@
           },
           {
             "strings": [
-              "Z"
+              "Y",
+              "Ĳ"
             ]
           },
           {
             "strings": [
               "U",
+              "Ú",
               "Ü",
               "Û",
               "Ù",
-              "Ú",
               "Ū"
             ]
           },
           {
             "strings": [
-              "I"
+              "I",
+              "Í",
+              "Ï",
+              "Ì",
+              "Î",
+              "Į",
+              "Ī",
+              "Ĳ"
             ]
           },
           {
             "strings": [
               "O",
+              "Ó",
               "Ö",
               "Ô",
               "Ò",
-              "Ó",
               "Õ",
               "Œ",
               "Ø",
@@ -304,10 +399,10 @@
           {
             "strings": [
               "A",
+              "Á",
               "Ä",
               "Â",
               "À",
-              "Á",
               "Æ",
               "Ã",
               "Å",
@@ -316,10 +411,7 @@
           },
           {
             "strings": [
-              "S",
-              "SS",
-              "Ś",
-              "Š"
+              "S"
             ]
           },
           {
@@ -367,7 +459,7 @@
           },
           {
             "strings": [
-              "Y"
+              "Z"
             ]
           },
           {
@@ -456,6 +548,45 @@
       "level": "opt",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [
@@ -696,6 +827,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "~"
             ]
@@ -906,6 +1076,6 @@
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "nl-BE",
+  "name": "Dutch (Belgium)"
 }

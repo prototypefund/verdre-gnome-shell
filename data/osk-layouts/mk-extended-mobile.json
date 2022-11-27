@@ -6,129 +6,156 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
-              "q"
+              "љ"
             ]
           },
           {
             "strings": [
-              "w"
+              "њ"
             ]
           },
           {
             "strings": [
-              "e",
-              "é",
-              "è",
-              "ê",
-              "ë",
-              "ė"
+              "е",
+              "ѐ"
             ]
           },
           {
             "strings": [
-              "r"
+              "р"
             ]
           },
           {
             "strings": [
-              "t"
+              "т"
             ]
           },
           {
             "strings": [
-              "z"
+              "ѕ"
             ]
           },
           {
             "strings": [
-              "u",
-              "ü",
-              "û",
-              "ù",
-              "ú",
-              "ū"
+              "у"
             ]
           },
           {
             "strings": [
-              "i"
+              "и",
+              "ѝ"
             ]
           },
           {
             "strings": [
-              "o",
-              "ö",
-              "ô",
-              "ò",
-              "ó",
-              "õ",
-              "œ",
-              "ø",
-              "ō"
+              "о"
             ]
           },
           {
             "strings": [
-              "p"
+              "п"
+            ]
+          },
+          {
+            "strings": [
+              "ш"
             ]
           }
         ],
         [
           {
             "strings": [
-              "a",
-              "ä",
-              "â",
-              "à",
-              "á",
-              "æ",
-              "ã",
-              "å",
-              "ā"
+              "а"
             ]
           },
           {
             "strings": [
-              "s",
-              "ß",
-              "ś",
-              "š"
+              "с"
             ]
           },
           {
             "strings": [
-              "d"
+              "д"
             ]
           },
           {
             "strings": [
-              "f"
+              "ф"
             ]
           },
           {
             "strings": [
-              "g"
+              "г"
             ]
           },
           {
             "strings": [
-              "h"
+              "х"
             ]
           },
           {
             "strings": [
-              "j"
+              "ј"
             ]
           },
           {
             "strings": [
-              "k"
+              "к"
             ]
           },
           {
             "strings": [
-              "l"
+              "л"
+            ]
+          },
+          {
+            "strings": [
+              "ч"
+            ]
+          },
+          {
+            "strings": [
+              "ќ"
             ]
           }
         ],
@@ -141,39 +168,47 @@
           },
           {
             "strings": [
-              "y"
+              "з"
             ]
           },
           {
             "strings": [
-              "x"
+              "џ"
             ]
           },
           {
             "strings": [
-              "c"
+              "ц"
             ]
           },
           {
             "strings": [
-              "v"
+              "в"
             ]
           },
           {
             "strings": [
-              "b"
+              "б"
             ]
           },
           {
             "strings": [
-              "n",
-              "ñ",
-              "ń"
+              "н"
             ]
           },
           {
             "strings": [
-              "m"
+              "м"
+            ]
+          },
+          {
+            "strings": [
+              "ѓ"
+            ]
+          },
+          {
+            "strings": [
+              "ж"
             ]
           },
           {
@@ -232,129 +267,156 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
-              "Q"
+              "Љ"
             ]
           },
           {
             "strings": [
-              "W"
+              "Њ"
             ]
           },
           {
             "strings": [
-              "E",
-              "É",
-              "È",
-              "Ê",
-              "Ë",
-              "Ė"
+              "Е",
+              "Ѐ"
             ]
           },
           {
             "strings": [
-              "R"
+              "Р"
             ]
           },
           {
             "strings": [
-              "T"
+              "Т"
             ]
           },
           {
             "strings": [
-              "Z"
+              "Ѕ"
             ]
           },
           {
             "strings": [
-              "U",
-              "Ü",
-              "Û",
-              "Ù",
-              "Ú",
-              "Ū"
+              "У"
             ]
           },
           {
             "strings": [
-              "I"
+              "И",
+              "Ѝ"
             ]
           },
           {
             "strings": [
-              "O",
-              "Ö",
-              "Ô",
-              "Ò",
-              "Ó",
-              "Õ",
-              "Œ",
-              "Ø",
-              "Ō"
+              "О"
             ]
           },
           {
             "strings": [
-              "P"
+              "П"
+            ]
+          },
+          {
+            "strings": [
+              "Ш"
             ]
           }
         ],
         [
           {
             "strings": [
-              "A",
-              "Ä",
-              "Â",
-              "À",
-              "Á",
-              "Æ",
-              "Ã",
-              "Å",
-              "Ā"
+              "А"
             ]
           },
           {
             "strings": [
-              "S",
-              "SS",
-              "Ś",
-              "Š"
+              "С"
             ]
           },
           {
             "strings": [
-              "D"
+              "Д"
             ]
           },
           {
             "strings": [
-              "F"
+              "Ф"
             ]
           },
           {
             "strings": [
-              "G"
+              "Г"
             ]
           },
           {
             "strings": [
-              "H"
+              "Х"
             ]
           },
           {
             "strings": [
-              "J"
+              "Ј"
             ]
           },
           {
             "strings": [
-              "K"
+              "К"
             ]
           },
           {
             "strings": [
-              "L"
+              "Л"
+            ]
+          },
+          {
+            "strings": [
+              "Ч"
+            ]
+          },
+          {
+            "strings": [
+              "Ќ"
             ]
           }
         ],
@@ -367,39 +429,47 @@
           },
           {
             "strings": [
-              "Y"
+              "З"
             ]
           },
           {
             "strings": [
-              "X"
+              "Џ"
             ]
           },
           {
             "strings": [
-              "C"
+              "Ц"
             ]
           },
           {
             "strings": [
-              "V"
+              "В"
             ]
           },
           {
             "strings": [
-              "B"
+              "Б"
             ]
           },
           {
             "strings": [
-              "N",
-              "Ñ",
-              "Ń"
+              "Н"
             ]
           },
           {
             "strings": [
-              "M"
+              "М"
+            ]
+          },
+          {
+            "strings": [
+              "Ѓ"
+            ]
+          },
+          {
+            "strings": [
+              "Ж"
             ]
           },
           {
@@ -456,6 +526,45 @@
       "level": "opt",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [
@@ -536,10 +645,10 @@
           },
           {
             "strings": [
-              "€",
+              "$",
               "¢",
               "£",
-              "$",
+              "€",
               "¥",
               "₱"
             ]
@@ -696,6 +805,45 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
               "~"
             ]
@@ -761,18 +909,17 @@
           },
           {
             "strings": [
+              "¢"
+            ]
+          },
+          {
+            "strings": [
+              "€"
+            ]
+          },
+          {
+            "strings": [
               "¥"
-            ]
-          },
-          {
-            "strings": [
-              "$",
-              "¢"
-            ]
-          },
-          {
-            "strings": [
-              "¢"
             ]
           },
           {
@@ -906,6 +1053,6 @@
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "mk",
+  "name": "Macedonian"
 }

@@ -17,12 +17,7 @@
           },
           {
             "strings": [
-              "e",
-              "é",
-              "è",
-              "ê",
-              "ë",
-              "ė"
+              "e"
             ]
           },
           {
@@ -37,17 +32,12 @@
           },
           {
             "strings": [
-              "z"
+              "y"
             ]
           },
           {
             "strings": [
-              "u",
-              "ü",
-              "û",
-              "ù",
-              "ú",
-              "ū"
+              "u"
             ]
           },
           {
@@ -57,15 +47,7 @@
           },
           {
             "strings": [
-              "o",
-              "ö",
-              "ô",
-              "ò",
-              "ó",
-              "õ",
-              "œ",
-              "ø",
-              "ō"
+              "o"
             ]
           },
           {
@@ -77,23 +59,12 @@
         [
           {
             "strings": [
-              "a",
-              "ä",
-              "â",
-              "à",
-              "á",
-              "æ",
-              "ã",
-              "å",
-              "ā"
+              "a"
             ]
           },
           {
             "strings": [
-              "s",
-              "ß",
-              "ś",
-              "š"
+              "s"
             ]
           },
           {
@@ -134,14 +105,8 @@
         ],
         [
           {
-            "action": "levelSwitch",
-            "iconName": "keyboard-shift-symbolic",
-            "level": 1,
-            "width": 1.5
-          },
-          {
             "strings": [
-              "y"
+              "z"
             ]
           },
           {
@@ -166,34 +131,16 @@
           },
           {
             "strings": [
-              "n",
-              "ñ",
-              "ń"
+              "n"
             ]
           },
           {
             "strings": [
               "m"
             ]
-          },
-          {
-            "action": "delete",
-            "iconName": "edit-clear-symbolic",
-            "width": 1.5
           }
         ],
         [
-          {
-            "action": "levelSwitch",
-            "label": "123",
-            "level": 2,
-            "width": 1.5
-          },
-          {
-            "action": "emoji",
-            "iconName": "smile-symbolic",
-            "width": 1
-          },
           {
             "strings": [
               ","
@@ -202,8 +149,7 @@
           {
             "strings": [
               " "
-            ],
-            "width": 4
+            ]
           },
           {
             "strings": [
@@ -217,11 +163,6 @@
               "'",
               "@"
             ]
-          },
-          {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
           }
         ]
       ]
@@ -243,12 +184,7 @@
           },
           {
             "strings": [
-              "E",
-              "É",
-              "È",
-              "Ê",
-              "Ë",
-              "Ė"
+              "E"
             ]
           },
           {
@@ -263,17 +199,12 @@
           },
           {
             "strings": [
-              "Z"
+              "Y"
             ]
           },
           {
             "strings": [
-              "U",
-              "Ü",
-              "Û",
-              "Ù",
-              "Ú",
-              "Ū"
+              "U"
             ]
           },
           {
@@ -283,15 +214,7 @@
           },
           {
             "strings": [
-              "O",
-              "Ö",
-              "Ô",
-              "Ò",
-              "Ó",
-              "Õ",
-              "Œ",
-              "Ø",
-              "Ō"
+              "O"
             ]
           },
           {
@@ -303,23 +226,12 @@
         [
           {
             "strings": [
-              "A",
-              "Ä",
-              "Â",
-              "À",
-              "Á",
-              "Æ",
-              "Ã",
-              "Å",
-              "Ā"
+              "A"
             ]
           },
           {
             "strings": [
-              "S",
-              "SS",
-              "Ś",
-              "Š"
+              "S"
             ]
           },
           {
@@ -360,14 +272,8 @@
         ],
         [
           {
-            "action": "levelSwitch",
-            "iconName": "keyboard-shift-symbolic",
-            "level": 0,
-            "width": 1.5
-          },
-          {
             "strings": [
-              "Y"
+              "Z"
             ]
           },
           {
@@ -392,34 +298,16 @@
           },
           {
             "strings": [
-              "N",
-              "Ñ",
-              "Ń"
+              "N"
             ]
           },
           {
             "strings": [
               "M"
             ]
-          },
-          {
-            "action": "delete",
-            "iconName": "edit-clear-symbolic",
-            "width": 1.5
           }
         ],
         [
-          {
-            "action": "levelSwitch",
-            "label": "123",
-            "level": 2,
-            "width": 1.5
-          },
-          {
-            "action": "emoji",
-            "iconName": "smile-symbolic",
-            "width": 1
-          },
           {
             "strings": [
               ","
@@ -428,8 +316,7 @@
           {
             "strings": [
               " "
-            ],
-            "width": 4
+            ]
           },
           {
             "strings": [
@@ -443,11 +330,6 @@
               "'",
               "@"
             ]
-          },
-          {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
           }
         ]
       ]
@@ -536,10 +418,10 @@
           },
           {
             "strings": [
-              "€",
+              "$",
               "¢",
               "£",
-              "$",
+              "€",
               "¥",
               "₱"
             ]
@@ -585,20 +467,9 @@
               "}",
               "]"
             ]
-          },
-          {
-            "strings": [
-              "/"
-            ]
           }
         ],
         [
-          {
-            "action": "levelSwitch",
-            "label": "=/<",
-            "level": 3,
-            "width": 1.5
-          },
           {
             "strings": [
               "*",
@@ -646,24 +517,23 @@
               "?",
               "¿"
             ]
-          },
-          {
-            "action": "delete",
-            "iconName": "edit-clear-symbolic",
-            "width": 1.5
           }
         ],
         [
           {
-            "action": "levelSwitch",
-            "label": "ABC",
-            "level": 0,
-            "width": 1.5
+            "strings": [
+              "_"
+            ]
           },
           {
-            "action": "emoji",
-            "iconName": "smile-symbolic",
-            "width": 1
+            "strings": [
+              "/"
+            ]
+          },
+          {
+            "strings": [
+              " "
+            ]
           },
           {
             "strings": [
@@ -672,20 +542,9 @@
           },
           {
             "strings": [
-              " "
-            ],
-            "width": 4
-          },
-          {
-            "strings": [
               ".",
               "…"
             ]
-          },
-          {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
           }
         ]
       ]
@@ -761,18 +620,17 @@
           },
           {
             "strings": [
+              "¢"
+            ]
+          },
+          {
+            "strings": [
+              "€"
+            ]
+          },
+          {
+            "strings": [
               "¥"
-            ]
-          },
-          {
-            "strings": [
-              "$",
-              "¢"
-            ]
-          },
-          {
-            "strings": [
-              "¢"
             ]
           },
           {
@@ -786,7 +644,9 @@
           },
           {
             "strings": [
-              "_"
+              "°",
+              "′",
+              "″"
             ]
           },
           {
@@ -806,25 +666,12 @@
             "strings": [
               "}"
             ]
-          },
-          {
-            "strings": [
-              "\\"
-            ]
           }
         ],
         [
           {
-            "action": "levelSwitch",
-            "label": "123",
-            "level": 2,
-            "width": 1.5
-          },
-          {
             "strings": [
-              "°",
-              "′",
-              "″"
+              "\\"
             ]
           },
           {
@@ -856,25 +703,9 @@
             "strings": [
               "]"
             ]
-          },
-          {
-            "action": "delete",
-            "iconName": "edit-clear-symbolic",
-            "width": 1.5
           }
         ],
         [
-          {
-            "action": "levelSwitch",
-            "label": "ABC",
-            "level": 0,
-            "width": 1.5
-          },
-          {
-            "action": "emoji",
-            "iconName": "smile-symbolic",
-            "width": 1
-          },
           {
             "strings": [
               "<",
@@ -885,12 +716,6 @@
           },
           {
             "strings": [
-              " "
-            ],
-            "width": 4
-          },
-          {
-            "strings": [
               ">",
               "›",
               "≥",
@@ -898,14 +723,25 @@
             ]
           },
           {
-            "iconName": "keyboard-enter-symbolic",
-            "keyval": "0xff0d",
-            "width": 1.5
+            "strings": [
+              " "
+            ]
+          },
+          {
+            "strings": [
+              ","
+            ]
+          },
+          {
+            "strings": [
+              ".",
+              "…"
+            ]
           }
         ]
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "id",
+  "name": "Indonesian"
 }

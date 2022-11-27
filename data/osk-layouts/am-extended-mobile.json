@@ -6,129 +6,145 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
-              "q"
+              "է"
             ]
           },
           {
             "strings": [
-              "w"
+              "թ"
             ]
           },
           {
             "strings": [
-              "e",
-              "é",
-              "è",
-              "ê",
-              "ë",
-              "ė"
+              "փ"
             ]
           },
           {
             "strings": [
-              "r"
+              "ձ"
             ]
           },
           {
             "strings": [
-              "t"
+              "ջ"
             ]
           },
           {
             "strings": [
-              "z"
+              "ր"
             ]
           },
           {
             "strings": [
-              "u",
-              "ü",
-              "û",
-              "ù",
-              "ú",
-              "ū"
+              "չ"
             ]
           },
           {
             "strings": [
-              "i"
+              "ճ"
             ]
           },
           {
             "strings": [
-              "o",
-              "ö",
-              "ô",
-              "ò",
-              "ó",
-              "õ",
-              "œ",
-              "ø",
-              "ō"
+              "ժ"
             ]
           },
           {
             "strings": [
-              "p"
+              "ծ"
             ]
           }
         ],
         [
           {
             "strings": [
-              "a",
-              "ä",
-              "â",
-              "à",
-              "á",
-              "æ",
-              "ã",
-              "å",
-              "ā"
+              "ք"
             ]
           },
           {
             "strings": [
-              "s",
-              "ß",
-              "ś",
-              "š"
+              "ո"
             ]
           },
           {
             "strings": [
-              "d"
+              "ե",
+              "և"
             ]
           },
           {
             "strings": [
-              "f"
+              "ռ"
             ]
           },
           {
             "strings": [
-              "g"
+              "տ"
             ]
           },
           {
             "strings": [
-              "h"
+              "ը"
             ]
           },
           {
             "strings": [
-              "j"
+              "ւ"
             ]
           },
           {
             "strings": [
-              "k"
+              "ի"
             ]
           },
           {
             "strings": [
-              "l"
+              "օ"
+            ]
+          },
+          {
+            "strings": [
+              "պ"
             ]
           }
         ],
@@ -141,39 +157,52 @@
           },
           {
             "strings": [
-              "y"
+              "ա"
             ]
           },
           {
             "strings": [
-              "x"
+              "ս"
             ]
           },
           {
             "strings": [
-              "c"
+              "դ"
             ]
           },
           {
             "strings": [
-              "v"
+              "ֆ"
             ]
           },
           {
             "strings": [
-              "b"
+              "գ"
             ]
           },
           {
             "strings": [
-              "n",
-              "ñ",
-              "ń"
+              "հ"
             ]
           },
           {
             "strings": [
-              "m"
+              "յ"
+            ]
+          },
+          {
+            "strings": [
+              "կ"
+            ]
+          },
+          {
+            "strings": [
+              "լ"
+            ]
+          },
+          {
+            "strings": [
+              "խ"
             ]
           },
           {
@@ -196,7 +225,7 @@
           },
           {
             "strings": [
-              ","
+              "զ"
             ]
           },
           {
@@ -207,21 +236,55 @@
           },
           {
             "strings": [
-              ".",
-              "#",
-              "!",
-              ",",
-              "?",
-              "-",
-              ":",
-              "'",
-              "@"
+              "ց"
+            ]
+          },
+          {
+            "strings": [
+              "վ"
+            ]
+          },
+          {
+            "strings": [
+              "բ"
+            ]
+          },
+          {
+            "strings": [
+              "ն"
+            ]
+          },
+          {
+            "strings": [
+              "մ"
+            ]
+          },
+          {
+            "strings": [
+              "շ"
             ]
           },
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
             "width": 1.5
+          }
+        ],
+        [
+          {
+            "strings": [
+              ","
+            ]
+          },
+          {
+            "strings": [
+              " "
+            ]
+          },
+          {
+            "strings": [
+              "։"
+            ]
           }
         ]
       ]
@@ -232,129 +295,145 @@
       "rows": [
         [
           {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
+        [
+          {
             "strings": [
-              "Q"
+              "Է"
             ]
           },
           {
             "strings": [
-              "W"
+              "Թ"
             ]
           },
           {
             "strings": [
-              "E",
-              "É",
-              "È",
-              "Ê",
-              "Ë",
-              "Ė"
+              "Փ"
             ]
           },
           {
             "strings": [
-              "R"
+              "Ձ"
             ]
           },
           {
             "strings": [
-              "T"
+              "Ջ"
             ]
           },
           {
             "strings": [
-              "Z"
+              "Ր"
             ]
           },
           {
             "strings": [
-              "U",
-              "Ü",
-              "Û",
-              "Ù",
-              "Ú",
-              "Ū"
+              "Չ"
             ]
           },
           {
             "strings": [
-              "I"
+              "Ճ"
             ]
           },
           {
             "strings": [
-              "O",
-              "Ö",
-              "Ô",
-              "Ò",
-              "Ó",
-              "Õ",
-              "Œ",
-              "Ø",
-              "Ō"
+              "Ժ"
             ]
           },
           {
             "strings": [
-              "P"
+              "Ծ"
             ]
           }
         ],
         [
           {
             "strings": [
-              "A",
-              "Ä",
-              "Â",
-              "À",
-              "Á",
-              "Æ",
-              "Ã",
-              "Å",
-              "Ā"
+              "Ք"
             ]
           },
           {
             "strings": [
-              "S",
-              "SS",
-              "Ś",
-              "Š"
+              "Ո"
             ]
           },
           {
             "strings": [
-              "D"
+              "Ե",
+              "ԵՒ"
             ]
           },
           {
             "strings": [
-              "F"
+              "Ռ"
             ]
           },
           {
             "strings": [
-              "G"
+              "Տ"
             ]
           },
           {
             "strings": [
-              "H"
+              "Ը"
             ]
           },
           {
             "strings": [
-              "J"
+              "Ւ"
             ]
           },
           {
             "strings": [
-              "K"
+              "Ի"
             ]
           },
           {
             "strings": [
-              "L"
+              "Օ"
+            ]
+          },
+          {
+            "strings": [
+              "Պ"
             ]
           }
         ],
@@ -367,39 +446,52 @@
           },
           {
             "strings": [
-              "Y"
+              "Ա"
             ]
           },
           {
             "strings": [
-              "X"
+              "Ս"
             ]
           },
           {
             "strings": [
-              "C"
+              "Դ"
             ]
           },
           {
             "strings": [
-              "V"
+              "Ֆ"
             ]
           },
           {
             "strings": [
-              "B"
+              "Գ"
             ]
           },
           {
             "strings": [
-              "N",
-              "Ñ",
-              "Ń"
+              "Հ"
             ]
           },
           {
             "strings": [
-              "M"
+              "Յ"
+            ]
+          },
+          {
+            "strings": [
+              "Կ"
+            ]
+          },
+          {
+            "strings": [
+              "Լ"
+            ]
+          },
+          {
+            "strings": [
+              "Խ"
             ]
           },
           {
@@ -422,7 +514,7 @@
           },
           {
             "strings": [
-              ","
+              "Զ"
             ]
           },
           {
@@ -433,21 +525,55 @@
           },
           {
             "strings": [
-              ".",
-              "#",
-              "!",
-              ",",
-              "?",
-              "-",
-              ":",
-              "'",
-              "@"
+              "Ց"
+            ]
+          },
+          {
+            "strings": [
+              "Վ"
+            ]
+          },
+          {
+            "strings": [
+              "Բ"
+            ]
+          },
+          {
+            "strings": [
+              "Ն"
+            ]
+          },
+          {
+            "strings": [
+              "Մ"
+            ]
+          },
+          {
+            "strings": [
+              "Շ"
             ]
           },
           {
             "iconName": "keyboard-enter-symbolic",
             "keyval": "0xff0d",
             "width": 1.5
+          }
+        ],
+        [
+          {
+            "strings": [
+              ","
+            ]
+          },
+          {
+            "strings": [
+              " "
+            ]
+          },
+          {
+            "strings": [
+              "։"
+            ]
           }
         ]
       ]
@@ -456,6 +582,45 @@
       "level": "opt",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [
@@ -536,10 +701,10 @@
           },
           {
             "strings": [
-              "€",
+              "$",
               "¢",
               "£",
-              "$",
+              "€",
               "¥",
               "₱"
             ]
@@ -638,12 +803,14 @@
           {
             "strings": [
               "!",
+              "՜",
               "¡"
             ]
           },
           {
             "strings": [
               "?",
+              "՞",
               "¿"
             ]
           },
@@ -667,7 +834,7 @@
           },
           {
             "strings": [
-              ","
+              "՝"
             ]
           },
           {
@@ -678,8 +845,22 @@
           },
           {
             "strings": [
+              "։",
+              "!",
+              "?",
+              ",",
               ".",
-              "…"
+              "֊",
+              "՜",
+              "՝",
+              "՞",
+              ":",
+              ";",
+              "@",
+              "ՙ",
+              "՚",
+              "՛",
+              "՟"
             ]
           },
           {
@@ -694,6 +875,45 @@
       "level": "opt+shift",
       "mode": "locked",
       "rows": [
+        [
+          {
+            "keyval": "0xff09",
+            "label": "Tab",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe3",
+            "label": "Ctrl",
+            "width": 2
+          },
+          {
+            "action": "modifier",
+            "keyval": "0xffe9",
+            "label": "Alt",
+            "width": 2
+          },
+          {
+            "iconName": "go-up-symbolic",
+            "keyval": "0xff52",
+            "width": 1
+          },
+          {
+            "iconName": "go-down-symbolic",
+            "keyval": "0xff54",
+            "width": 1
+          },
+          {
+            "iconName": "go-previous-symbolic",
+            "keyval": "0xff51",
+            "width": 1
+          },
+          {
+            "iconName": "go-next-symbolic",
+            "keyval": "0xff53",
+            "width": 1
+          }
+        ],
         [
           {
             "strings": [
@@ -761,18 +981,17 @@
           },
           {
             "strings": [
+              "¢"
+            ]
+          },
+          {
+            "strings": [
+              "€"
+            ]
+          },
+          {
+            "strings": [
               "¥"
-            ]
-          },
-          {
-            "strings": [
-              "$",
-              "¢"
-            ]
-          },
-          {
-            "strings": [
-              "¢"
             ]
           },
           {
@@ -906,6 +1125,6 @@
       ]
     }
   ],
-  "locale": "de",
-  "name": "German"
+  "locale": "hy",
+  "name": "Armenian"
 }
