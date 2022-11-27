@@ -243,33 +243,43 @@ var LanguageSelectionPopup = class extends PopupMenu.PopupMenu {
         }, this);
     }
 
-    _onCapturedEvent(actor, event) {
-        const targetActor = global.stage.get_event_actor(event);
-
-        if (targetActor === this.actor ||
-            this.actor.contains(targetActor))
-            return Clutter.EVENT_PROPAGATE;
-
-        if (event.type() == Clutter.EventType.BUTTON_RELEASE || event.type() == Clutter.EventType.TOUCH_END)
-            this.close(true);
-
-        return Clutter.EVENT_STOP;
-    }
-
     open(animate) {
+        if (!this._coverActor) {
+            this._coverActor = new Clutter.Actor({ reactive: true });
+            this._coverActor.add_constraint(new Clutter.BindConstraint({
+                source: Main.uiGroup,
+                coordinate: Clutter.BindCoordinate.ALL,
+            }));
+
+            const hideSubkeysGesture = new KeyClickGesture({
+                name: 'OSK subkeys hide gesture',
+            });
+            hideSubkeysGesture.connect('press', () => {
+                GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE,
+                    () => { this.close(true); return GLib.SOURCE_REMOVE; });
+            });
+            this._coverActor.add_action(hideSubkeysGesture);
+
+            Main.layoutManager.keyboardBox.add_child(this._coverActor);
+            Main.layoutManager.keyboardBox.set_child_below_sibling(this._coverActor, this._boxPointer);
+        }
+
         super.open(animate);
-        global.stage.connectObject(
-            'captured-event', this._onCapturedEvent.bind(this), this);
     }
 
     close(animate) {
+        if (this._coverActor) {
+            this._coverActor.destroy();
+            delete this._coverActor;
+        }
         super.close(animate);
-        global.stage.disconnectObject(this);
     }
 
     destroy() {
-        global.stage.disconnectObject(this);
         this.sourceActor.disconnectObject(this);
+
+        if (this._coverActor)
+            this._coverActor.destroy();
         super.destroy();
     }
 };
@@ -471,6 +481,8 @@ var KeyContainerGesture = GObject.registerClass({
                 const points = this.get_points();
                 if (points[0])
                     this._pressedKey.longPressMoved(global.stage.get_event_actor(points[0].latest_event));
+            } else {
+                this.set_state(Clutter.GestureState.CANCELLED);
             }
 
             this._keyLongPressTimeout = 0;
@@ -2025,6 +2037,13 @@ var Keyboard = GObject.registerClass({
                         this._toggleDelete(false);
                     }
                 });
+
+                if (key.action === 'emoji') {
+                    button.connect('long-press', () => {
+                        this._popupLanguageMenu(button);
+                        return true;
+                    });
+                }
             }
 
             if (key.action === 'levelSwitch' &&
