@@ -481,8 +481,6 @@ var KeyContainerGesture = GObject.registerClass({
                 const points = this.get_points();
                 if (points[0])
                     this._pressedKey.longPressMoved(global.stage.get_event_actor(points[0].latest_event));
-            } else {
-                this.set_state(Clutter.GestureState.CANCELLED);
             }
 
             this._keyLongPressTimeout = 0;
@@ -2080,7 +2078,7 @@ var Keyboard = GObject.registerClass({
                 if (key.action === 'emoji') {
                     button.connect('long-press', () => {
                         this._popupLanguageMenu(button);
-                        return true;
+layout._keyContainerGesture.set_state(Clutter.GestureState.CANCELLED);
                     });
                 }
             }
