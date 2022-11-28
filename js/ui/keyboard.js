@@ -1750,6 +1750,16 @@ var Keyboard = GObject.registerClass({
     _panUpdate(gesture, deltaX, deltaY, pannedDistance) {
         if (this._panCurY < this._keyboardBeginY) {
             this._panCurY += deltaY;
+
+            const windowActor = this._focusWindow?.get_compositor_private();
+
+            // subtract the bottom panel here because we don't want the window to include the panel
+            if (windowActor) {
+                let totalDelta = this._panCurY - this._panBeginY;
+                totalDelta = Math.max(0, Math.min(this._panHeight, totalDelta))
+                windowActor.y = this._focusWindowStartY - (this._panHeight - totalDelta);
+            }
+
             return;
         }
         this._panCurY += deltaY;
@@ -1766,9 +1776,8 @@ var Keyboard = GObject.registerClass({
 
         // subtract the bottom panel here because we don't want the window to include the panel
         if (windowActor) {
-            let totalDelta = newTranslation;
-            if (totalDelta >= this._panHeight)
-                totalDelta = this._panHeight
+            let totalDelta = this._panCurY - this._panBeginY;
+            totalDelta = Math.max(0, Math.min(this._panHeight, totalDelta))
             windowActor.y = this._focusWindowStartY - (this._panHeight - totalDelta);
         }
     }
@@ -1779,6 +1788,7 @@ var Keyboard = GObject.registerClass({
 
         const remainingHeight = panHeight - this.translation_y;
 
+        const window = this._focusWindow;
         const windowActor = this._focusWindow?.get_compositor_private();
 
         if (this._panCurY >= this._keyboardBeginY && (velocityY > 0.9 || (remainingHeight < panHeight / 2 && velocityY >= 0))) {
@@ -1796,7 +1806,7 @@ var Keyboard = GObject.registerClass({
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     onStopped: () => {
                         windowActor.y = this._focusWindowStartY;
-                        this._windowSlideAnimationComplete(this._focusWindow, this._focusWindowStartY);
+                        this._windowSlideAnimationComplete(window, this._focusWindowStartY);
                     },
                 });
             }
@@ -1807,6 +1817,10 @@ var Keyboard = GObject.registerClass({
                 mode: Clutter.AnimationMode.EASE_OUT_EXPO,
             });
 
+            if (windowActor)
+                this._windowSlideAnimationComplete(window, windowActor.y);
+
+/*
             if (windowActor) {
                 windowActor.ease({
                     // subtract the bottom panel here because we don't want the window to include the panel
@@ -1815,10 +1829,11 @@ var Keyboard = GObject.registerClass({
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     onStopped: () => {
                         windowActor.y = this._focusWindowStartY - (this._panHeight);
-                        this._windowSlideAnimationComplete(window, this._focusWindowStartY - (this._panHeight));
+                        this._windowSlideAnimationComplete(window, windowActor.y);
                     },
                 });
             }
+*/
         }
     }
 
@@ -2634,6 +2649,9 @@ var Keyboard = GObject.registerClass({
     }
 
     _windowSlideAnimationComplete(window, finalY) {
+        if (!window)
+            return;
+
         // Synchronize window positions again.
         const frameRect = window.get_frame_rect();
         const bufferRect = window.get_buffer_rect();
