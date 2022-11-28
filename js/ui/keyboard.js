@@ -930,18 +930,37 @@ log("KEYBOARD: setting cur window to " + window);
         if (rect.size.height <= 0)
             rect.size.height = 1;
 
-        if (this._currentWindow) {
-            const frameRect = this._currentWindow.get_frame_rect();
-            const grapheneFrameRect = new Graphene.Rect();
-            grapheneFrameRect.init(frameRect.x, frameRect.y,
-                frameRect.width, frameRect.height);
+        if (this._currentWindow) {/*
+            const alloc = this._currentWindow.get_compositor_private().allocation;
 
-            const rectInsideFrameRect = grapheneFrameRect.intersection(rect)[0];
-            if (!rectInsideFrameRect) {
-log("KEYBOARD: rect not equal to fr rect");
-                return;
-}
+            let frameRect = this._currentWindow.get_frame_rect();
+            const bufferRect = this._currentWindow.get_buffer_rect();
 
+            frameRect = {
+                x: alloc.x1 + (frameRect.x - bufferRect.x),
+                y: alloc.y1 + (frameRect.y - bufferRect.y),
+                width: alloc.get_width() + (frameRect.width - bufferRect.width),
+                height: alloc.get_height() + (frameRect.height - bufferRect.height),
+            }
+
+            if (rect.origin.x < frameRect.x) {
+                rect.origin.x = frameRect.x;
+                rect.size.width = 1;
+            } else if (rect.origin.x + rect.size.width > frameRect.x + frameRect.width) {
+                rect.origin.x = (frameRect.x + frameRect.width) - 1;
+                rect.size.width = 1;
+            }
+
+            if (rect.origin.y < frameRect.y) {
+log("KEYBOARD: cursor above frame rect, constraining");
+                rect.origin.y = frameRect.y;
+                rect.size.height = 1;
+            } else if (rect.origin.y + rect.size.height > frameRect.y + frameRect.height) {
+log("KEYBOARD: cursor below frame rect, constraining");
+                rect.origin.y = (frameRect.y + frameRect.height) - 1;
+                rect.size.height = 1;
+            }
+*/
 
         }
 //IM could have been disabled in the mean time
@@ -950,7 +969,7 @@ log("KEYBOARD: rect not equal to fr rect");
   //          return;
 //}
 
-log("KEYBORAD: emitting position ccahnged");
+log("KEYBOARD: got rect x " + rect.origin.x + " y " + rect.origin.y);
         this._rect = rect;
         this.emit('position-changed');
 
@@ -1722,6 +1741,9 @@ var Keyboard = GObject.registerClass({
         windowActor?.remove_transition('y');
 
         this._keyboardBeginY = this.get_transformed_extents().origin.y;
+        if (windowActor)
+            this._panHeight = this._focusWindowStartY - windowActor.y;
+        this._panBeginY = y;
         this._panCurY = y;
     }
 
@@ -1740,13 +1762,15 @@ var Keyboard = GObject.registerClass({
 
         const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
 
-        const panHeight = this.get_transformed_extents().size.height;
-
         const windowActor = this._focusWindow?.get_compositor_private();
 
         // subtract the bottom panel here because we don't want the window to include the panel
-        if (windowActor)
-            windowActor.y = this._focusWindowStartY - (panHeight - bottomPanelHeight - newTranslation);
+        if (windowActor) {
+            let totalDelta = newTranslation;
+            if (totalDelta >= this._panHeight)
+                totalDelta = this._panHeight
+            windowActor.y = this._focusWindowStartY - (this._panHeight - totalDelta);
+        }
     }
 
     _panEnd(gesture, velocityX, velocityY) {
@@ -1786,12 +1810,12 @@ var Keyboard = GObject.registerClass({
             if (windowActor) {
                 windowActor.ease({
                     // subtract the bottom panel here because we don't want the window to include the panel
-                    y: this._focusWindowStartY - (panHeight - bottomPanelHeight),
+                    y: this._focusWindowStartY - (this._panHeight),
                     duration: KEYBOARD_ANIMATION_TIME,
                     mode: Clutter.AnimationMode.EASE_OUT_QUAD,
                     onStopped: () => {
-                        windowActor.y = this._focusWindowStartY - (panHeight - bottomPanelHeight);
-                     //   this._windowSlideAnimationComplete(window, finalY);
+                        windowActor.y = this._focusWindowStartY - (this._panHeight);
+                        this._windowSlideAnimationComplete(window, this._focusWindowStartY - (this._panHeight));
                     },
                 });
             }
@@ -2632,9 +2656,17 @@ var Keyboard = GObject.registerClass({
         const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
 
         const finalY = show
-            ? this._focusWindowStartY - (this.get_transformed_extents().size.height - bottomPanelHeight)
+            ? windowActor.y - this._getOverlap()
             : this._focusWindowStartY;
 
+        log("KEYBOARD: moving windowY to " + finalY);
+
+    /*    const existingTrans = windowActor.get_transition('y');
+        if (existingTrans) {
+            existingTrans.get_interval().set_final(this._finalY);
+            return;
+        }
+*/
         windowActor.ease({
             y: finalY,
             duration: KEYBOARD_ANIMATION_TIME,
@@ -2659,43 +2691,108 @@ var Keyboard = GObject.registerClass({
     }
 
     _setFocusWindow(window) {
-        if (this._focusWindow === window)
+        if (this._keyboardVisible && this._focusWindow && this._focusWindow === window) {
+            this._animateWindow(window, true);
             return;
+        }
 
         if (this._keyboardVisible && this._focusWindow)
             this._animateWindow(this._focusWindow, false);
 
         const windowActor = window?.get_compositor_private();
-        windowActor?.remove_transition('y');
         this._focusWindowStartY = windowActor ? windowActor.y : null;
-
-        if (this._keyboardVisible && window)
-            this._animateWindow(window, true);
-
         this._focusWindow = window;
+
+        if (this._keyboardVisible && this._focusWindow)
+            this._animateWindow(this._focusWindow, true);
+
+
+    }
+
+    _getOverlap() {
+        const monitor = Main.layoutManager.keyboardMonitor;
+        if (!monitor)
+            throw new Error("shouldn't happen");
+
+        if (!this._focusWindow)
+            throw new Error("shouldn't happen");
+
+let x, y ,w , h;
+x = y = w =h =0;
+if (this._focusWindow._latestLocation)
+        [x, y, w, h] = this._focusWindow._latestLocation;
+
+
+
+            const alloc = this._focusWindow.get_compositor_private().allocation;
+
+            let frameRect = this._focusWindow.get_frame_rect();
+            const bufferRect = this._focusWindow.get_buffer_rect();
+
+            frameRect = {
+                x: alloc.x1 + (frameRect.x - bufferRect.x),
+                y: alloc.y1 + (frameRect.y - bufferRect.y),
+                width: alloc.get_width() + (frameRect.width - bufferRect.width),
+                height: alloc.get_height() + (frameRect.height - bufferRect.height),
+            }
+
+            if (x < frameRect.x) {
+                x = frameRect.x;
+                w = 1;
+            } else if (x + w > frameRect.x + frameRect.width) {
+                x = (frameRect.x + frameRect.width) - 1;
+                w = 1;
+            }
+
+            if (y < frameRect.y) {
+log("KEYBOARD: cursor above frame rect, constraining");
+                y = frameRect.y;
+                h = 1;
+            } else if (y + h > frameRect.y + frameRect.height) {
+log("KEYBOARD: cursor below frame rect, constraining");
+                y = (frameRect.y + frameRect.height) - 1;
+                h = 1;
+            }
+
+
+        const keyboardHeight = this.get_transformed_extents().size.height;
+        const keyboardY1 = (monitor.y + monitor.height) - keyboardHeight;
+        const workspaceY1 = Main.layoutManager.getWorkAreaForMonitor(monitor).y;
+/*
+            if (y < workspaceY1) {
+                y = workspaceY1;
+                h = 1;
+            } else if (y + h > keyboardY1) {
+                y = keyboardY1 - 1;
+                h = 1;
+            }
+*/
+        const keyboardOverlap = (y + h) - keyboardY1;
+        const workspaceOverlap = y - workspaceY1;
+
+        if (keyboardOverlap > 0) {
+            this._overlap = keyboardOverlap - 0;
+
+    log("KEYBOARD: there's y overlap, setting window overlap " + keyboardOverlap);
+        } else if (workspaceOverlap < 0) {
+            this._overlap = workspaceOverlap;
+    log("KEYBOARD: workspace negative y olverlap sett " + workspaceOverlap);
+
+        } else {
+            this._overlap = 0;
+        }
+
+        return this._overlap;
     }
 
     setCursorLocation(window, x, y, w, h) {
         let monitor = Main.layoutManager.keyboardMonitor;
 
+
+
         if (window && monitor && window.get_monitor() === monitor.index) {
-            const keyboardHeight = this.height;
-            const keyboardY1 = (monitor.y + monitor.height) - keyboardHeight;
-
-            if (this._focusWindow === window) {
-                if (y + h + keyboardHeight < keyboardY1)
-                    this._setFocusWindow(null);
-
-                return;
-            }
-
-            if (y + h >= keyboardY1) {
-log("KEYBOARD: there's y overlap, setting window");
-                this._setFocusWindow(window);
-            } else {
-log("KEYBOARD: no y olverlap");
-                this._setFocusWindow(null);
-}
+        window._latestLocation = [x, y, w, h];
+            this._setFocusWindow(window);
         } else {
 log("KEYBOARD: no window");
             this._setFocusWindow(null);
