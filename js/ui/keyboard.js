@@ -2671,9 +2671,37 @@ layout._keyContainerGesture.set_state(Clutter.GestureState.CANCELLED);
 
         const bottomPanelHeight = this._bottomPanelBox ? this._bottomPanelBox.height : 0;
 
-        const finalY = show
+        let finalY = show
             ? windowActor.y - this._getOverlap()
             : this._focusWindowStartY;
+
+        if (show) {
+            const alloc = this._focusWindow.get_compositor_private().allocation;
+
+            let frameRect = this._focusWindow.get_frame_rect();
+            const bufferRect = this._focusWindow.get_buffer_rect();
+
+            frameRect = {
+                x: alloc.x1 + (frameRect.x - bufferRect.x),
+                y: alloc.y1 + (frameRect.y - bufferRect.y),
+                width: alloc.get_width() + (frameRect.width - bufferRect.width),
+                height: alloc.get_height() + (frameRect.height - bufferRect.height),
+            }
+
+
+            const monitor = Main.layoutManager.keyboardMonitor;
+            const keyboardHeight = this.get_transformed_extents().size.height;
+            const keyboardY1 = (monitor.y + monitor.height) - keyboardHeight;
+            const workspaceY1 = Main.layoutManager.getWorkAreaForMonitor(monitor).y;
+
+            const keyboardOverlap = (frameRect.y + frameRect.height) - keyboardY1;
+            const workspaceOverlap = frameRect.y - workspaceY1;
+log("KEY over " + keyboardOverlap + " ws over " + workspaceOverlap);
+            if (finalY < alloc.y1 && keyboardOverlap > 0 && keyboardOverlap < 80)
+                finalY = keyboardY1 - alloc.get_height();
+            else if (finalY > alloc.y1 && workspaceOverlap < 0 && workspaceOverlap > -80)
+                finalY = workspaceY1 - (frameRect.x - bufferRect.x);
+        }
 
         log("KEYBOARD: moving windowY to " + finalY);
 
